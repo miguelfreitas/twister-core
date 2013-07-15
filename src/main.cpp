@@ -54,6 +54,7 @@ int64 CTransaction::nMinTxFee = 10000;  // Override with -mintxfee
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying) */
 int64 CTransaction::nMinRelayTxFee = 10000;
 
+
 CMedianFilter<int> cPeerBlockCounts(8, 0); // Amount of blocks that other nodes claim to have
 
 map<uint256, CBlock*> mapOrphanBlocks;
@@ -424,9 +425,10 @@ bool AddOrphanTx(const CDataStream& vMsg)
     }
 
     mapOrphanTransactions[hash] = pvMsg;
+    /* [MF]
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
         mapOrphanTransactionsByPrev[txin.prevout.hash].insert(make_pair(hash, pvMsg));
-
+    */
     printf("stored orphan tx %s (mapsz %"PRIszu")\n", hash.ToString().c_str(),
         mapOrphanTransactions.size());
     return true;
@@ -439,12 +441,14 @@ void static EraseOrphanTx(uint256 hash)
     const CDataStream* pvMsg = mapOrphanTransactions[hash];
     CTransaction tx;
     CDataStream(*pvMsg) >> tx;
+    /* [MF]
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         mapOrphanTransactionsByPrev[txin.prevout.hash].erase(hash);
         if (mapOrphanTransactionsByPrev[txin.prevout.hash].empty())
             mapOrphanTransactionsByPrev.erase(txin.prevout.hash);
     }
+    */
     delete pvMsg;
     mapOrphanTransactions.erase(hash);
 }
@@ -493,6 +497,7 @@ bool IsStandardTx(const CTransaction& tx, string& reason)
         return false;
     }
 
+    /* [MF]
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         // Biggest 'standard' txin is a 3-signature 3-of-3 CHECKMULTISIG
@@ -517,12 +522,13 @@ bool IsStandardTx(const CTransaction& tx, string& reason)
             return false;
         }
     }
-
+    */
     return true;
 }
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64 nBlockTime)
 {
+  /* [MF]
     // Time based nLockTime implemented in 0.1.6
     if (tx.nLockTime == 0)
         return true;
@@ -535,6 +541,8 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64 nBlockTime)
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
         if (!txin.IsFinal())
             return false;
+
+   */
     return true;
 }
 
@@ -544,12 +552,13 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64 nBlockTime)
 int64 GetValueOut(const CTransaction& tx)
 {
     int64 nValueOut = 0;
+    /* [MF]
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
     {
         nValueOut += txout.nValue;
         if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
             throw std::runtime_error("GetValueOut() : value out of range");
-    }
+    } */
     return nValueOut;
 }
 
@@ -568,7 +577,7 @@ bool AreInputsStandard(const CTransaction& tx, CCoinsViewCache& mapInputs)
 {
     if (tx.IsCoinBase())
         return true; // Coinbases don't use vin normally
-
+/* [MF]
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);
@@ -614,13 +623,14 @@ bool AreInputsStandard(const CTransaction& tx, CCoinsViewCache& mapInputs)
         if (stack.size() != (unsigned int)nArgsExpected)
             return false;
     }
-
+*/
     return true;
 }
 
 unsigned int GetLegacySigOpCount(const CTransaction& tx)
 {
     unsigned int nSigOps = 0;
+    /*
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         nSigOps += txin.scriptSig.GetSigOpCount(false);
@@ -629,6 +639,7 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx)
     {
         nSigOps += txout.scriptPubKey.GetSigOpCount(false);
     }
+    */
     return nSigOps;
 }
 
@@ -638,12 +649,14 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, CCoinsViewCache& inputs)
         return 0;
 
     unsigned int nSigOps = 0;
+    /*
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         const CTxOut &prevout = inputs.GetOutputFor(tx.vin[i]);
         if (prevout.scriptPubKey.IsPayToScriptHash())
             nSigOps += prevout.scriptPubKey.GetSigOpCount(tx.vin[i].scriptSig);
     }
+    */
     return nSigOps;
 }
 
@@ -702,6 +715,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 {
+    /* [MF]
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, error("CheckTransaction() : vin empty"));
@@ -744,12 +758,13 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
             if (txin.prevout.IsNull())
                 return state.DoS(10, error("CheckTransaction() : prevout is null"));
     }
-
+  */
     return true;
 }
 
 int64 GetMinFee(const CTransaction& tx, bool fAllowFree, enum GetMinFee_mode mode)
 {
+  /*
     // Base fee is either nMinTxFee or nMinRelayTxFee
     int64 nBaseFee = (mode == GMF_RELAY) ? tx.nMinRelayTxFee : tx.nMinTxFee;
 
@@ -778,6 +793,8 @@ int64 GetMinFee(const CTransaction& tx, bool fAllowFree, enum GetMinFee_mode mod
     if (!MoneyRange(nMinFee))
         nMinFee = MAX_MONEY;
     return nMinFee;
+    */
+  return 0;
 }
 
 void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
@@ -806,9 +823,11 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     if (tx.IsCoinBase())
         return state.DoS(100, error("CTxMemPool::accept() : coinbase as individual tx"));
 
+    /*
     // To help v0.1.5 clients who would see it as a negative number
     if ((int64)tx.nLockTime > std::numeric_limits<int>::max())
         return error("CTxMemPool::accept() : not accepting nLockTime beyond 2038 yet");
+*/
 
     // Rather not work on nonstandard transactions (unless -testnet)
     string reason;
@@ -826,6 +845,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
 
     // Check for conflicts with in-memory transactions
     CTransaction* ptxOld = NULL;
+    /* [MF]
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         COutPoint outpoint = tx.vin[i].prevout;
@@ -851,7 +871,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
             break;
         }
     }
-
+*/
     {
         CCoinsView dummy;
         CCoinsViewCache view(dummy);
@@ -868,6 +888,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
         // do all inputs exist?
         // Note that this does not check for the presence of actual outputs (see the next check for that),
         // only helps filling in pfMissingInputs (to determine missing vs spent).
+        /*
         BOOST_FOREACH(const CTxIn txin, tx.vin) {
             if (!view.HaveCoins(txin.prevout.hash)) {
                 if (pfMissingInputs)
@@ -875,7 +896,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
                 return false;
             }
         }
-
+      */
         // are the actual inputs available?
         if (!view.HaveInputs(tx))
             return state.Invalid(error("CTxMemPool::accept() : inputs already spent"));
@@ -908,6 +929,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
         // Continuously rate-limit free transactions
         // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
         // be annoying or make others' transactions take longer to confirm.
+        /*
         if (fLimitFree && nFees < CTransaction::nMinRelayTxFee)
         {
             static double dFreeCount;
@@ -927,7 +949,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
                 printf("Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount+nSize);
             dFreeCount += nSize;
         }
-
+        */
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
         if (!CheckInputs(tx, state, view, true, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC))
@@ -966,8 +988,10 @@ bool CTxMemPool::addUnchecked(const uint256& hash, CTransaction &tx)
     // call CTxMemPool::accept to properly check the transaction first.
     {
         mapTx[hash] = tx;
+        /* [MF]
         for (unsigned int i = 0; i < tx.vin.size(); i++)
             mapNextTx[tx.vin[i].prevout] = CInPoint(&mapTx[hash], i);
+            */
         nTransactionsUpdated++;
     }
     return true;
@@ -983,14 +1007,18 @@ bool CTxMemPool::remove(const CTransaction &tx, bool fRecursive)
         if (mapTx.count(hash))
         {
             if (fRecursive) {
+              /*
                 for (unsigned int i = 0; i < tx.vout.size(); i++) {
                     std::map<COutPoint, CInPoint>::iterator it = mapNextTx.find(COutPoint(hash, i));
                     if (it != mapNextTx.end())
                         remove(*it->second.ptx, true);
                 }
+                */
             }
+            /*
             BOOST_FOREACH(const CTxIn& txin, tx.vin)
                 mapNextTx.erase(txin.prevout);
+                */
             mapTx.erase(hash);
             nTransactionsUpdated++;
         }
@@ -1002,6 +1030,7 @@ bool CTxMemPool::removeConflicts(const CTransaction &tx)
 {
     // Remove transactions which depend on inputs of tx, recursively
     LOCK(cs);
+    /* [MF]
     BOOST_FOREACH(const CTxIn &txin, tx.vin) {
         std::map<COutPoint, CInPoint>::iterator it = mapNextTx.find(txin.prevout);
         if (it != mapNextTx.end()) {
@@ -1010,6 +1039,7 @@ bool CTxMemPool::removeConflicts(const CTransaction &tx)
                 remove(txConflict, true);
         }
     }
+    */
     return true;
 }
 
@@ -1497,9 +1527,10 @@ int64 CCoinsViewCache::GetValueIn(const CTransaction& tx)
         return 0;
 
     int64 nResult = 0;
+    /* [MF]
     for (unsigned int i = 0; i < tx.vin.size(); i++)
         nResult += GetOutputFor(tx.vin[i]).nValue;
-
+    */
     return nResult;
 }
 
@@ -1507,12 +1538,14 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
 {
     // mark inputs spent
     if (!tx.IsCoinBase()) {
+      /* [MF]
         BOOST_FOREACH(const CTxIn &txin, tx.vin) {
             CCoins &coins = inputs.GetCoins(txin.prevout.hash);
             CTxInUndo undo;
             assert(coins.Spend(txin.prevout, undo));
             txundo.vprevout.push_back(undo);
         }
+        */
     }
 
     // add outputs
@@ -1522,6 +1555,7 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
 bool CCoinsViewCache::HaveInputs(const CTransaction& tx)
 {
     if (!tx.IsCoinBase()) {
+      /* [MF]
         // first check whether information about the prevout hash is available
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
             const COutPoint &prevout = tx.vin[i].prevout;
@@ -1536,26 +1570,33 @@ bool CCoinsViewCache::HaveInputs(const CTransaction& tx)
             if (!coins.IsAvailable(prevout.n))
                 return false;
         }
+        */
     }
     return true;
 }
 
+/* [MF]
 bool CScriptCheck::operator()() const {
     const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
     if (!VerifyScript(scriptSig, scriptPubKey, *ptxTo, nIn, nFlags, nHashType))
         return error("CScriptCheck() : %s VerifySignature failed", ptxTo->GetHash().ToString().c_str());
     return true;
 }
+*/
 
 bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
 {
+    /* [MF]
     return CScriptCheck(txFrom, txTo, nIn, flags, nHashType)();
+    */
+    return true;
 }
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, std::vector<CScriptCheck> *pvChecks)
 {
     if (!tx.IsCoinBase())
     {
+      /* [MF]
         if (pvChecks)
             pvChecks->reserve(tx.vin.size());
 
@@ -1627,6 +1668,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, CCoinsViewCach
                 }
             }
         }
+        */
     }
 
     return true;
@@ -1675,6 +1717,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
         // restore inputs
         if (i > 0) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i-1];
+            /*
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock() : transaction and undo data inconsistent");
             for (unsigned int j = tx.vin.size(); j-- > 0;) {
@@ -1702,6 +1745,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
                 if (!view.SetCoins(out.hash, coins))
                     return error("DisconnectBlock() : cannot restore coin inputs");
             }
+            */
         }
     }
 
@@ -1811,7 +1855,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = block.vtx[i];
-
+        /* [MF]
         nInputs += tx.vin.size();
         nSigOps += GetLegacySigOpCount(tx);
         if (nSigOps > MAX_BLOCK_SIGOPS)
@@ -1839,7 +1883,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
                 return false;
             control.Add(vChecks);
         }
-
+*/
         CTxUndo txundo;
         UpdateCoins(tx, state, view, txundo, pindex->nHeight, block.GetTxHash(i));
         if (!tx.IsCoinBase())
@@ -2328,8 +2372,10 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp)
                 (TestNet() && CBlockIndex::IsSuperMajority(2, pindexPrev, 51, 100)))
             {
                 CScript expect = CScript() << nHeight;
+                /* [MF]
                 if (!std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin()))
                     return state.DoS(100, error("AcceptBlock() : block height mismatch in coinbase"));
+                    */
             }
         }
     }
@@ -4270,13 +4316,18 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
 
     // Create coinbase tx
     CTransaction txNew;
+    /* [MF]
     txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
     txNew.vout.resize(1);
+    */
+    txNew.message.clear();
+
+    /* [MF] Check! add spam  */
     CPubKey pubkey;
     if (!reservekey.GetReservedKey(pubkey))
         return NULL;
-    txNew.vout[0].scriptPubKey << pubkey << OP_CHECKSIG;
+    txNew.pubKey << pubkey << OP_CHECKSIG;
 
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
@@ -4323,6 +4374,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
             double dPriority = 0;
             int64 nTotalIn = 0;
             bool fMissingInputs = false;
+            /* [MF]
             BOOST_FOREACH(const CTxIn& txin, tx.vin)
             {
                 // Read prev transaction
@@ -4362,6 +4414,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
 
                 dPriority += (double)nValueIn * nConf;
             }
+            */
             if (fMissingInputs) continue;
 
             // Priority is sum(valuein * age) / txsize
@@ -4412,7 +4465,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
                 continue;
 
             // Skip free transactions if we're past the minimum block size:
-            if (fSortedByFee && (dFeePerKb < CTransaction::nMinTxFee) && (nBlockSize + nTxSize >= nBlockMinSize))
+            if (fSortedByFee && (nBlockSize + nTxSize >= nBlockMinSize))
                 continue;
 
             // Prioritize by fee once past the priority size or we run out of high-priority
@@ -4479,7 +4532,9 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
         nLastBlockSize = nBlockSize;
         printf("CreateNewBlock(): total size %"PRI64u"\n", nBlockSize);
 
+        /* [MF]
         pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
+        */
         pblocktemplate->vTxFees[0] = -nFees;
 
         // Fill in header
@@ -4487,7 +4542,9 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
         UpdateTime(*pblock, pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
         pblock->nNonce         = 0;
+        /* [MF]
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
+        */
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CBlockIndex indexDummy(*pblock);
@@ -4514,9 +4571,10 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
     }
     ++nExtraNonce;
     unsigned int nHeight = pindexPrev->nHeight+1; // Height first in coinbase required for block.version=2
+    /* [MF] Check!
     pblock->vtx[0].vin[0].scriptSig = (CScript() << nHeight << CBigNum(nExtraNonce)) + COINBASE_FLAGS;
     assert(pblock->vtx[0].vin[0].scriptSig.size() <= 100);
-
+    */
     pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 }
 
@@ -4579,7 +4637,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     printf("BitcoinMiner:\n");
     printf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex().c_str(), hashTarget.GetHex().c_str());
     pblock->print();
-    printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
+    //printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
 
     // Found a solution
     {

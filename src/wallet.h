@@ -228,9 +228,10 @@ public:
     }
     bool IsMine(const CTransaction& tx) const
     {
-        BOOST_FOREACH(const CTxOut& txout, tx.vout)
+/* [MF]       BOOST_FOREACH(const CTxOut& txout, tx.vout)
             if (IsMine(txout))
                 return true;
+*/
         return false;
     }
     bool IsFromMe(const CTransaction& tx) const
@@ -240,34 +241,40 @@ public:
     int64 GetDebit(const CTransaction& tx) const
     {
         int64 nDebit = 0;
+/* [MF]
         BOOST_FOREACH(const CTxIn& txin, tx.vin)
         {
             nDebit += GetDebit(txin);
             if (!MoneyRange(nDebit))
                 throw std::runtime_error("CWallet::GetDebit() : value out of range");
         }
+*/
         return nDebit;
     }
     int64 GetCredit(const CTransaction& tx) const
     {
         int64 nCredit = 0;
+/* [MF]
         BOOST_FOREACH(const CTxOut& txout, tx.vout)
         {
             nCredit += GetCredit(txout);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWallet::GetCredit() : value out of range");
         }
+        */
         return nCredit;
     }
     int64 GetChange(const CTransaction& tx) const
     {
         int64 nChange = 0;
+        /*
         BOOST_FOREACH(const CTxOut& txout, tx.vout)
         {
             nChange += GetChange(txout);
             if (!MoneyRange(nChange))
                 throw std::runtime_error("CWallet::GetChange() : value out of range");
         }
+        */
         return nChange;
     }
     void SetBestChain(const CBlockLocator& loc);
@@ -479,7 +486,7 @@ public:
         READWRITE(nTimeReceived);
         READWRITE(fFromMe);
         READWRITE(fSpent);
-
+/*
         if (fRead)
         {
             pthis->strFromAccount = pthis->mapValue["fromaccount"];
@@ -494,7 +501,7 @@ public:
 
             pthis->nTimeSmart = mapValue.count("timesmart") ? (unsigned int)atoi64(pthis->mapValue["timesmart"]) : 0;
         }
-
+*/
         pthis->mapValue.erase("fromaccount");
         pthis->mapValue.erase("version");
         pthis->mapValue.erase("spent");
@@ -539,7 +546,8 @@ public:
 
     void MarkSpent(unsigned int nOut)
     {
-        if (nOut >= vout.size())
+/*
+      if (nOut >= vout.size())
             throw std::runtime_error("CWalletTx::MarkSpent() : nOut out of range");
         vfSpent.resize(vout.size());
         if (!vfSpent[nOut])
@@ -547,23 +555,28 @@ public:
             vfSpent[nOut] = true;
             fAvailableCreditCached = false;
         }
+        */
     }
 
     bool IsSpent(unsigned int nOut) const
     {
+      /*
         if (nOut >= vout.size())
             throw std::runtime_error("CWalletTx::IsSpent() : nOut out of range");
         if (nOut >= vfSpent.size())
             return false;
+            */
         return (!!vfSpent[nOut]);
     }
 
     int64 GetDebit() const
     {
+      /*
         if (vin.empty())
             return 0;
         if (fDebitCached)
             return nDebitCached;
+            */
         nDebitCached = pwallet->GetDebit(*this);
         fDebitCached = true;
         return nDebitCached;
@@ -607,6 +620,7 @@ public:
             return nAvailableCreditCached;
 
         int64 nCredit = 0;
+        /*
         for (unsigned int i = 0; i < vout.size(); i++)
         {
             if (!IsSpent(i))
@@ -617,7 +631,7 @@ public:
                     throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
             }
         }
-
+*/
         nAvailableCreditCached = nCredit;
         fAvailableCreditCached = true;
         return nCredit;
@@ -676,13 +690,14 @@ public:
                 BOOST_FOREACH(const CMerkleTx& tx, vtxPrev)
                     mapPrev[tx.GetHash()] = &tx;
             }
-
+/*
             BOOST_FOREACH(const CTxIn& txin, ptx->vin)
             {
                 if (!mapPrev.count(txin.prevout.hash))
                     return false;
                 vWorkQueue.push_back(mapPrev[txin.prevout.hash]);
             }
+            */
         }
         return true;
     }
@@ -714,7 +729,7 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString().c_str(), i, nDepth, FormatMoney(tx->vout[i].nValue).c_str());
+        return strprintf("COutput(%s, %d, %d)", tx->GetHash().ToString().c_str(), i, nDepth);
     }
 
     void print() const

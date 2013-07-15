@@ -78,48 +78,18 @@ uint256 CTransaction::GetHash() const
     return SerializeHash(*this);
 }
 
-bool CTransaction::IsNewerThan(const CTransaction& old) const
-{
-    if (vin.size() != old.vin.size())
-        return false;
-    for (unsigned int i = 0; i < vin.size(); i++)
-        if (vin[i].prevout != old.vin[i].prevout)
-            return false;
-
-    bool fNewer = false;
-    unsigned int nLowest = std::numeric_limits<unsigned int>::max();
-    for (unsigned int i = 0; i < vin.size(); i++)
-    {
-        if (vin[i].nSequence != old.vin[i].nSequence)
-        {
-            if (vin[i].nSequence <= nLowest)
-            {
-                fNewer = false;
-                nLowest = vin[i].nSequence;
-            }
-            if (old.vin[i].nSequence < nLowest)
-            {
-                fNewer = true;
-                nLowest = old.vin[i].nSequence;
-            }
-        }
-    }
-    return fNewer;
-}
-
 std::string CTransaction::ToString() const
 {
     std::string str;
-    str += strprintf("CTransaction(hash=%s, ver=%d, vin.size=%"PRIszu", vout.size=%"PRIszu", nLockTime=%u)\n",
+    str += strprintf("CTransaction(hash=%s, ver=%d, message.size=%"PRIszu", userID.size=%"PRIszu", pubKey.size=%"PRIszu")\n",
         GetHash().ToString().substr(0,10).c_str(),
         nVersion,
-        vin.size(),
-        vout.size(),
-        nLockTime);
-    for (unsigned int i = 0; i < vin.size(); i++)
-        str += "    " + vin[i].ToString() + "\n";
-    for (unsigned int i = 0; i < vout.size(); i++)
-        str += "    " + vout[i].ToString() + "\n";
+        message.size(),
+        userID.size(),
+        pubKey.size());
+    str += "    " + message.ToString() + "\n";
+    str += "    " + userID.ToString() + "\n";
+    str += "    " + pubKey.ToString() + "\n";
     return str;
 }
 
@@ -186,6 +156,7 @@ uint64 CTxOutCompressor::DecompressAmount(uint64 x)
 // each bit in the bitmask represents the availability of one output, but the
 // availabilities of the first two outputs are encoded separately
 void CCoins::CalcMaskSize(unsigned int &nBytes, unsigned int &nNonzeroBytes) const {
+    /*
     unsigned int nLastUsedByte = 0;
     for (unsigned int b = 0; 2+b*8 < vout.size(); b++) {
         bool fZero = true;
@@ -201,9 +172,11 @@ void CCoins::CalcMaskSize(unsigned int &nBytes, unsigned int &nNonzeroBytes) con
         }
     }
     nBytes += nLastUsedByte;
+    */
 }
 
 bool CCoins::Spend(const COutPoint &out, CTxInUndo &undo) {
+  /*
     if (out.n >= vout.size())
         return false;
     if (vout[out.n].IsNull())
@@ -216,6 +189,7 @@ bool CCoins::Spend(const COutPoint &out, CTxInUndo &undo) {
         undo.fCoinBase = fCoinBase;
         undo.nVersion = this->nVersion;
     }
+    */
     return true;
 }
 

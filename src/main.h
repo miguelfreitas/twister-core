@@ -420,7 +420,8 @@ private:
 public:
     CScriptCheck() {}
     CScriptCheck(const CCoins& txFromIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, int nHashTypeIn) :
-        scriptPubKey(txFromIn.vout[txToIn.vin[nInIn].prevout.n].scriptPubKey),
+        // scriptPubKey(txFromIn.vout[txToIn.vin[nInIn].prevout.n].scriptPubKey), [MF]
+        scriptPubKey(),
         ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), nHashType(nHashTypeIn) { }
 
     bool operator()() const;

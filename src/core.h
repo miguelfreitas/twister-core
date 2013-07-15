@@ -182,9 +182,12 @@ public:
     static int64 nMinRelayTxFee;
     static const int CURRENT_VERSION=1;
     int nVersion;
-    std::vector<CTxIn> vin;
-    std::vector<CTxOut> vout;
-    unsigned int nLockTime;
+    CScript message;
+    CScript userID;
+    CScript pubKey;
+    //std::vector<CTxIn> vin;
+    //std::vector<CTxOut> vout;
+    //unsigned int nLockTime;
 
     CTransaction()
     {
@@ -195,22 +198,22 @@ public:
     (
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
-        READWRITE(vin);
-        READWRITE(vout);
-        READWRITE(nLockTime);
+        READWRITE(message);
+        READWRITE(userID);
+        READWRITE(pubKey);
     )
 
     void SetNull()
     {
         nVersion = CTransaction::CURRENT_VERSION;
-        vin.clear();
-        vout.clear();
-        nLockTime = 0;
+        message.clear();
+        userID.clear();
+        pubKey.clear();
     }
 
     bool IsNull() const
     {
-        return (vin.empty() && vout.empty());
+        return (message.empty() && userID.empty() && pubKey.empty());
     }
 
     uint256 GetHash() const;
@@ -218,15 +221,16 @@ public:
 
     bool IsCoinBase() const
     {
-        return (vin.size() == 1 && vin[0].prevout.IsNull());
+        //[MF] reusing coinbase as spam string
+        return (!message.empty() && userID.empty() && pubKey.empty());
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
         return (a.nVersion  == b.nVersion &&
-                a.vin       == b.vin &&
-                a.vout      == b.vout &&
-                a.nLockTime == b.nLockTime);
+                a.message   == b.message &&
+                a.userID    == b.userID &&
+                a.pubKey    == b.pubKey);
     }
 
     friend bool operator!=(const CTransaction& a, const CTransaction& b)
@@ -389,7 +393,7 @@ public:
     int nVersion;
 
     // construct a CCoins from a CTransaction, at a given height
-    CCoins(const CTransaction &tx, int nHeightIn) : fCoinBase(tx.IsCoinBase()), vout(tx.vout), nHeight(nHeightIn), nVersion(tx.nVersion) { }
+    CCoins(const CTransaction &tx, int nHeightIn) : fCoinBase(tx.IsCoinBase()), vout(), nHeight(nHeightIn), nVersion(tx.nVersion) { }
 
     // empty constructor
     CCoins() : fCoinBase(false), vout(0), nHeight(0), nVersion(0) { }

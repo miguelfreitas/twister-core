@@ -128,7 +128,7 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
     walletdb.ReadAccount(strAccount, account);
 
     bool bKeyUsed = false;
-
+/*
     // Check if the current key has been used
     if (account.vchPubKey.IsValid())
     {
@@ -144,7 +144,7 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
                     bKeyUsed = true;
         }
     }
-
+*/
     // Generate a new key
     if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed)
     {
@@ -410,11 +410,12 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
         const CWalletTx& wtx = (*it).second;
         if (wtx.IsCoinBase() || !IsFinalTx(wtx))
             continue;
-
+/*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
             if (txout.scriptPubKey == scriptPubKey)
                 if (wtx.GetDepthInMainChain() >= nMinDepth)
                     nAmount += txout.nValue;
+                    */
     }
 
     return  ValueFromAmount(nAmount);
@@ -456,7 +457,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
         const CWalletTx& wtx = (*it).second;
         if (wtx.IsCoinBase() || !IsFinalTx(wtx))
             continue;
-
+/*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
             CTxDestination address;
@@ -464,6 +465,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
                 if (wtx.GetDepthInMainChain() >= nMinDepth)
                     nAmount += txout.nValue;
         }
+        */
     }
 
     return (double)nAmount / (double)COIN;
@@ -845,7 +847,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
         int nDepth = wtx.GetDepthInMainChain();
         if (nDepth < nMinDepth)
             continue;
-
+/*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
             CTxDestination address;
@@ -857,6 +859,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
             item.nConf = min(item.nConf, nDepth);
             item.txids.push_back(wtx.GetHash());
         }
+        */
     }
 
     // Reply

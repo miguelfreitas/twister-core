@@ -30,7 +30,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     int64 nNet = nCredit - nDebit;
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
-
+/*
     if (nNet > 0 || wtx.IsCoinBase())
     {
         //
@@ -119,7 +119,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 }
 
                 int64 nValue = txout.nValue;
-                /* Add fee to first output */
+
                 if (nTxFee > 0)
                 {
                     nValue += nTxFee;
@@ -138,7 +138,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::Other, "", nNet, 0));
         }
     }
-
+*/
     return parts;
 }
 
@@ -164,15 +164,10 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx)
 
     if (!IsFinalTx(wtx))
     {
-        if (wtx.nLockTime < LOCKTIME_THRESHOLD)
+        //if (wtx.nLockTime < LOCKTIME_THRESHOLD)
         {
             status.status = TransactionStatus::OpenUntilBlock;
-            status.open_for = wtx.nLockTime - nBestHeight + 1;
-        }
-        else
-        {
-            status.status = TransactionStatus::OpenUntilDate;
-            status.open_for = wtx.nLockTime;
+            status.open_for = /* 0 */  - nBestHeight + 1;
         }
     }
     else

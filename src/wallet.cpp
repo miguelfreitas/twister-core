@@ -361,6 +361,7 @@ void CWallet::WalletUpdateSpent(const CTransaction &tx)
     // restored from backup or the user making copies of wallet.dat.
     {
         LOCK(cs_wallet);
+        /*
         BOOST_FOREACH(const CTxIn& txin, tx.vin)
         {
             map<uint256, CWalletTx>::iterator mi = mapWallet.find(txin.prevout.hash);
@@ -378,6 +379,7 @@ void CWallet::WalletUpdateSpent(const CTransaction &tx)
                 }
             }
         }
+        */
     }
 }
 
@@ -488,6 +490,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
             if (vchDefaultKey.IsValid()) {
                 CScript scriptDefaultKey;
                 scriptDefaultKey.SetDestination(vchDefaultKey.GetID());
+                /*
                 BOOST_FOREACH(const CTxOut& txout, wtx.vout)
                 {
                     if (txout.scriptPubKey == scriptDefaultKey)
@@ -500,6 +503,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
                         }
                     }
                 }
+                */
             }
         }
         // since AddToWallet is called directly for self-originating transactions, check for consumption of own coins
@@ -565,9 +569,11 @@ bool CWallet::IsMine(const CTxIn &txin) const
         if (mi != mapWallet.end())
         {
             const CWalletTx& prev = (*mi).second;
+            /*
             if (txin.prevout.n < prev.vout.size())
                 if (IsMine(prev.vout[txin.prevout.n]))
                     return true;
+                    */
         }
     }
     return false;
@@ -581,9 +587,11 @@ int64 CWallet::GetDebit(const CTxIn &txin) const
         if (mi != mapWallet.end())
         {
             const CWalletTx& prev = (*mi).second;
+            /*
             if (txin.prevout.n < prev.vout.size())
                 if (IsMine(prev.vout[txin.prevout.n]))
                     return prev.vout[txin.prevout.n].nValue;
+                    */
         }
     }
     return 0;
@@ -670,6 +678,7 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, int64> >& listReceived,
         nFee = nDebit - nValueOut;
     }
 
+    /*
     // Sent/received.
     BOOST_FOREACH(const CTxOut& txout, vout)
     {
@@ -691,7 +700,7 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, int64> >& listReceived,
         if (pwallet->IsMine(txout))
             listReceived.push_back(make_pair(address, txout.nValue));
     }
-
+*/
 }
 
 void CWalletTx::GetAccountAmounts(const string& strAccount, int64& nReceived,
@@ -737,6 +746,7 @@ void CWalletTx::AddSupportingTransactions()
     if (SetMerkleBranch() < COPY_DEPTH)
     {
         vector<uint256> vWorkQueue;
+        /*
         BOOST_FOREACH(const CTxIn& txin, vin)
             vWorkQueue.push_back(txin.prevout.hash);
 
@@ -774,6 +784,7 @@ void CWalletTx::AddSupportingTransactions()
                 }
             }
         }
+        */
     }
 
     reverse(vtxPrev.begin(), vtxPrev.end());
@@ -835,6 +846,7 @@ void CWallet::ReacceptWalletTransactions()
             bool fFound = pcoinsTip->GetCoins(wtx.GetHash(), coins);
             if (fFound || wtx.GetDepthInMainChain() > 0)
             {
+              /*
                 // Update fSpent if a tx got spent somewhere else by a copy of wallet.dat
                 for (unsigned int i = 0; i < wtx.vout.size(); i++)
                 {
@@ -853,6 +865,7 @@ void CWallet::ReacceptWalletTransactions()
                     wtx.MarkDirty();
                     wtx.WriteToDisk();
                 }
+                */
             }
             else
             {
@@ -1003,12 +1016,13 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed) const
 
             if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
                 continue;
-
+/*
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) &&
                     !IsLockedCoin((*it).first, i) && pcoin->vout[i].nValue > 0)
                     vCoins.push_back(COutput(pcoin, i, pcoin->GetDepthInMainChain()));
             }
+            */
         }
     }
 }
@@ -1064,7 +1078,7 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfThe
 {
     setCoinsRet.clear();
     nValueRet = 0;
-
+/*
     // List of values less than target
     pair<int64, pair<const CWalletTx*,unsigned int> > coinLowestLarger;
     coinLowestLarger.first = std::numeric_limits<int64>::max();
@@ -1154,7 +1168,7 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfThe
                 printf("%s ", FormatMoney(vValue[i].first).c_str());
         printf("total %s\n", FormatMoney(nBest).c_str());
     }
-
+*/
     return true;
 }
 
@@ -1196,6 +1210,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend,
         LOCK2(cs_main, cs_wallet);
         {
             nFeeRet = nTransactionFee;
+            /*
             loop
             {
                 wtxNew.vin.clear();
@@ -1320,6 +1335,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend,
 
                 break;
             }
+            */
         }
     }
     return true;
@@ -1354,6 +1370,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
 
             // Mark old coins as spent
             set<CWalletTx*> setCoins;
+            /*
             BOOST_FOREACH(const CTxIn& txin, wtxNew.vin)
             {
                 CWalletTx &coin = mapWallet[txin.prevout.hash];
@@ -1362,6 +1379,7 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
                 coin.WriteToDisk();
                 NotifyTransactionChanged(this, coin.GetHash(), CT_UPDATED);
             }
+            */
 
             if (fFileBacked)
                 delete pwalletdb;
@@ -1696,7 +1714,7 @@ std::map<CTxDestination, int64> CWallet::GetAddressBalances()
             int nDepth = pcoin->GetDepthInMainChain();
             if (nDepth < (pcoin->IsFromMe() ? 0 : 1))
                 continue;
-
+/*
             for (unsigned int i = 0; i < pcoin->vout.size(); i++)
             {
                 CTxDestination addr;
@@ -1710,8 +1728,9 @@ std::map<CTxDestination, int64> CWallet::GetAddressBalances()
                 if (!balances.count(addr))
                     balances[addr] = 0;
                 balances[addr] += n;
-            }
+            }*/
         }
+
     }
 
     return balances;
@@ -1725,7 +1744,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
     BOOST_FOREACH(PAIRTYPE(uint256, CWalletTx) walletEntry, mapWallet)
     {
         CWalletTx *pcoin = &walletEntry.second;
-
+/*
         if (pcoin->vin.size() > 0)
         {
             bool any_mine = false;
@@ -1733,7 +1752,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
             BOOST_FOREACH(CTxIn txin, pcoin->vin)
             {
                 CTxDestination address;
-                if(!IsMine(txin)) /* If this input isn't mine, ignore it */
+                if(!IsMine(txin))
                     continue;
                 if(!ExtractDestination(mapWallet[txin.prevout.hash].vout[txin.prevout.n].scriptPubKey, address))
                     continue;
@@ -1771,6 +1790,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
                 groupings.insert(grouping);
                 grouping.clear();
             }
+            */
     }
 
     set< set<CTxDestination>* > uniqueGroupings; // a set of pointers to groups of addresses
@@ -1930,7 +1950,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64> &mapKeyBirth) const {
     // if there are no such keys, we're done
     if (mapKeyFirstBlock.empty())
         return;
-
+/*
     // find first block that affects those keys, if there are any left
     std::vector<CKeyID> vAffected;
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); it++) {
@@ -1953,7 +1973,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64> &mapKeyBirth) const {
             }
         }
     }
-
+*/
     // Extract block timestamps for those keys
     for (std::map<CKeyID, CBlockIndex*>::const_iterator it = mapKeyFirstBlock.begin(); it != mapKeyFirstBlock.end(); it++)
         mapKeyBirth[it->first] = it->second->nTime - 7200; // block times can be 2h off

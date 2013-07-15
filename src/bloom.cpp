@@ -101,7 +101,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx, const uint256& ha
     //  for finding tx when they appear in a block
     if (contains(hash))
         fFound = true;
-
+/*
     for (unsigned int i = 0; i < tx.vout.size(); i++)
     {
         const CTxOut& txout = tx.vout[i];
@@ -133,10 +133,10 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx, const uint256& ha
             }
         }
     }
-
+*/
     if (fFound)
         return true;
-
+/*
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         // Match if the filter contains an outpoint tx spends
@@ -155,6 +155,6 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx, const uint256& ha
                 return true;
         }
     }
-
+*/
     return false;
 }

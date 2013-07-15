@@ -14,10 +14,8 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     if (!IsFinalTx(wtx))
     {
-        if (wtx.nLockTime < LOCKTIME_THRESHOLD)
-            return tr("Open for %n more block(s)", "", wtx.nLockTime - nBestHeight + 1);
-        else
-            return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.nLockTime));
+        //if (wtx.nLockTime < LOCKTIME_THRESHOLD)
+            return tr("Open for %n more block(s)", "", 0 - nBestHeight + 1);
     }
     else
     {
@@ -34,7 +32,7 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx)
 {
     QString strHTML;
-
+/*
     {
         LOCK(wallet->cs_wallet);
         strHTML.reserve(4000);
@@ -270,5 +268,6 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx)
 
         strHTML += "</font></html>";
     }
+*/
     return strHTML;
 }

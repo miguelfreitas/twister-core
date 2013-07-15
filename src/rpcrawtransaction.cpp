@@ -78,8 +78,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 {
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
-    entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
+    //entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
     Array vin;
+    /* [MF]
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         Object in;
@@ -97,8 +98,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
         in.push_back(Pair("sequence", (boost::int64_t)txin.nSequence));
         vin.push_back(in);
     }
+    */
     entry.push_back(Pair("vin", vin));
     Array vout;
+    /*
     for (unsigned int i = 0; i < tx.vout.size(); i++)
     {
         const CTxOut& txout = tx.vout[i];
@@ -110,6 +113,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
         out.push_back(Pair("scriptPubKey", o));
         vout.push_back(out);
     }
+    */
     entry.push_back(Pair("vout", vout));
 
     if (hashBlock != 0)
@@ -212,13 +216,14 @@ Value listunspent(const Array& params, bool fHelp)
         if (setAddress.size())
         {
             CTxDestination address;
+            /*
             if (!ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
                 continue;
-
+  */
             if (!setAddress.count(address))
                 continue;
         }
-
+/*
         int64 nValue = out.tx->vout[out.i].nValue;
         const CScript& pk = out.tx->vout[out.i].scriptPubKey;
         Object entry;
@@ -246,6 +251,7 @@ Value listunspent(const Array& params, bool fHelp)
         entry.push_back(Pair("amount",ValueFromAmount(nValue)));
         entry.push_back(Pair("confirmations",out.nDepth));
         results.push_back(entry);
+        */
     }
 
     return results;
@@ -284,7 +290,7 @@ Value createrawtransaction(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
 
         CTxIn in(COutPoint(txid, nOutput));
-        rawTx.vin.push_back(in);
+        // [MF] rawTx.vin.push_back(in);
     }
 
     set<CBitcoinAddress> setAddress;
@@ -303,7 +309,7 @@ Value createrawtransaction(const Array& params, bool fHelp)
         int64 nAmount = AmountFromValue(s.value_);
 
         CTxOut out(nAmount, scriptPubKey);
-        rawTx.vout.push_back(out);
+        // [MF] rawTx.vout.push_back(out);
     }
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
@@ -385,11 +391,13 @@ Value signrawtransaction(const Array& params, bool fHelp)
         CCoinsViewMemPool viewMempool(viewChain, mempool);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
 
+        /*
         BOOST_FOREACH(const CTxIn& txin, mergedTx.vin) {
             const uint256& prevHash = txin.prevout.hash;
             CCoins coins;
             view.GetCoins(prevHash, coins); // this is certainly allowed to fail
         }
+        */
 
         view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
     }
@@ -445,12 +453,13 @@ Value signrawtransaction(const Array& params, bool fHelp)
                 }
                 // what todo if txid is known, but the actual output isn't?
             }
+            /*
             if ((unsigned int)nOut >= coins.vout.size())
                 coins.vout.resize(nOut+1);
             coins.vout[nOut].scriptPubKey = scriptPubKey;
             coins.vout[nOut].nValue = 0; // we don't know the actual output value
             view.SetCoins(txid, coins);
-
+*/
             // if redeemScript given and not using the local wallet (private keys
             // given), add redeemScript to the tempKeystore so it can be signed:
             if (fGivenKeys && scriptPubKey.IsPayToScriptHash())
@@ -491,6 +500,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
     bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
 
     // Sign what we can:
+    /* [MF]
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++)
     {
         CTxIn& txin = mergedTx.vin[i];
@@ -515,7 +525,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
         if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, 0))
             fComplete = false;
     }
-
+*/
     Object result;
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << mergedTx;
