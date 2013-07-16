@@ -178,17 +178,12 @@ public:
 class CTransaction
 {
 public:
-    static int64 nMinTxFee;
-    static int64 nMinRelayTxFee;
     static const int CURRENT_VERSION=1;
     int nVersion;
     CScript message;
     CScript userName;
     CScript userID;
     CScript pubKey;
-    //std::vector<CTxIn> vin;
-    //std::vector<CTxOut> vout;
-    //unsigned int nLockTime;
 
     CTransaction()
     {

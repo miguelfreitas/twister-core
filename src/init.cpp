@@ -462,37 +462,6 @@ bool AppInit2(boost::thread_group& threadGroup)
     const char* pszP2SH = "/P2SH/";
     COINBASE_FLAGS << std::vector<unsigned char>(pszP2SH, pszP2SH+strlen(pszP2SH));
 
-    // Fee-per-kilobyte amount considered the same as "free"
-    // If you are mining, be careful setting this:
-    // if you set it to zero then
-    // a transaction spammer can cheaply fill blocks using
-    // 1-satoshi-fee transactions. It should be set above the real
-    // cost to you of processing a transaction.
-    if (mapArgs.count("-mintxfee"))
-    {
-        int64 n = 0;
-        if (ParseMoney(mapArgs["-mintxfee"], n) && n > 0)
-            CTransaction::nMinTxFee = n;
-        else
-            return InitError(strprintf(_("Invalid amount for -mintxfee=<amount>: '%s'"), mapArgs["-mintxfee"].c_str()));
-    }
-    if (mapArgs.count("-minrelaytxfee"))
-    {
-        int64 n = 0;
-        if (ParseMoney(mapArgs["-minrelaytxfee"], n) && n > 0)
-            CTransaction::nMinRelayTxFee = n;
-        else
-            return InitError(strprintf(_("Invalid amount for -minrelaytxfee=<amount>: '%s'"), mapArgs["-minrelaytxfee"].c_str()));
-    }
-
-    if (mapArgs.count("-paytxfee"))
-    {
-        if (!ParseMoney(mapArgs["-paytxfee"], nTransactionFee))
-            return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), mapArgs["-paytxfee"].c_str()));
-        if (nTransactionFee > 0.25 * COIN)
-            InitWarning(_("Warning: -paytxfee is set very high! This is the transaction fee you will pay if you send a transaction."));
-    }
-
     // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
 
     std::string strDataDir = GetDataDir().string();
