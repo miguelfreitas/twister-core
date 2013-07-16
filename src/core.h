@@ -215,7 +215,6 @@ public:
     }
 
     uint256 GetHash() const;
-    bool IsNewerThan(const CTransaction& old) const;
 
     bool IsSpamMessage() const
     {
