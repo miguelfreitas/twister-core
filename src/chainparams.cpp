@@ -32,7 +32,8 @@ public:
         vAlertPubKey = ParseHex("04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284");
         nDefaultPort = 28333;
         nRPCPort = 28332;
-        bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
+        //bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
+        bnProofOfWorkLimit = CBigNum(~uint256(0) >> 1);
         nSubsidyHalvingInterval = 210000;
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot
@@ -51,13 +52,14 @@ public:
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 1;
         genesis.nTime    = 1231006505;
+        //genesis.nBits    = 0x1d00ffff;
         genesis.nBits    = 0x207fffff;
-        genesis.nNonce   = 0;
+        genesis.nNonce   = 2;
 
         hashGenesisBlock = genesis.GetHash();
         printf("hashGenesisBlock %s\n", hashGenesisBlock.ToString().c_str());
         printf("genesis.hashMerkleRoot %s\n", genesis.hashMerkleRoot.ToString().c_str());
-        //assert(hashGenesisBlock == uint256("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
+        //assert(hashGenesisBlock == uint256("0xa63d06dc9817b06f16f6ccfbe558400366eb2507825e29667c910decfaadd2b9"));
         //assert(genesis.hashMerkleRoot == uint256("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
 
         //vSeeds.push_back(CDNSSeedData("bitcoin.sipa.be", "seed.bitcoin.sipa.be"));
