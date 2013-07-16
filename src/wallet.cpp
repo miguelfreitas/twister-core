@@ -629,7 +629,7 @@ int CWalletTx::GetRequestCount() const
     int nRequests = -1;
     {
         LOCK(pwallet->cs_wallet);
-        if (IsCoinBase())
+        if (IsSpamMessage())
         {
             // Generated block
             if (hashBlock != 0)
@@ -838,7 +838,7 @@ void CWallet::ReacceptWalletTransactions()
         BOOST_FOREACH(PAIRTYPE(const uint256, CWalletTx)& item, mapWallet)
         {
             CWalletTx& wtx = item.second;
-            if (wtx.IsCoinBase() && wtx.IsSpent(0))
+            if (wtx.IsSpamMessage() && wtx.IsSpent(0))
                 continue;
 
             CCoins coins;
@@ -870,7 +870,7 @@ void CWallet::ReacceptWalletTransactions()
             else
             {
                 // Re-accept any txes of ours that aren't already in a block
-                if (!wtx.IsCoinBase())
+                if (!wtx.IsSpamMessage())
                     wtx.AcceptWalletTransaction();
             }
         }
@@ -887,11 +887,11 @@ void CWalletTx::RelayWalletTransaction()
 {
     BOOST_FOREACH(const CMerkleTx& tx, vtxPrev)
     {
-        if (!tx.IsCoinBase())
+        if (!tx.IsSpamMessage())
             if (tx.GetDepthInMainChain() == 0)
                 RelayTransaction((CTransaction)tx, tx.GetHash());
     }
-    if (!IsCoinBase())
+    if (!IsSpamMessage())
     {
         if (GetDepthInMainChain() == 0) {
             uint256 hash = GetHash();
@@ -1014,7 +1014,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed) const
             if (fOnlyConfirmed && !pcoin->IsConfirmed())
                 continue;
 
-            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
+            if (pcoin->IsSpamMessage() && pcoin->GetBlocksToMaturity() > 0)
                 continue;
 /*
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
@@ -1708,7 +1708,7 @@ std::map<CTxDestination, int64> CWallet::GetAddressBalances()
             if (!IsFinalTx(*pcoin) || !pcoin->IsConfirmed())
                 continue;
 
-            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
+            if (pcoin->IsSpamMessage() && pcoin->GetBlocksToMaturity() > 0)
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();

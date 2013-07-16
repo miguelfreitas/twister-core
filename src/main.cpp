@@ -575,7 +575,7 @@ int64 GetValueOut(const CTransaction& tx)
 //
 bool AreInputsStandard(const CTransaction& tx, CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase())
+    if (tx.IsSpamMessage())
         return true; // Coinbases don't use vin normally
 /* [MF]
     for (unsigned int i = 0; i < tx.vin.size(); i++)
@@ -645,7 +645,7 @@ unsigned int GetLegacySigOpCount(const CTransaction& tx)
 
 unsigned int GetP2SHSigOpCount(const CTransaction& tx, CCoinsViewCache& inputs)
 {
-    if (tx.IsCoinBase())
+    if (tx.IsSpamMessage())
         return 0;
 
     unsigned int nSigOps = 0;
@@ -820,7 +820,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
         return error("CTxMemPool::accept() : CheckTransaction failed");
 
     // Coinbase is only valid in a block, not as a loose transaction
-    if (tx.IsCoinBase())
+    if (tx.IsSpamMessage())
         return state.DoS(100, error("CTxMemPool::accept() : coinbase as individual tx"));
 
     /*
@@ -1092,7 +1092,7 @@ int CMerkleTx::GetDepthInMainChain(CBlockIndex* &pindexRet) const
 
 int CMerkleTx::GetBlocksToMaturity() const
 {
-    if (!IsCoinBase())
+    if (!IsSpamMessage())
         return 0;
     return max(0, (COINBASE_MATURITY+20) - GetDepthInMainChain());
 }
@@ -1113,7 +1113,7 @@ bool CWalletTx::AcceptWalletTransaction()
         // Add previous supporting transactions first
         BOOST_FOREACH(CMerkleTx& tx, vtxPrev)
         {
-            if (!tx.IsCoinBase())
+            if (!tx.IsSpamMessage())
             {
                 uint256 hash = tx.GetHash();
                 if (!mempool.exists(hash) && pcoinsTip->HaveCoins(hash))
@@ -1523,7 +1523,7 @@ const CTxOut &CCoinsViewCache::GetOutputFor(const CTxIn& input)
 
 int64 CCoinsViewCache::GetValueIn(const CTransaction& tx)
 {
-    if (tx.IsCoinBase())
+    if (tx.IsSpamMessage())
         return 0;
 
     int64 nResult = 0;
@@ -1537,7 +1537,7 @@ int64 CCoinsViewCache::GetValueIn(const CTransaction& tx)
 void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight, const uint256 &txhash)
 {
     // mark inputs spent
-    if (!tx.IsCoinBase()) {
+    if (!tx.IsSpamMessage()) {
       /* [MF]
         BOOST_FOREACH(const CTxIn &txin, tx.vin) {
             CCoins &coins = inputs.GetCoins(txin.prevout.hash);
@@ -1554,7 +1554,7 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
 
 bool CCoinsViewCache::HaveInputs(const CTransaction& tx)
 {
-    if (!tx.IsCoinBase()) {
+    if (!tx.IsSpamMessage()) {
       /* [MF]
         // first check whether information about the prevout hash is available
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
@@ -1594,7 +1594,7 @@ bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned in
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, std::vector<CScriptCheck> *pvChecks)
 {
-    if (!tx.IsCoinBase())
+    if (!tx.IsSpamMessage())
     {
       /* [MF]
         if (pvChecks)
@@ -1886,7 +1886,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
 */
         CTxUndo txundo;
         UpdateCoins(tx, state, view, txundo, pindex->nHeight, block.GetTxHash(i));
-        if (!tx.IsCoinBase())
+        if (!tx.IsSpamMessage())
             blockundo.vtxundo.push_back(txundo);
 
         vPos.push_back(std::make_pair(block.GetTxHash(i), pos));
@@ -1997,7 +1997,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
         // We only do this for blocks after the last checkpoint (reorganisation before that
         // point should only happen with -reindex/-loadblock, or a misbehaving peer.
         BOOST_FOREACH(const CTransaction& tx, block.vtx)
-            if (!tx.IsCoinBase() && pindex->nHeight > Checkpoints::GetTotalBlocksEstimate())
+            if (!tx.IsSpamMessage() && pindex->nHeight > Checkpoints::GetTotalBlocksEstimate())
                 vResurrect.push_back(tx);
     }
 
@@ -2281,10 +2281,10 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         return state.Invalid(error("CheckBlock() : block timestamp too far in the future"));
 
     // First transaction must be coinbase, the rest must not be
-    if (block.vtx.empty() || !block.vtx[0].IsCoinBase())
+    if (block.vtx.empty() || !block.vtx[0].IsSpamMessage())
         return state.DoS(100, error("CheckBlock() : first tx is not coinbase"));
     for (unsigned int i = 1; i < block.vtx.size(); i++)
-        if (block.vtx[i].IsCoinBase())
+        if (block.vtx[i].IsSpamMessage())
             return state.DoS(100, error("CheckBlock() : more than one coinbase"));
 
     // Check transactions
@@ -4367,7 +4367,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
         for (map<uint256, CTransaction>::iterator mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
         {
             CTransaction& tx = (*mi).second;
-            if (tx.IsCoinBase() || !IsFinalTx(tx))
+            if (tx.IsSpamMessage() || !IsFinalTx(tx))
                 continue;
 
             COrphan* porphan = NULL;

@@ -36,7 +36,7 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
     entry.push_back(Pair("confirmations", confirms));
-    if (wtx.IsCoinBase())
+    if (wtx.IsSpamMessage())
         entry.push_back(Pair("generated", true));
     if (confirms)
     {
@@ -408,7 +408,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
-        if (wtx.IsCoinBase() || !IsFinalTx(wtx))
+        if (wtx.IsSpamMessage() || !IsFinalTx(wtx))
             continue;
 /*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -455,7 +455,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
-        if (wtx.IsCoinBase() || !IsFinalTx(wtx))
+        if (wtx.IsSpamMessage() || !IsFinalTx(wtx))
             continue;
 /*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -841,7 +841,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
     {
         const CWalletTx& wtx = (*it).second;
 
-        if (wtx.IsCoinBase() || !IsFinalTx(wtx))
+        if (wtx.IsSpamMessage() || !IsFinalTx(wtx))
             continue;
 
         int nDepth = wtx.GetDepthInMainChain();
@@ -997,7 +997,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 Object entry;
                 entry.push_back(Pair("account", account));
                 entry.push_back(Pair("address", CBitcoinAddress(r.first).ToString()));
-                if (wtx.IsCoinBase())
+                if (wtx.IsSpamMessage())
                 {
                     if (wtx.GetDepthInMainChain() < 1)
                         entry.push_back(Pair("category", "orphan"));

@@ -183,6 +183,7 @@ public:
     static const int CURRENT_VERSION=1;
     int nVersion;
     CScript message;
+    CScript userName;
     CScript userID;
     CScript pubKey;
     //std::vector<CTxIn> vin;
@@ -199,6 +200,7 @@ public:
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(message);
+        READWRITE(userName);
         READWRITE(userID);
         READWRITE(pubKey);
     )
@@ -207,21 +209,21 @@ public:
     {
         nVersion = CTransaction::CURRENT_VERSION;
         message.clear();
+        userName.clear();
         userID.clear();
         pubKey.clear();
     }
 
     bool IsNull() const
     {
-        return (message.empty() && userID.empty() && pubKey.empty());
+        return (message.empty() && userName.empty() && userID.empty() && pubKey.empty());
     }
 
     uint256 GetHash() const;
     bool IsNewerThan(const CTransaction& old) const;
 
-    bool IsCoinBase() const
+    bool IsSpamMessage() const
     {
-        //[MF] reusing coinbase as spam string
         return (!message.empty() && userID.empty() && pubKey.empty());
     }
 
@@ -229,6 +231,7 @@ public:
     {
         return (a.nVersion  == b.nVersion &&
                 a.message   == b.message &&
+                a.userName  == b.userName &&
                 a.userID    == b.userID &&
                 a.pubKey    == b.pubKey);
     }
@@ -393,7 +396,7 @@ public:
     int nVersion;
 
     // construct a CCoins from a CTransaction, at a given height
-    CCoins(const CTransaction &tx, int nHeightIn) : fCoinBase(tx.IsCoinBase()), vout(), nHeight(nHeightIn), nVersion(tx.nVersion) { }
+    CCoins(const CTransaction &tx, int nHeightIn) : fCoinBase(tx.IsSpamMessage()), vout(), nHeight(nHeightIn), nVersion(tx.nVersion) { }
 
     // empty constructor
     CCoins() : fCoinBase(false), vout(0), nHeight(0), nVersion(0) { }

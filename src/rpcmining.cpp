@@ -304,7 +304,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
-        if (tx.IsCoinBase())
+        if (tx.IsSpamMessage())
             continue;
 
         Object entry;

@@ -87,9 +87,13 @@ std::string CTransaction::ToString() const
         message.size(),
         userID.size(),
         pubKey.size());
-    str += "    " + message.ToString() + "\n";
-    str += "    " + userID.ToString() + "\n";
-    str += "    " + pubKey.ToString() + "\n";
+    if( message.size() ) {
+      str += "    message: " + message.ToString() + "\n";
+    } else {
+      str += "    userName: " + userName.ToString() + "\n";
+      str += "    userID: " + userID.ToString() + "\n";
+      str += "    pubKey: " + pubKey.ToString() + "\n";
+    }
     return str;
 }
 
