@@ -445,6 +445,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
 
             CCoins coins;
             if (view.GetCoins(txid, coins)) {
+                /*
                 if (coins.IsAvailable(nOut) && coins.vout[nOut].scriptPubKey != scriptPubKey) {
                     string err("Previous output scriptPubKey mismatch:\n");
                     err = err + coins.vout[nOut].scriptPubKey.ToString() + "\nvs:\n"+
@@ -452,14 +453,16 @@ Value signrawtransaction(const Array& params, bool fHelp)
                     throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
                 // what todo if txid is known, but the actual output isn't?
+                */
             }
             /*
             if ((unsigned int)nOut >= coins.vout.size())
                 coins.vout.resize(nOut+1);
             coins.vout[nOut].scriptPubKey = scriptPubKey;
             coins.vout[nOut].nValue = 0; // we don't know the actual output value
+            */
             view.SetCoins(txid, coins);
-*/
+
             // if redeemScript given and not using the local wallet (private keys
             // given), add redeemScript to the tempKeystore so it can be signed:
             if (fGivenKeys && scriptPubKey.IsPayToScriptHash())

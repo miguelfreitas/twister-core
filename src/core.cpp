@@ -161,29 +161,7 @@ uint64 CTxOutCompressor::DecompressAmount(uint64 x)
     return n;
 }
 
-// calculate number of bytes for the bitmask, and its number of non-zero bytes
-// each bit in the bitmask represents the availability of one output, but the
-// availabilities of the first two outputs are encoded separately
-void CCoins::CalcMaskSize(unsigned int &nBytes, unsigned int &nNonzeroBytes) const {
-    /*
-    unsigned int nLastUsedByte = 0;
-    for (unsigned int b = 0; 2+b*8 < vout.size(); b++) {
-        bool fZero = true;
-        for (unsigned int i = 0; i < 8 && 2+b*8+i < vout.size(); i++) {
-            if (!vout[2+b*8+i].IsNull()) {
-                fZero = false;
-                continue;
-            }
-        }
-        if (!fZero) {
-            nLastUsedByte = b + 1;
-            nNonzeroBytes++;
-        }
-    }
-    nBytes += nLastUsedByte;
-    */
-}
-
+#if 0
 bool CCoins::Spend(const COutPoint &out, CTxInUndo &undo) {
   /*
     if (out.n >= vout.size())
@@ -207,6 +185,7 @@ bool CCoins::Spend(int nPos) {
     COutPoint out(0, nPos);
     return Spend(out, undo);
 }
+#endif
 
 uint256 CBlockHeader::GetHash() const
 {

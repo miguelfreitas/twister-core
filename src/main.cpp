@@ -496,6 +496,7 @@ void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
 {
     LOCK(cs);
 
+    /*
     std::map<COutPoint, CInPoint>::iterator it = mapNextTx.lower_bound(COutPoint(hashTx, 0));
 
     // iterate over all COutPoints in mapNextTx whose hash equals the provided hashTx
@@ -503,6 +504,7 @@ void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
         coins.Spend(it->first.n); // and remove those outputs from coins
         it++;
     }
+    */
 }
 
 bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFree,
@@ -1118,13 +1120,14 @@ void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev)
 
 
 
-
+/*
 const CTxOut &CCoinsViewCache::GetOutputFor(const CTxIn& input)
 {
     const CCoins &coins = GetCoins(input.prevout.hash);
     assert(coins.IsAvailable(input.prevout.n));
     return coins.vout[input.prevout.n];
 }
+*/
 
 int64 CCoinsViewCache::GetValueIn(const CTransaction& tx)
 {
