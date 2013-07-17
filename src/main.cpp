@@ -3929,25 +3929,17 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
 
     // Create coinbase tx
     CTransaction txNew;
-    /* [MF]
-    txNew.vin.resize(1);
-    txNew.vin[0].prevout.SetNull();
-    txNew.vout.resize(1);
-    */
     txNew.message.clear();
-
     /* [MF] Check! add spam  */
     CPubKey pubkey;
     if (!reservekey.GetReservedKey(pubkey))
         return NULL;
     txNew.pubKey << pubkey << OP_CHECKSIG;
-
+    txNew.nNonce = 0;
     // [MF] TODO: fix nNonce
 
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
-    pblocktemplate->vTxFees.push_back(-1); // updated at end
-    pblocktemplate->vTxSigOps.push_back(-1); // updated at end
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", MAX_BLOCK_SIZE_GEN/2);
@@ -4040,11 +4032,10 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
         hashPrevBlock = pblock->hashPrevBlock;
     }
     ++nExtraNonce;
-    unsigned int nHeight = pindexPrev->nHeight+1; // Height first in coinbase required for block.version=2
-    /* [MF] Check!
-    pblock->vtx[0].vin[0].scriptSig = (CScript() << nHeight << CBigNum(nExtraNonce)) + COINBASE_FLAGS;
-    assert(pblock->vtx[0].vin[0].scriptSig.size() <= 100);
-    */
+    pblock->nHeight = pindexPrev->nHeight+1;
+    /* extra nonce added to spamMessage.pubKey */
+    pblock->vtx[0].pubKey = (CScript() << CBigNum(nExtraNonce)) + COINBASE_FLAGS;
+    assert(pblock->vtx[0].pubKey.size() <= 100);
     pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 }
 

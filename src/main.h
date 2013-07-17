@@ -1236,8 +1236,6 @@ extern CBlockTreeDB *pblocktree;
 struct CBlockTemplate
 {
     CBlock block;
-    std::vector<int64_t> vTxFees;
-    std::vector<int64_t> vTxSigOps;
 };
 
 
