@@ -114,7 +114,6 @@ class CCoins;
 class CTxUndo;
 class CCoinsView;
 class CCoinsViewCache;
-class CScriptCheck;
 class CValidationState;
 
 struct CBlockTemplate;
@@ -161,8 +160,6 @@ CBlockIndex* FindBlockByHeight(int nHeight);
 bool ProcessMessages(CNode* pfrom);
 /** Send queued protocol messages to be sent to a give node */
 bool SendMessages(CNode* pto, bool fSendTrickle);
-/** Run an instance of the script checking thread */
-void ThreadScriptCheck();
 /** Run the miner threads */
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet);
 /** Generate a new block, without valid proof-of-work */
@@ -265,40 +262,6 @@ struct CDiskTxPos : public CDiskBlockPos
 };
 
 
-
-//
-// Check transaction inputs, and make sure any
-// pay-to-script-hash transactions are evaluating IsStandard scripts
-//
-// Why bother? To avoid denial-of-service attacks; an attacker
-// can submit a standard HASH... OP_EQUAL transaction,
-// which will get accepted into blocks. The redemption
-// script can be anything; an attacker could use a very
-// expensive-to-check-upon-redemption script like:
-//   DUP CHECKSIG DROP ... repeated 100 times... OP_1
-//
-
-    /** Check for standard transaction types
-        @param[in] mapInputs    Map of previous transactions that have outputs we're spending
-        @return True if all inputs (scriptSigs) use only standard transaction forms
-    */
-bool AreInputsStandard(const CTransaction& tx, CCoinsViewCache& mapInputs);
-
-/** Count ECDSA signature operations the old-fashioned (pre-0.6) way
-    @return number of sigops this transaction's outputs will produce when spent
-    @see CTransaction::FetchInputs
-*/
-unsigned int GetLegacySigOpCount(const CTransaction& tx);
-
-/** Count ECDSA signature operations in pay-to-script-hash inputs.
-
-    @param[in] mapInputs	Map of previous transactions that have outputs we're spending
-    @return maximum number of sigops required to validate this transaction's inputs
-    @see CTransaction::FetchInputs
- */
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, CCoinsViewCache& mapInputs);
-
-
 inline bool AllowFree(double dPriority)
 {
     // Large (in bytes) low-priority (new, small-coin) transactions
@@ -387,35 +350,6 @@ public:
     }
 };
 
-
-/** Closure representing one script verification
- *  Note that this stores references to the spending transaction */
-class CScriptCheck
-{
-private:
-    CScript scriptPubKey;
-    const CTransaction *ptxTo;
-    unsigned int nIn;
-    unsigned int nFlags;
-    int nHashType;
-
-public:
-    CScriptCheck() {}
-    CScriptCheck(const CCoins& txFromIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, int nHashTypeIn) :
-        // scriptPubKey(txFromIn.vout[txToIn.vin[nInIn].prevout.n].scriptPubKey), [MF]
-        scriptPubKey(),
-        ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), nHashType(nHashTypeIn) { }
-
-    bool operator()() const;
-
-    void swap(CScriptCheck &check) {
-        scriptPubKey.swap(check.scriptPubKey);
-        std::swap(ptxTo, check.ptxTo);
-        std::swap(nIn, check.nIn);
-        std::swap(nFlags, check.nFlags);
-        std::swap(nHashType, check.nHashType);
-    }
-};
 
 /** A transaction with a merkle branch linking it to the block chain. */
 class CMerkleTx : public CTransaction

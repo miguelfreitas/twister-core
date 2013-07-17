@@ -489,12 +489,6 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (fDaemon)
         fprintf(stdout, "Bitcoin server starting\n");
 
-    if (nScriptCheckThreads) {
-        printf("Using %u threads for script verification\n", nScriptCheckThreads);
-        for (int i=0; i<nScriptCheckThreads-1; i++)
-            threadGroup.create_thread(&ThreadScriptCheck);
-    }
-
     int64 nStart;
 
     // ********************************************************* Step 5: verify wallet database integrity
