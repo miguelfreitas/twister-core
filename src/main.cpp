@@ -417,7 +417,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
     if (pblock == NULL) {
         CCoins coins;
-        if (pcoinsTip->GetCoins(GetHash(), coins)) {
+        if (pcoinsTip->GetCoins(GetUsernameHash(), coins)) {
             CBlockIndex *pindex = FindBlockByHeight(coins.nHeight);
             if (pindex) {
                 if (!ReadBlockFromDisk(blockTmp, pindex))
@@ -544,8 +544,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
         view.SetBackend(viewMemPool);
 
         // do we already have it?
-        // [MF] TODO: use hash(tx.userName)
-        if (view.HaveCoins(hash))
+        if (view.HaveCoins(tx.GetUsernameHash()))
             return false;
 
         // Bring the best block into scope
@@ -731,7 +730,7 @@ bool CWalletTx::AcceptWalletTransaction()
             if (!tx.IsSpamMessage())
             {
                 uint256 hash = tx.GetHash();
-                if (!mempool.exists(hash) && pcoinsTip->HaveCoins(hash))
+                if (!mempool.exists(hash) && pcoinsTip->HaveCoins(tx.GetUsernameHash()))
                     tx.AcceptToMemoryPool(false);
             }
         }
@@ -1199,11 +1198,11 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
         uint256 hash = tx.GetHash();
 
         // check that all outputs are available
-        if (!view.HaveCoins(hash)) {
+        if (!view.HaveCoins(tx.GetUsernameHash())) {
             fClean = fClean && error("DisconnectBlock() : outputs still spent? database corrupted");
-            view.SetCoins(hash, CCoins());
+            view.SetCoins(tx.GetUsernameHash(), CCoins());
         }
-        CCoins &outs = view.GetCoins(hash);
+        CCoins &outs = view.GetCoins(tx.GetUsernameHash());
 
         CCoins outsBlock = CCoins(tx, pindex->nHeight);
         if (outs != outsBlock)
@@ -1303,7 +1302,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         uint256 hash = block.GetTxHash(i);
-        if (view.HaveCoins(hash))
+        if (view.HaveCoins(block.vtx[i].GetUsernameHash()))
             return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
     }
 
@@ -1318,7 +1317,8 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
         const CTransaction &tx = block.vtx[i];
 
         CTxUndo txundo;
-        UpdateCoins(tx, state, view, txundo, pindex->nHeight, block.GetTxHash(i));
+        //UpdateCoins(tx, state, view, txundo, pindex->nHeight, block.GetTxHash(i));
+        UpdateCoins(tx, state, view, txundo, pindex->nHeight, tx.GetUsernameHash());
         if (!tx.IsSpamMessage())
             blockundo.vtxundo.push_back(txundo);
 
@@ -2571,8 +2571,12 @@ bool static AlreadyHave(const CInv& inv)
                 LOCK(mempool.cs);
                 txInMap = mempool.exists(inv.hash);
             }
-            return txInMap ||
-                pcoinsTip->HaveCoins(inv.hash);
+            bool txInCoins = false;
+            if( !txInMap ) {
+                // [MF] FIXME: como converter inv.hash no usernamehash?
+                txInCoins = pcoinsTip->HaveCoins(inv.hash);
+            }
+            return txInMap || txInCoins;
         }
     case MSG_BLOCK:
         return mapBlockIndex.count(inv.hash) ||
@@ -3459,6 +3463,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                     if (!fTrickleWait)
                     {
                         CWalletTx wtx;
+                        // [MF] TODO: use userhash
                         if (GetTransaction(inv.hash, wtx))
                             if (wtx.fFromMe)
                                 fTrickleWait = true;
@@ -3731,7 +3736,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
                 continue;
 
             // This should never happen; all transactions in the memory are new
-            if( view.HaveCoins(tx.GetHash()) ) {
+            if( view.HaveCoins(tx.GetUsernameHash()) ) {
                 printf("ERROR: mempool transaction already exists\n");
                 if (fDebug) assert("mempool transaction already exists" == 0);
             }
@@ -3743,7 +3748,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
 
             CValidationState state;
             CTxUndo txundo;
-            uint256 hash = tx.GetHash();
+            uint256 hash = tx.GetUsernameHash();
             UpdateCoins(tx, state, view, txundo, pindexPrev->nHeight+1, hash);
 
             // Added

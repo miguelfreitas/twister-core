@@ -768,7 +768,7 @@ void CWallet::ReacceptWalletTransactions()
 
             CCoins coins;
             bool fUpdated = false;
-            bool fFound = pcoinsTip->GetCoins(wtx.GetHash(), coins);
+            bool fFound = pcoinsTip->GetCoins(wtx.GetUsernameHash(), coins);
             if (fFound || wtx.GetDepthInMainChain() > 0)
             {
               /*

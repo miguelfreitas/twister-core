@@ -563,7 +563,7 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     CCoinsViewCache &view = *pcoinsTip;
     CCoins existingCoins;
     {
-        fHave = view.GetCoins(hashTx, existingCoins);
+        fHave = view.GetCoins(tx.GetUsernameHash(), existingCoins);
         if (!fHave) {
             // push to local node
             CValidationState state;
