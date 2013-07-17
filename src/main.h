@@ -306,13 +306,6 @@ inline bool AllowFree(double dPriority)
     return dPriority > COIN * 144 / 250;
 }
 
-// Check whether all inputs of this transaction are valid (no double spends, scripts & sigs, amounts)
-// This does not modify the UTXO set. If pvChecks is not NULL, script checks are pushed onto it
-// instead of being performed inline.
-bool CheckInputs(const CTransaction& tx, CValidationState &state, CCoinsViewCache &view, bool fScriptChecks = true,
-                 unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC,
-                 std::vector<CScriptCheck> *pvChecks = NULL);
-
 // Apply the effects of this transaction on the UTXO set represented by view
 bool UpdateCoins(const CTransaction& tx, CCoinsViewCache &view, CTxUndo &txundo, int nHeight, const uint256 &txhash);
 
