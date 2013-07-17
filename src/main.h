@@ -317,11 +317,6 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state);
 */
 bool IsStandardTx(const CTransaction& tx, std::string& reason);
 
-/** Amount of bitcoins spent by the transaction.
-    @return sum of all outputs (note: does not include fees)
- */
-int64 GetValueOut(const CTransaction& tx);
-
 /** Undo information for a CBlock */
 class CBlockUndo
 {

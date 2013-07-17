@@ -408,22 +408,6 @@ bool IsStandardTx(const CTransaction& tx, string& reason)
     return true;
 }
 
-/** Amount of bitcoins spent by the transaction.
-    @return sum of all outputs (note: does not include fees)
- */
-int64 GetValueOut(const CTransaction& tx)
-{
-    int64 nValueOut = 0;
-    /* [MF]
-    BOOST_FOREACH(const CTxOut& txout, tx.vout)
-    {
-        nValueOut += txout.nValue;
-        if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
-            throw std::runtime_error("GetValueOut() : value out of range");
-    } */
-    return nValueOut;
-}
-
 //
 // Check transaction inputs, and make sure any
 // pay-to-script-hash transactions are evaluating IsStandard scripts
@@ -1283,14 +1267,6 @@ bool CCoinsViewCache::HaveInputs(const CTransaction& tx)
     return true;
 }
 
-/* [MF]
-bool CScriptCheck::operator()() const {
-    const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
-    if (!VerifyScript(scriptSig, scriptPubKey, *ptxTo, nIn, nFlags, nHashType))
-        return error("CScriptCheck() : %s VerifySignature failed", ptxTo->GetHash().ToString().c_str());
-    return true;
-}
-*/
 
 bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
 {
