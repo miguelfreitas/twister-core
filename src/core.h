@@ -182,8 +182,8 @@ public:
     int nVersion;
     CScript message;
     CScript userName;
-    CScript userID;
     CScript pubKey;
+    unsigned int nNonce;
 
     CTransaction()
     {
@@ -196,8 +196,8 @@ public:
         nVersion = this->nVersion;
         READWRITE(message);
         READWRITE(userName);
-        READWRITE(userID);
         READWRITE(pubKey);
+        READWRITE(nNonce);
     )
 
     void SetNull()
@@ -205,20 +205,20 @@ public:
         nVersion = CTransaction::CURRENT_VERSION;
         message.clear();
         userName.clear();
-        userID.clear();
         pubKey.clear();
+        nNonce = 0;
     }
 
     bool IsNull() const
     {
-        return (message.empty() && userName.empty() && userID.empty() && pubKey.empty());
+        return (message.empty() && userName.empty() && pubKey.empty());
     }
 
     uint256 GetHash() const;
 
     bool IsSpamMessage() const
     {
-        return (!message.empty() && userID.empty() && pubKey.empty());
+        return (!message.empty() && userName.empty() && pubKey.empty());
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
@@ -226,7 +226,6 @@ public:
         return (a.nVersion  == b.nVersion &&
                 a.message   == b.message &&
                 a.userName  == b.userName &&
-                a.userID    == b.userID &&
                 a.pubKey    == b.pubKey);
     }
 
@@ -548,6 +547,7 @@ public:
     // header
     static const int CURRENT_VERSION=2;
     int nVersion;
+    int nHeight;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
     unsigned int nTime;
@@ -563,6 +563,7 @@ public:
     (
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
+        READWRITE(nHeight);
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
@@ -573,6 +574,7 @@ public:
     void SetNull()
     {
         nVersion = CBlockHeader::CURRENT_VERSION;
+        nHeight = 0;
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
@@ -631,6 +633,7 @@ public:
     {
         CBlockHeader block;
         block.nVersion       = nVersion;
+        block.nHeight        = nHeight;
         block.hashPrevBlock  = hashPrevBlock;
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;

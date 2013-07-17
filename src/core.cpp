@@ -81,17 +81,16 @@ uint256 CTransaction::GetHash() const
 std::string CTransaction::ToString() const
 {
     std::string str;
-    str += strprintf("CTransaction(hash=%s, ver=%d, message.size=%"PRIszu", userID.size=%"PRIszu", pubKey.size=%"PRIszu")\n",
+    str += strprintf("CTransaction(hash=%s, ver=%d, message.size=%"PRIszu", userName.size=%"PRIszu", pubKey.size=%"PRIszu")\n",
         GetHash().ToString().substr(0,10).c_str(),
         nVersion,
         message.size(),
-        userID.size(),
+        userName.size(),
         pubKey.size());
     if( message.size() ) {
       str += "    message: " + message.ToString() + "\n";
     } else {
       str += "    userName: " + userName.ToString() + "\n";
-      str += "    userID: " + userID.ToString() + "\n";
       str += "    pubKey: " + pubKey.ToString() + "\n";
     }
     return str;

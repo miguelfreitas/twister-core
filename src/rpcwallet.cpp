@@ -408,7 +408,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
-        if (wtx.IsSpamMessage() || !IsFinalTx(wtx))
+        if (wtx.IsSpamMessage())
             continue;
 /*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -455,7 +455,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
-        if (wtx.IsSpamMessage() || !IsFinalTx(wtx))
+        if (wtx.IsSpamMessage())
             continue;
 /*
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
@@ -480,9 +480,6 @@ int64 GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinD
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
-        if (!IsFinalTx(wtx))
-            continue;
-
         int64 nReceived, nSent, nFee;
         wtx.GetAccountAmounts(strAccount, nReceived, nSent, nFee);
 
@@ -841,7 +838,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
     {
         const CWalletTx& wtx = (*it).second;
 
-        if (wtx.IsSpamMessage() || !IsFinalTx(wtx))
+        if (wtx.IsSpamMessage())
             continue;
 
         int nDepth = wtx.GetDepthInMainChain();

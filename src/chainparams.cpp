@@ -34,6 +34,7 @@ public:
         nRPCPort = 28332;
         //bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 1);
+        nTxBits = 0x207fffff;
         nSubsidyHalvingInterval = 210000;
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot
@@ -47,6 +48,7 @@ public:
         const char* pszTimestamp = "The Times 14/Jul/2013 Globo caught bribing Receita Federal employee to rob R$615M tax evasion documents.";
         CTransaction txNew;
         txNew.message = CScript() << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+        txNew.nNonce  = 1;
         genesis.vtx.push_back(txNew);
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
@@ -54,7 +56,7 @@ public:
         genesis.nTime    = 1231006505;
         //genesis.nBits    = 0x1d00ffff;
         genesis.nBits    = 0x207fffff;
-        genesis.nNonce   = 2;
+        genesis.nNonce   = 0;
 
         hashGenesisBlock = genesis.GetHash();
         printf("hashGenesisBlock %s\n", hashGenesisBlock.ToString().c_str());
@@ -148,6 +150,7 @@ public:
         pchMessageStart[3] = 0xda;
         nSubsidyHalvingInterval = 150;
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 1);
+        nTxBits = 0x207fffff;
         genesis.nTime = 1296688602;
         genesis.nBits = 0x207fffff;
         genesis.nNonce = 2;

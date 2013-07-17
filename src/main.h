@@ -59,6 +59,10 @@ static const int fHaveUPnP = true;
 #else
 static const int fHaveUPnP = false;
 #endif
+/** The maximum size for spam messages */
+static const unsigned int MAX_SPAM_MSG_SIZE = 140;
+/** The maximum size for username */
+static const unsigned int MAX_USERNAME_SIZE = 16;
 
 
 extern CScript COINBASE_FLAGS;
@@ -262,14 +266,6 @@ struct CDiskTxPos : public CDiskBlockPos
 
 
 
-enum GetMinFee_mode
-{
-    GMF_RELAY,
-    GMF_SEND,
-};
-
-int64 GetMinFee(const CTransaction& tx, bool fAllowFree, enum GetMinFee_mode mode);
-
 //
 // Check transaction inputs, and make sure any
 // pay-to-script-hash transactions are evaluating IsStandard scripts
@@ -327,8 +323,6 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state);
     @return True if all outputs (scriptPubKeys) use only standard transaction forms
 */
 bool IsStandardTx(const CTransaction& tx, std::string& reason);
-
-bool IsFinalTx(const CTransaction &tx, int nBlockHeight = 0, int64 nBlockTime = 0);
 
 /** Amount of bitcoins spent by the transaction.
     @return sum of all outputs (note: does not include fees)
