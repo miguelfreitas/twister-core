@@ -65,6 +65,8 @@ int64 nHPSTimerStart = 0;
 // Settings
 int64 nTransactionFee = 0;
 
+string strSpamMessage = "spam message test";
+string strSpamUser = "nobody"; // [MF] FIXME: authenticy check needed
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -466,12 +468,10 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 {
     // Basic checks that don't depend on any context
     if (tx.IsSpamMessage()) {
-      if (!tx.userName.empty())
-          return state.DoS(10, error("CheckTransaction() : username not empty in spam message"));
-      if (!tx.pubKey.empty())
-          return state.DoS(10, error("CheckTransaction() : pubKey empty not empty in spam message"));
       if (tx.message.size() > MAX_SPAM_MSG_SIZE)
           return state.DoS(100, error("CheckTransaction() : spam message too big"));
+      // [MF] TODO: check message signature
+      // [MF] Problem: registration of this user may be in the block itself, better check later.
     } else {
       if (tx.userName.empty())
           return state.DoS(10, error("CheckTransaction() : username empty"));
@@ -483,8 +483,10 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     // Size limits
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return state.DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
+
     // Check proof of work matches claimed amount
-    if (!CheckProofOfWork(tx.GetHash(), Params().txBits()) )
+    // SpamMessage is excluded of POW because it also contains "extranounce"
+    if (!tx.IsSpamMessage() && !CheckProofOfWork(tx.GetHash(), Params().txBits()) )
         return state.DoS(50, error("CheckTransaction() : proof of work failed"));
 
     return true;
@@ -883,16 +885,6 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
     while (mapOrphanBlocks.count(pblock->hashPrevBlock))
         pblock = mapOrphanBlocks[pblock->hashPrevBlock];
     return pblock->GetHash();
-}
-
-int64 static GetBlockValue(int nHeight, int64 nFees)
-{
-    int64 nSubsidy = 50 * COIN;
-
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= (nHeight / Params().SubsidyHalvingInterval());
-
-    return nSubsidy + nFees;
 }
 
 static const int64 nTargetTimespan = 14 * 24 * 60 * 60; // two weeks
@@ -3380,6 +3372,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         // transactions become unconfirmed and spams other nodes.
         if (!fReindex && !fImporting && !IsInitialBlockDownload())
         {
+            // [MF] resend registrations?
             ResendWalletTransactions();
         }
 
@@ -3671,14 +3664,30 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
 
     // Create coinbase tx
     CTransaction txNew;
-    txNew.message.clear();
-    /* [MF] Check! add spam  */
-    CPubKey pubkey;
-    if (!reservekey.GetReservedKey(pubkey))
+    txNew.message = CScript() << vector<unsigned char>((const unsigned char*)strSpamMessage.data(), (const unsigned char*)strSpamMessage.data() + strSpamMessage.size());
+
+    // get keyid from wallet (hopefully this is pubkey of strSpamUser)
+    CKeyID defaultKeyId( pwalletMain->vchDefaultKey.GetID() );
+    CKey key;
+    // get privkey from pubkey
+    if( !pwalletMain->GetKey(defaultKeyId, key) ) {
+        printf("CreateNewBlock: Failed to get privKey to sign SpamMessage\n");
         return NULL;
-    txNew.pubKey << pubkey << OP_CHECKSIG;
-    txNew.nNonce = 0;
-    // [MF] TODO: fix nNonce
+    }
+    // compute message hash and sign it
+    CHashWriter msgHash(SER_GETHASH, PROTOCOL_VERSION);
+    msgHash << txNew.message;
+    // vchSig is sig(hash(message))
+    vector<unsigned char> vchSig;
+    if (!key.Sign(msgHash.GetHash(), vchSig)) {
+        printf("CreateNewBlock: Failed to sign SpamMessage\n");
+        return false;
+    }
+    // add username and signature
+    txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size())
+                               << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
+    txNew.pubKey.clear(); // pubKey will be updated to include extranonce
+    txNew.nNonce = 0; // no update needed for spamMessage's nonce.
 
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);

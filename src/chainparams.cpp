@@ -48,7 +48,7 @@ public:
         const char* pszTimestamp = "The Times 14/Jul/2013 Globo caught bribing Receita Federal employee to rob R$615M tax evasion documents.";
         CTransaction txNew;
         txNew.message = CScript() << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.nNonce  = 1;
+        txNew.nNonce  = 0; // spamMessage is not required to show POW to ease "extranonce" support
         genesis.vtx.push_back(txNew);
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();

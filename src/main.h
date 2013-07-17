@@ -102,6 +102,9 @@ extern bool fHaveGUI;
 // Settings
 extern int64 nTransactionFee;
 
+extern string strSpamMessage;
+extern string strSpamUser;
+
 // Minimum disk space required - used in CheckDiskSpace()
 static const uint64 nMinDiskSpace = 52428800;
 

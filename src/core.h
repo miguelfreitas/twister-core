@@ -219,7 +219,7 @@ public:
 
     bool IsSpamMessage() const
     {
-        return (!message.empty() && userName.empty() && pubKey.empty());
+        return !message.empty();
     }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
