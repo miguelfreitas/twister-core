@@ -78,6 +78,12 @@ uint256 CTransaction::GetHash() const
     return SerializeHash(*this);
 }
 
+uint256 CTransaction::GetUsernameHash() const
+{
+    return SerializeHash(userName);
+}
+
+
 std::string CTransaction::ToString() const
 {
     std::string str;
