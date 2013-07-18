@@ -463,7 +463,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 
 
-
+// [MF] check tx consistency and pow, not duplicated id.
 bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 {
     // Basic checks that don't depend on any context
@@ -507,6 +507,7 @@ void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
     */
 }
 
+// [MF] check if tx duplicated (mapTx and ccoins)
 bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs)
 {
@@ -535,6 +536,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     }
 
     {
+        // [MF] check txIndex here instead of coins
         CCoinsView dummy;
         CCoinsViewCache view(dummy);
 
@@ -583,7 +585,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     // Store transaction in memory
     {
         LOCK(cs);
-        addUnchecked(hash, tx);
+        addUnchecked(hash, tx); // adds to mapTx
     }
 
     ///// are we sure this is ok when loading transactions or restoring block txes
@@ -1291,6 +1293,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
+        // [MF] FIXME: check here for indexTx
         uint256 hash = block.GetTxHash(i);
         if (view.HaveCoins(block.vtx[i].GetUsernameHash()))
             return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
@@ -1676,7 +1679,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
     return true;
 }
 
-
+// [MF] consistency check, don't check if tx already exists in db
 bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     // These are checks that are independent of context
@@ -1701,7 +1704,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         if (block.vtx[i].IsSpamMessage())
             return state.DoS(100, error("CheckBlock() : more than one coinbase"));
 
-    // Check transactions
+    // Check transactions (consistency, not duplicated id)
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
         if (!CheckTransaction(tx, state))
             return error("CheckBlock() : CheckTransaction failed");
@@ -3047,6 +3050,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         bool fMissingInputs = false;
         CValidationState state;
+        // [MF] here we check for duplicated tx
         if (mempool.accept(state, tx, true, &fMissingInputs))
         {
             RelayTransaction(tx, inv.hash, vMsg);
