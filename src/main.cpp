@@ -724,16 +724,6 @@ bool CWalletTx::AcceptWalletTransaction()
 {
     {
         LOCK(mempool.cs);
-        // Add previous supporting transactions first
-        BOOST_FOREACH(CMerkleTx& tx, vtxPrev)
-        {
-            if (!tx.IsSpamMessage())
-            {
-                uint256 hash = tx.GetHash();
-                if (!mempool.exists(hash) && pcoinsTip->HaveCoins(tx.GetUsernameHash()))
-                    tx.AcceptToMemoryPool(false);
-            }
-        }
         return AcceptToMemoryPool(false);
     }
     return false;

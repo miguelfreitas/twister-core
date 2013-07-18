@@ -665,54 +665,7 @@ int CWalletTx::GetRequestCount() const
 
 void CWalletTx::AddSupportingTransactions()
 {
-    vtxPrev.clear();
-
-    const int COPY_DEPTH = 3;
-    if (SetMerkleBranch() < COPY_DEPTH)
-    {
-        vector<uint256> vWorkQueue;
-        /*
-        BOOST_FOREACH(const CTxIn& txin, vin)
-            vWorkQueue.push_back(txin.prevout.hash);
-
-        {
-            LOCK(pwallet->cs_wallet);
-            map<uint256, const CMerkleTx*> mapWalletPrev;
-            set<uint256> setAlreadyDone;
-            for (unsigned int i = 0; i < vWorkQueue.size(); i++)
-            {
-                uint256 hash = vWorkQueue[i];
-                if (setAlreadyDone.count(hash))
-                    continue;
-                setAlreadyDone.insert(hash);
-
-                CMerkleTx tx;
-                map<uint256, CWalletTx>::const_iterator mi = pwallet->mapWallet.find(hash);
-                if (mi != pwallet->mapWallet.end())
-                {
-                    tx = (*mi).second;
-                    BOOST_FOREACH(const CMerkleTx& txWalletPrev, (*mi).second.vtxPrev)
-                        mapWalletPrev[txWalletPrev.GetHash()] = &txWalletPrev;
-                }
-                else if (mapWalletPrev.count(hash))
-                {
-                    tx = *mapWalletPrev[hash];
-                }
-
-                int nDepth = tx.SetMerkleBranch();
-                vtxPrev.push_back(tx);
-
-                if (nDepth < COPY_DEPTH)
-                {
-                    BOOST_FOREACH(const CTxIn& txin, tx.vin)
-                        vWorkQueue.push_back(txin.prevout.hash);
-                }
-            }
-        }
-        */
-    }
-
-    reverse(vtxPrev.begin(), vtxPrev.end());
+// [MF] remove me
 }
 
 bool CWalletTx::WriteToDisk()
@@ -810,12 +763,6 @@ void CWallet::ReacceptWalletTransactions()
 
 void CWalletTx::RelayWalletTransaction()
 {
-    BOOST_FOREACH(const CMerkleTx& tx, vtxPrev)
-    {
-        if (!tx.IsSpamMessage())
-            if (tx.GetDepthInMainChain() == 0)
-                RelayTransaction((CTransaction)tx, tx.GetHash());
-    }
     if (!IsSpamMessage())
     {
         if (GetDepthInMainChain() == 0) {

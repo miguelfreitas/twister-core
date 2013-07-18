@@ -381,7 +381,6 @@ private:
     const CWallet* pwallet;
 
 public:
-    std::vector<CMerkleTx> vtxPrev;
     mapValue_t mapValue;
     std::vector<std::pair<std::string, std::string> > vOrderForm;
     unsigned int fTimeReceivedIsTxTime;
@@ -427,7 +426,6 @@ public:
     void Init(const CWallet* pwalletIn)
     {
         pwallet = pwalletIn;
-        vtxPrev.clear();
         mapValue.clear();
         vOrderForm.clear();
         fTimeReceivedIsTxTime = false;
@@ -476,7 +474,6 @@ public:
         }
 
         nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion,ser_action);
-        READWRITE(vtxPrev);
         READWRITE(mapValue);
         READWRITE(vOrderForm);
         READWRITE(fTimeReceivedIsTxTime);
@@ -662,35 +659,6 @@ public:
         if (!IsFromMe()) // using wtx's cached debit
             return false;
 
-        // If no confirmations but it's from us, we can still
-        // consider it confirmed if all dependencies are confirmed
-        std::map<uint256, const CMerkleTx*> mapPrev;
-        std::vector<const CMerkleTx*> vWorkQueue;
-        vWorkQueue.reserve(vtxPrev.size()+1);
-        vWorkQueue.push_back(this);
-        for (unsigned int i = 0; i < vWorkQueue.size(); i++)
-        {
-            const CMerkleTx* ptx = vWorkQueue[i];
-
-            if (ptx->GetDepthInMainChain() >= 1)
-                continue;
-            if (!pwallet->IsFromMe(*ptx))
-                return false;
-
-            if (mapPrev.empty())
-            {
-                BOOST_FOREACH(const CMerkleTx& tx, vtxPrev)
-                    mapPrev[tx.GetHash()] = &tx;
-            }
-/*
-            BOOST_FOREACH(const CTxIn& txin, ptx->vin)
-            {
-                if (!mapPrev.count(txin.prevout.hash))
-                    return false;
-                vWorkQueue.push_back(mapPrev[txin.prevout.hash]);
-            }
-            */
-        }
         return true;
     }
 
