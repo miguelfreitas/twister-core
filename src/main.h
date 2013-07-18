@@ -96,7 +96,6 @@ extern bool fImporting;
 extern bool fReindex;
 extern bool fBenchmark;
 extern int nScriptCheckThreads;
-extern bool fTxIndex;
 extern unsigned int nCoinCacheSize;
 extern bool fHaveGUI;
 

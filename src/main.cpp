@@ -45,7 +45,7 @@ int nScriptCheckThreads = 0;
 bool fImporting = false;
 bool fReindex = false;
 bool fBenchmark = false;
-bool fTxIndex = false;
+bool fTxIndex = true; // always true in twister
 unsigned int nCoinCacheSize = 5000;
 bool fHaveGUI = false;
 
@@ -1347,9 +1347,10 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
             return state.Abort(_("Failed to write block index"));
     }
 
-    if (fTxIndex)
+    if (fTxIndex) {
         if (!pblocktree->WriteTxIndex(vPos))
             return state.Abort(_("Failed to write transaction index"));
+    }
 
     // add this block to the view's block chain
     assert(view.SetBestBlock(pindex));
@@ -2180,8 +2181,10 @@ bool static LoadBlockIndexDB()
     fReindex |= fReindexing;
 
     // Check whether we have a transaction index
-    pblocktree->ReadFlag("txindex", fTxIndex);
-    printf("LoadBlockIndexDB(): transaction index %s\n", fTxIndex ? "enabled" : "disabled");
+    bool readTxIndex;
+    pblocktree->ReadFlag("txindex", readTxIndex);
+    printf("LoadBlockIndexDB(): transaction index %s\n", readTxIndex ? "enabled" : "disabled");
+    assert( readTxIndex ); // always true in twister
 
     // Load hashBestChain pointer to end of best chain
     pindexBest = pcoinsTip->GetBestBlock();
@@ -2305,7 +2308,7 @@ bool InitBlockIndex() {
         return true;
 
     // Use the provided setting for -txindex in the new database
-    fTxIndex = GetBoolArg("-txindex", false);
+    fTxIndex = true;
     pblocktree->WriteFlag("txindex", fTxIndex);
     printf("Initializing databases...\n");
 
