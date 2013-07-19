@@ -3524,25 +3524,19 @@ public:
     }
 };
 
-CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
-{
-    // Create new block
-    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
-    if(!pblocktemplate.get())
-        return NULL;
-    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
-    // Create coinbase tx
-    CTransaction txNew;
+static bool CreateSpamMsgTx(CTransaction &txNew)
+{
     txNew.message = CScript() << vector<unsigned char>((const unsigned char*)strSpamMessage.data(), (const unsigned char*)strSpamMessage.data() + strSpamMessage.size());
 
     // get keyid from wallet (hopefully this is pubkey of strSpamUser)
     CKeyID defaultKeyId( pwalletMain->vchDefaultKey.GetID() );
+    printf("CreateSpamMsgTx: keyId = %s\n", defaultKeyId.ToString().c_str() );
     CKey key;
     // get privkey from pubkey
     if( !pwalletMain->GetKey(defaultKeyId, key) ) {
         printf("CreateNewBlock: Failed to get privKey to sign SpamMessage\n");
-        return NULL;
+        return false;
     }
     // compute message hash and sign it
     CHashWriter msgHash(SER_GETHASH, PROTOCOL_VERSION);
@@ -3553,11 +3547,30 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
         printf("CreateNewBlock: Failed to sign SpamMessage\n");
         return false;
     }
+    printf("CreateSpamMsgTx: msg = %s hash = %s signed = %s\n", txNew.message.ToString().c_str(),
+           msgHash.GetHash().ToString().c_str(), vchSig.data() );
     // add username and signature
     txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size())
                                << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.
+
+    return true;
+}
+
+// [MF] FIXME: reservekey gives uniqueness to this worker thread, but it's not being used in twister.
+CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
+{
+    // Create new block
+    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    if(!pblocktemplate.get())
+        return NULL;
+    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
+
+    // Create coinbase tx
+    CTransaction txNew;
+    if( !CreateSpamMsgTx(txNew) )
+        return NULL;
 
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
