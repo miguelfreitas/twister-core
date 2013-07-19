@@ -521,26 +521,9 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     }
 
     {
-        // [MF] FIXME: check txIndex here instead of coins
-
-        CCoinsView dummy;
-        CCoinsViewCache view(dummy);
-
-        {
-        LOCK(cs);
-        CCoinsViewMemPool viewMemPool(*pcoinsTip, *this);
-        view.SetBackend(viewMemPool);
-
         // do we already have it?
-        if (view.HaveCoins(tx.GetUsernameHash()))
+        if( pblocktree->HaveTxIndex(userhash) )
             return false;
-
-        // Bring the best block into scope
-        view.GetBestBlock();
-
-        // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-        view.SetBackend(dummy);
-        }
 
         unsigned int nSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
 
@@ -714,31 +697,6 @@ bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashB
                 if (txOut.GetUsernameHash() != userhash)
                     return error("%s() : txid mismatch", __PRETTY_FUNCTION__);
                 return true;
-            }
-        }
-
-        if (fAllowSlow) { // use coin database to locate block that contains transaction, and scan it
-            int nHeight = -1;
-            {
-                CCoinsViewCache &view = *pcoinsTip;
-                CCoins coins;
-                if (view.GetCoins(userhash, coins))
-                    nHeight = coins.nHeight;
-            }
-            if (nHeight > 0)
-                pindexSlow = FindBlockByHeight(nHeight);
-        }
-    }
-
-    if (pindexSlow) {
-        CBlock block;
-        if (ReadBlockFromDisk(block, pindexSlow)) {
-            BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-                if (tx.GetHash() == userhash) {
-                    txOut = tx;
-                    hashBlock = pindexSlow->GetBlockHash();
-                    return true;
-                }
             }
         }
     }
@@ -1136,57 +1094,12 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
         return error("DisconnectBlock() : block and undo data inconsistent");
 
     // undo transactions in reverse order
-    // [MF] FIXME: remove from txIndex
+    // [MF] just remove from txIndex, no more coins
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = block.vtx[i];
-        uint256 hash = tx.GetHash();
 
-        // check that all outputs are available
-        if (!view.HaveCoins(tx.GetUsernameHash())) {
-            fClean = fClean && error("DisconnectBlock() : outputs still spent? database corrupted");
-            view.SetCoins(tx.GetUsernameHash(), CCoins());
-        }
-        CCoins &outs = view.GetCoins(tx.GetUsernameHash());
-
-        CCoins outsBlock = CCoins(tx, pindex->nHeight);
-        if (outs != outsBlock)
-            fClean = fClean && error("DisconnectBlock() : added transaction mismatch? database corrupted");
-
-        // remove outputs
-        outs = CCoins();
-
-        // restore inputs
-        if (i > 0) { // not coinbases
-            const CTxUndo &txundo = blockUndo.vtxundo[i-1];
-            /*
-            if (txundo.vprevout.size() != tx.vin.size())
-                return error("DisconnectBlock() : transaction and undo data inconsistent");
-            for (unsigned int j = tx.vin.size(); j-- > 0;) {
-                const COutPoint &out = tx.vin[j].prevout;
-                const CTxInUndo &undo = txundo.vprevout[j];
-                CCoins coins;
-                view.GetCoins(out.hash, coins); // this can fail if the prevout was already entirely spent
-                if (undo.nHeight != 0) {
-                    // undo data contains height: this is the last output of the prevout tx being spent
-                    if (!coins.IsPruned())
-                        fClean = fClean && error("DisconnectBlock() : undo data overwriting existing transaction");
-                    coins = CCoins();
-                    coins.fCoinBase = undo.fCoinBase;
-                    coins.nHeight = undo.nHeight;
-                    coins.nVersion = undo.nVersion;
-                } else {
-                    if (coins.IsPruned())
-                        fClean = fClean && error("DisconnectBlock() : undo data adding output to missing transaction");
-                }
-                if (coins.IsAvailable(out.n))
-                    fClean = fClean && error("DisconnectBlock() : undo data overwriting existing output");
-                if (coins.vout.size() < out.n+1)
-                    coins.vout.resize(out.n+1);
-                coins.vout[out.n] = undo.txout;
-                if (!view.SetCoins(out.hash, coins))
-                    return error("DisconnectBlock() : cannot restore coin inputs");
-            }
-            */
+        if( i > 0 && pblocktree->EraseTxIndex(tx.GetUsernameHash()) ) {
+            fClean = fClean && error("DisconnectBlock() : error erasing txIndex");
         }
     }
 
@@ -1245,10 +1158,13 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
-        // [MF] FIXME: check here for indexTx
-        uint256 hash = block.GetTxHash(i);
-        if (view.HaveCoins(block.vtx[i].GetUsernameHash()))
-            return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
+        if( pblocktree->HaveTxIndex(block.vtx[i].GetUsernameHash()) )
+          return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
+
+        // [MF] FIXME: check here for indexTx (done above!)
+        //uint256 hash = block.GetTxHash(i);
+        //if (view.HaveCoins(block.vtx[i].GetUsernameHash()))
+        //    return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
     }
 
     CBlockUndo blockundo;
@@ -1262,12 +1178,10 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
         const CTransaction &tx = block.vtx[i];
 
         CTxUndo txundo;
-        //UpdateCoins(tx, state, view, txundo, pindex->nHeight, block.GetTxHash(i));
-        UpdateCoins(tx, state, view, txundo, pindex->nHeight, tx.GetUsernameHash());
         if (!tx.IsSpamMessage())
             blockundo.vtxundo.push_back(txundo);
 
-        vPos.push_back(std::make_pair(block.GetTxHash(i), pos));
+        vPos.push_back(std::make_pair(tx.GetUsernameHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }
     int64 nTime = GetTimeMicros() - nStart;
@@ -1876,7 +1790,8 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         uint256 hash = block.vtx[i].GetHash();
-        if (filter.IsRelevantAndUpdate(block.vtx[i], hash))
+        // [MF] unsure. force 0, use userhash for filter, hash for merkletree
+        if (i == 0 || filter.IsRelevantAndUpdate(block.vtx[i], block.vtx[i].GetUsernameHash()))
         {
             vMatch.push_back(true);
             vMatchedTxn.push_back(make_pair(i, block.vtx[i].GetUsernameHash()));
@@ -2518,12 +2433,11 @@ bool static AlreadyHave(const CInv& inv)
                 LOCK(mempool.cs);
                 txInMap = mempool.exists(inv.hash);
             }
-            bool txInCoins = false;
+            bool txInTxIndex = false;
             if( !txInMap ) {
-                // [MF] FIXME: como converter inv.hash no usernamehash?
-                txInCoins = pcoinsTip->HaveCoins(inv.hash);
+                txInTxIndex = pblocktree->HaveTxIndex(inv.hash);
             }
-            return txInMap || txInCoins;
+            return txInMap || txInTxIndex;
         }
     case MSG_BLOCK:
         return mapBlockIndex.count(inv.hash) ||
@@ -3684,7 +3598,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
                 continue;
 
             // This should never happen; all transactions in the memory are new
-            if( view.HaveCoins(tx.GetUsernameHash()) ) {
+            if( pblocktree->HaveTxIndex(tx.GetUsernameHash()) ) {
                 printf("ERROR: mempool transaction already exists\n");
                 if (fDebug) assert("mempool transaction already exists" == 0);
             }

@@ -76,7 +76,7 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out)
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 {
-    entry.push_back(Pair("txid", tx.GetHash().GetHex()));
+    entry.push_back(Pair("txid", tx.GetUsernameHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
     //entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
     Array vin;
