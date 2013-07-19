@@ -644,7 +644,7 @@ public:
 
 
 class CTransaction;
-void RelayTransaction(const CTransaction& tx, const uint256& hash);
-void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataStream& ss);
+void RelayTransaction(const CTransaction& tx, const uint256& userhash);
+void RelayTransaction(const CTransaction& tx, const uint256& userhash, const CDataStream& ss);
 
 #endif

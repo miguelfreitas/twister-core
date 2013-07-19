@@ -492,21 +492,6 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     return true;
 }
 
-void CTxMemPool::pruneSpent(const uint256 &hashTx, CCoins &coins)
-{
-    LOCK(cs);
-
-    /*
-    std::map<COutPoint, CInPoint>::iterator it = mapNextTx.lower_bound(COutPoint(hashTx, 0));
-
-    // iterate over all COutPoints in mapNextTx whose hash equals the provided hashTx
-    while (it != mapNextTx.end() && it->first.hash == hashTx) {
-        coins.Spend(it->first.n); // and remove those outputs from coins
-        it++;
-    }
-    */
-}
-
 // [MF] check if tx duplicated (mapTx and ccoins)
 bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFree,
                         bool* pfMissingInputs)
@@ -528,15 +513,16 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
                      reason.c_str());
 
     // is it already in the memory pool?
-    uint256 hash = tx.GetHash();
+    uint256 userhash = tx.GetUsernameHash();
     {
         LOCK(cs);
-        if (mapTx.count(hash))
+        if (mapTx.count(userhash))
             return false;
     }
 
     {
-        // [MF] check txIndex here instead of coins
+        // [MF] FIXME: check txIndex here instead of coins
+
         CCoinsView dummy;
         CCoinsViewCache view(dummy);
 
@@ -585,29 +571,25 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     // Store transaction in memory
     {
         LOCK(cs);
-        addUnchecked(hash, tx); // adds to mapTx
+        addUnchecked(userhash, tx); // adds to mapTx
     }
 
     ///// are we sure this is ok when loading transactions or restoring block txes
-    SyncWithWallets(hash, tx, NULL, true);
+    SyncWithWallets(userhash, tx, NULL, true);
 
     printf("CTxMemPool::accept() : accepted %s (poolsz %"PRIszu")\n",
-           hash.ToString().c_str(),
+           userhash.ToString().c_str(),
            mapTx.size());
     return true;
 }
 
 
-bool CTxMemPool::addUnchecked(const uint256& hash, CTransaction &tx)
+bool CTxMemPool::addUnchecked(const uint256& userhash, CTransaction &tx)
 {
     // Add to memory pool without checking anything.  Don't call this directly,
     // call CTxMemPool::accept to properly check the transaction first.
     {
-        mapTx[hash] = tx;
-        /* [MF]
-        for (unsigned int i = 0; i < tx.vin.size(); i++)
-            mapNextTx[tx.vin[i].prevout] = CInPoint(&mapTx[hash], i);
-            */
+        mapTx[userhash] = tx;
         nTransactionsUpdated++;
     }
     return true;
@@ -619,22 +601,9 @@ bool CTxMemPool::remove(const CTransaction &tx, bool fRecursive)
     // Remove transaction from memory pool
     {
         LOCK(cs);
-        uint256 hash = tx.GetHash();
+        uint256 hash = tx.GetUsernameHash();
         if (mapTx.count(hash))
         {
-            if (fRecursive) {
-              /*
-                for (unsigned int i = 0; i < tx.vout.size(); i++) {
-                    std::map<COutPoint, CInPoint>::iterator it = mapNextTx.find(COutPoint(hash, i));
-                    if (it != mapNextTx.end())
-                        remove(*it->second.ptx, true);
-                }
-                */
-            }
-            /*
-            BOOST_FOREACH(const CTxIn& txin, tx.vin)
-                mapNextTx.erase(txin.prevout);
-                */
             mapTx.erase(hash);
             nTransactionsUpdated++;
         }
@@ -642,28 +611,10 @@ bool CTxMemPool::remove(const CTransaction &tx, bool fRecursive)
     return true;
 }
 
-bool CTxMemPool::removeConflicts(const CTransaction &tx)
-{
-    // Remove transactions which depend on inputs of tx, recursively
-    LOCK(cs);
-    /* [MF]
-    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-        std::map<COutPoint, CInPoint>::iterator it = mapNextTx.find(txin.prevout);
-        if (it != mapNextTx.end()) {
-            const CTransaction &txConflict = *it->second.ptx;
-            if (txConflict != tx)
-                remove(txConflict, true);
-        }
-    }
-    */
-    return true;
-}
-
 void CTxMemPool::clear()
 {
     LOCK(cs);
     mapTx.clear();
-    mapNextTx.clear();
     ++nTransactionsUpdated;
 }
 
@@ -733,23 +684,23 @@ bool CWalletTx::AcceptWalletTransaction()
 
 
 // Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock
-bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
+bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
 {
     CBlockIndex *pindexSlow = NULL;
     {
         LOCK(cs_main);
         {
             LOCK(mempool.cs);
-            if (mempool.exists(hash))
+            if (mempool.exists(userhash))
             {
-                txOut = mempool.lookup(hash);
+                txOut = mempool.lookup(userhash);
                 return true;
             }
         }
 
         if (fTxIndex) {
             CDiskTxPos postx;
-            if (pblocktree->ReadTxIndex(hash, postx)) {
+            if (pblocktree->ReadTxIndex(userhash, postx)) {
                 CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
                 CBlockHeader header;
                 try {
@@ -760,7 +711,7 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock
                     return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
                 }
                 hashBlock = header.GetHash();
-                if (txOut.GetHash() != hash)
+                if (txOut.GetUsernameHash() != userhash)
                     return error("%s() : txid mismatch", __PRETTY_FUNCTION__);
                 return true;
             }
@@ -771,7 +722,7 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock
             {
                 CCoinsViewCache &view = *pcoinsTip;
                 CCoins coins;
-                if (view.GetCoins(hash, coins))
+                if (view.GetCoins(userhash, coins))
                     nHeight = coins.nHeight;
             }
             if (nHeight > 0)
@@ -783,7 +734,7 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock
         CBlock block;
         if (ReadBlockFromDisk(block, pindexSlow)) {
             BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-                if (tx.GetHash() == hash) {
+                if (tx.GetHash() == userhash) {
                     txOut = tx;
                     hashBlock = pindexSlow->GetBlockHash();
                     return true;
@@ -1185,6 +1136,7 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
         return error("DisconnectBlock() : block and undo data inconsistent");
 
     // undo transactions in reverse order
+    // [MF] FIXME: remove from txIndex
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = block.vtx[i];
         uint256 hash = tx.GetHash();
@@ -1483,7 +1435,6 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
     // Delete redundant memory transactions that are in the connected branch
     BOOST_FOREACH(CTransaction& tx, vDelete) {
         mempool.remove(tx);
-        mempool.removeConflicts(tx);
     }
 
     // Update best block in wallet (so we can detect restored wallets)
@@ -1928,7 +1879,7 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
         if (filter.IsRelevantAndUpdate(block.vtx[i], hash))
         {
             vMatch.push_back(true);
-            vMatchedTxn.push_back(make_pair(i, hash));
+            vMatchedTxn.push_back(make_pair(i, block.vtx[i].GetUsernameHash()));
         }
         else
             vMatch.push_back(false);
@@ -2625,6 +2576,7 @@ void static ProcessGetData(CNode* pfrom)
                             // Thus, the protocol spec specified allows for us to provide duplicate txn here,
                             // however we MUST always provide at least what the remote peer needs
                             typedef std::pair<unsigned int, uint256> PairType;
+                            // [MF] check if vMatchedTxn is userhash
                             BOOST_FOREACH(PairType& pair, merkleBlock.vMatchedTxn)
                                 if (!pfrom->setInventoryKnown.count(CInv(MSG_TX, pair.second)))
                                     pfrom->PushMessage("tx", block.vtx[pair.first]);
@@ -3038,7 +2990,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CTransaction tx;
         vRecv >> tx;
 
-        CInv inv(MSG_TX, tx.GetHash());
+        CInv inv(MSG_TX, tx.GetUsernameHash());
         pfrom->AddInventoryKnown(inv);
 
         // Truncate messages to the size of the tx in them
@@ -3460,7 +3412,6 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                     if (!fTrickleWait)
                     {
                         CWalletTx wtx;
-                        // [MF] TODO: use userhash
                         if (GetTransaction(inv.hash, wtx))
                             if (wtx.fFromMe)
                                 fTrickleWait = true;

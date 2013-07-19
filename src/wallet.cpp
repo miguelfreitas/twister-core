@@ -766,7 +766,7 @@ void CWalletTx::RelayWalletTransaction()
     if (!IsSpamMessage())
     {
         if (GetDepthInMainChain() == 0) {
-            uint256 hash = GetHash();
+            uint256 hash = GetUsernameHash();
             printf("Relaying wtx %s\n", hash.ToString().c_str());
             RelayTransaction((CTransaction)*this, hash);
         }

@@ -126,6 +126,7 @@ Value getrawmempool(const Array& params, bool fHelp)
             "getrawmempool\n"
             "Returns all transaction ids in memory pool.");
 
+    // [MF] check: hashes are now userhash
     vector<uint256> vtxid;
     mempool.queryHashes(vtxid);
 
@@ -229,7 +230,7 @@ Value gettxout(const Array& params, bool fHelp)
         CCoinsViewMemPool view(*pcoinsTip, mempool);
         if (!view.GetCoins(hash, coins))
             return Value::null;
-        mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
+        //mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
     } else {
         if (!pcoinsTip->GetCoins(hash, coins))
             return Value::null;
