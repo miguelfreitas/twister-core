@@ -109,14 +109,6 @@ bool static GetTransaction(const uint256& hashTx, CWalletTx& wtx)
     return false;
 }
 
-// erases transaction with the given hash from all wallets
-void static EraseFromWallets(uint256 hash)
-{
-    LOCK(cs_setpwalletRegistered);
-    BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
-        pwallet->EraseFromWallet(hash);
-}
-
 // make sure all wallets know about the given transaction, in the given block
 void SyncWithWallets(const uint256 &hash, const CTransaction& tx, const CBlock* pblock, bool fUpdate)
 {
@@ -669,7 +661,6 @@ bool CWalletTx::AcceptWalletTransaction()
 // Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock
 bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
 {
-    CBlockIndex *pindexSlow = NULL;
     {
         LOCK(cs_main);
         {
@@ -1020,59 +1011,6 @@ void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev)
 
 
 
-/*
-const CTxOut &CCoinsViewCache::GetOutputFor(const CTxIn& input)
-{
-    const CCoins &coins = GetCoins(input.prevout.hash);
-    assert(coins.IsAvailable(input.prevout.n));
-    return coins.vout[input.prevout.n];
-}
-*/
-
-int64 CCoinsViewCache::GetValueIn(const CTransaction& tx)
-{
-    if (tx.IsSpamMessage())
-        return 0;
-
-    int64 nResult = 0;
-    /* [MF]
-    for (unsigned int i = 0; i < tx.vin.size(); i++)
-        nResult += GetOutputFor(tx.vin[i]).nValue;
-    */
-    return nResult;
-}
-
-void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight, const uint256 &txhash)
-{
-    // mark inputs spent
-    if (!tx.IsSpamMessage()) {
-      /* [MF]
-        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-            CCoins &coins = inputs.GetCoins(txin.prevout.hash);
-            CTxInUndo undo;
-            assert(coins.Spend(txin.prevout, undo));
-            txundo.vprevout.push_back(undo);
-        }
-        */
-    }
-
-    // add outputs
-    assert(inputs.SetCoins(txhash, CCoins(tx, nHeight)));
-}
-
-bool CCoinsViewCache::HaveInputs(const CTransaction& tx)
-{
-    return true;
-}
-
-
-bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
-{
-    /* [MF]
-    return CScriptCheck(txFrom, txTo, nIn, flags, nHashType)();
-    */
-    return true;
-}
 
 bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool* pfClean)
 {
@@ -3622,11 +3560,6 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
             if (nBlockSize + nTxSize >= nBlockMaxSize)
                 continue;
-
-            CValidationState state;
-            CTxUndo txundo;
-            uint256 hash = tx.GetUsernameHash();
-            UpdateCoins(tx, state, view, txundo, pindexPrev->nHeight+1, hash);
 
             // Added
             pblock->vtx.push_back(tx);

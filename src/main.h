@@ -194,8 +194,6 @@ void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev);
 
 /** Create a new block index entry for a given block hash */
 CBlockIndex * InsertBlockIndex(uint256 hash);
-/** Verify a signature */
-bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType);
 /** Abort with a message */
 bool AbortNode(const std::string &msg);
 
@@ -271,9 +269,6 @@ inline bool AllowFree(double dPriority)
     // need a fee.
     return dPriority > COIN * 144 / 250;
 }
-
-// Apply the effects of this transaction on the UTXO set represented by view
-bool UpdateCoins(const CTransaction& tx, CCoinsViewCache &view, CTxUndo &txundo, int nHeight, const uint256 &txhash);
 
 // Context-independent validity checks
 bool CheckTransaction(const CTransaction& tx, CValidationState& state);
@@ -1123,21 +1118,6 @@ public:
 
     // Calculate the size of the cache (in number of transactions)
     unsigned int GetCacheSize();
-
-    /** Amount of bitcoins coming in to a transaction
-        Note that lightweight clients may not know anything besides the hash of previous transactions,
-        so may not be able to calculate this.
-
-        @param[in] tx	transaction for which we are checking input total
-        @return	Sum of value of all inputs (scriptSigs)
-        @see CTransaction::FetchInputs
-     */
-    int64 GetValueIn(const CTransaction& tx);
-    
-    // Check whether all prevouts of the transaction are present in the UTXO set represented by this view
-    bool HaveInputs(const CTransaction& tx);
-
-    //const CTxOut &GetOutputFor(const CTxIn& input);
 
 private:
     std::map<uint256,CCoins>::iterator FetchCoins(const uint256 &txid);
