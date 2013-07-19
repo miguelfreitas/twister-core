@@ -526,6 +526,8 @@ static void InterpretNegativeSetting(string name, map<string, string>& mapSettin
 
 void ParseParameters(int argc, const char* const argv[])
 {
+    fCachedPath[0] = fCachedPath[1] = false; // clear cached path to receive cmdline
+
     mapArgs.clear();
     mapMultiArgs.clear();
     for (int i = 1; i < argc; i++)
@@ -567,6 +569,8 @@ void ParseParameters(int argc, const char* const argv[])
         // interpret -nofoo as -foo=0 (and -nofoo=0 as -foo=1) as long as -foo not set
         InterpretNegativeSetting(name, mapArgs);
     }
+
+    fReopenDebugLog = true;
 }
 
 std::string GetArg(const std::string& strArg, const std::string& strDefault)
