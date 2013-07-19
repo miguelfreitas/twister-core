@@ -3386,7 +3386,7 @@ void SHA256Transform(void* pstate, void* pinput, const void* pinit)
 //
 unsigned int static ScanHash_CryptoPP(char* pmidstate, char* pdata, char* phash1, char* phash, unsigned int& nHashesDone)
 {
-    unsigned int& nNonce = *(unsigned int*)(pdata + 12);
+    unsigned int& nNonce = *(unsigned int*)(pdata + 12 + 4);
     for (;;)
     {
         // Crypto++ SHA256
@@ -3398,7 +3398,7 @@ unsigned int static ScanHash_CryptoPP(char* pmidstate, char* pdata, char* phash1
 
         // Return the nonce if the hash has at least some zero bits,
         // caller will check if it has enough to reach the target
-        if (((unsigned short*)phash)[14] == 0)
+        if (((unsigned short*)phash)[14 + 4] == 0)
             return nNonce;
 
         // If nothing found after trying for a while, return -1
@@ -3620,6 +3620,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
         struct unnamed2
         {
             int nVersion;
+            int nHeight;
             uint256 hashPrevBlock;
             uint256 hashMerkleRoot;
             unsigned int nTime;
@@ -3635,6 +3636,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
     memset(&tmp, 0, sizeof(tmp));
 
     tmp.block.nVersion       = pblock->nVersion;
+    tmp.block.nHeight        = pblock->nHeight;
     tmp.block.hashPrevBlock  = pblock->hashPrevBlock;
     tmp.block.hashMerkleRoot = pblock->hashMerkleRoot;
     tmp.block.nTime          = pblock->nTime;
@@ -3736,9 +3738,9 @@ void static BitcoinMiner(CWallet *pwallet)
 
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
-        unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8);
-        unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
+        unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4 + 4);
+        unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8 + 4);
+        unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12 + 4);
 
 
         //
