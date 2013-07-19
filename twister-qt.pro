@@ -218,7 +218,8 @@ HEADERS +=  \
 #    src/qt/rpcconsole.h \
 #    src/qt/splashscreen.h
 
-SOURCES += src/qt/bitcoin.cpp \
+SOURCES += \ #src/qt/bitcoin.cpp \
+    src/bitcoind.cpp \
     src/alert.cpp \
     src/chainparams.cpp \
     src/version.cpp \
@@ -344,7 +345,6 @@ QMAKE_EXTRA_COMPILERS += TSQM
 OTHER_FILES += README.md \
     doc/*.txt \
     doc/*.md \
-    src/bitcoind.cpp \
     src/qt/res/bitcoin-qt.rc \
     src/test/*.cpp \
     src/test/*.h \
