@@ -1596,6 +1596,8 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     return true;
 }
 
+// [MF] test and accept block. chain is updated at AddToBlockIndex=>ConnectBestBlock=>SetBestChain=>ConnectBlock
+// (it is ConnectBlock who will check for already existing userhashes)
 bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp)
 {
     // Check for duplicate
