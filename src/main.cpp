@@ -3487,11 +3487,12 @@ static bool CreateSpamMsgTx(CTransaction &txNew)
         printf("CreateNewBlock: Failed to sign SpamMessage\n");
         return false;
     }
-    printf("CreateSpamMsgTx: msg = %s hash = %s signed = %s\n", txNew.message.ToString().c_str(),
-           msgHash.GetHash().ToString().c_str(), vchSig.data() );
+    CScript signedHash = CScript() << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
+    printf("CreateSpamMsgTx: msg = %s user = %s hash = %s signedhash = %s\n", txNew.message.ToString().c_str(), strSpamUser.c_str(),
+           msgHash.GetHash().ToString().c_str(), signedHash.ToString().c_str() );
     // add username and signature
-    txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size())
-                               << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
+    txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size());
+    txNew.userName += signedHash;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.
 
