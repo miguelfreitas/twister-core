@@ -1,6 +1,6 @@
 TEMPLATE = app
-TARGET = twister-qt
-macx:TARGET = "Twister-Qt"
+TARGET = twisterd
+macx:TARGET = "Twisterd"
 VERSION = 0.8.2
 INCLUDEPATH += src src/json src/qt
 QT += core gui network
@@ -290,7 +290,7 @@ SOURCES += \ #src/qt/bitcoin.cpp \
 #    src/qt/rpcconsole.cpp \
 #    src/qt/splashscreen.cpp
 
-RESOURCES += src/qt/bitcoin.qrc
+#RESOURCES += src/qt/bitcoin.qrc
 
 #FORMS += src/qt/forms/sendcoinsdialog.ui \
 #    src/qt/forms/addressbookpage.ui \
