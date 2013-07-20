@@ -878,7 +878,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits)
     bnTarget.SetCompact(nBits);
 
     //printf("CheckProofOfWork %08x %s %s\n", nBits, bnTarget.GetHex().c_str(),  Params().ProofOfWorkLimit().GetHex().c_str());
-    //printf("hash-bits %s\n", (hash-bnTarget.getuint256()).GetHex().c_str() );
+    //printf("CheckProofOfWork hash:%s\n", hash.GetHex().c_str() );
     // Check range
     if (bnTarget <= 0 || bnTarget > Params().ProofOfWorkLimit())
         return error("CheckProofOfWork() : nBits below minimum work");

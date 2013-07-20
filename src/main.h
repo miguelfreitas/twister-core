@@ -712,6 +712,7 @@ public:
     {
         CBlockHeader block;
         block.nVersion       = nVersion;
+        block.nHeight        = nHeight;
         if (pprev)
             block.hashPrevBlock = pprev->GetBlockHash();
         block.hashMerkleRoot = hashMerkleRoot;
@@ -860,6 +861,7 @@ public:
     {
         CBlockHeader block;
         block.nVersion        = nVersion;
+        block.nHeight         = nHeight;
         block.hashPrevBlock   = hashPrev;
         block.hashMerkleRoot  = hashMerkleRoot;
         block.nTime           = nTime;
