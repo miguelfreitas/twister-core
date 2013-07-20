@@ -84,7 +84,7 @@ uint256 CTransaction::GetUsernameHash() const
         return SerializeHash(userName.ExtractSmallString());
     }
     // [MF] TODO: remove this assert later, it will fail for spammessage.
-    assert(!"username not small string");
+    //assert(!"username not small string");
     return uint256();
 }
 

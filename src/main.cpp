@@ -494,6 +494,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
           return state.DoS(10, error("CheckTransaction() : pubKey empty"));
       if (!tx.userName.IsSmallString())
           return state.DoS(10, error("CheckTransaction() : username not smallstring"));
+      if (tx.GetUsernameHash() == uint256())
+          return state.DoS(10, error("CheckTransaction() : username hash error"));
       if (!CheckUsername( tx.userName.ExtractSmallString(), state ))
           return state.DoS(10, error("CheckTransaction() : username check failed"));
     }
