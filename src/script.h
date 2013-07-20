@@ -533,6 +533,8 @@ public:
 
     bool IsPayToScriptHash() const;
 
+    bool IsSmallString() const;
+
     // Called by IsStandardTx
     bool IsPushOnly() const
     {
@@ -546,6 +548,43 @@ public:
                 return false;
         }
         return true;
+    }
+
+    bool ExtractPushData( std::vector< std::vector<unsigned char> > &vData) const
+    {
+        vData.clear();
+        const_iterator pc = begin();
+        while (pc < end())
+        {
+            opcodetype opcode;
+            std::vector<unsigned char> vch;
+            if (!GetOp(pc, opcode, vch))
+                return false;
+            if (opcode > OP_16)
+                return false;
+            vData.push_back(vch);
+        }
+        return true;
+    }
+
+    // only for username
+    std::string ExtractSmallString() const
+    {
+        if( !IsSmallString() )
+          return std::string();
+
+        unsigned int opSize = this->at(0);
+        return std::string((const char*)&(this[1]), opSize);
+    }
+
+    std::string ExtractPushDataString(int n) const
+    {
+        std::vector< std::vector<unsigned char> > vData;
+        if( ExtractPushData(vData) && vData.size() >= n+1 ) {
+          std::string str((const char*)vData[n].data(), vData[n].size());
+          return str;
+        }
+        return std::string();
     }
 
 

@@ -408,7 +408,9 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     CBlock blockTmp;
 
     if (pblock == NULL) {
-        CCoins coins;
+      /* [MF] FIXME: Use GetTransaction to obtain block? */
+      /*
+      CCoins coins;
         if (pcoinsTip->GetCoins(GetUsernameHash(), coins)) {
             CBlockIndex *pindex = FindBlockByHeight(coins.nHeight);
             if (pindex) {
@@ -417,6 +419,8 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
                 pblock = &blockTmp;
             }
         }
+       */
+      return 0;
     }
 
     if (pblock) {
@@ -452,7 +456,26 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 
 
-
+bool CheckUsername(const std::string &userName, CValidationState &state)
+{
+    if (!userName.size() || userName.size() > 16 )
+        return state.DoS(10, error("CheckUsername() : username size out of limits"));
+    BOOST_FOREACH(char c, userName) {
+        if( isalpha(c) ) {
+          if( !islower(c) )
+            return state.DoS(10, error("CheckUsername() : username must be lowercase"));
+        } else if( isdigit(c) ) {
+            // digit ok
+        } else if( isspace(c) ) {
+            return state.DoS(10, error("CheckUsername() : username spaces not allowed"));
+        } else if( c == '_' ) {
+            // underscore ok
+        } else {
+            return state.DoS(10, error("CheckUsername() : invalid username character"));
+        }
+    }
+    return true;
+}
 
 
 // [MF] check tx consistency and pow, not duplicated id.
@@ -467,10 +490,12 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     } else {
       if (tx.userName.empty())
           return state.DoS(10, error("CheckTransaction() : username empty"));
-      if (tx.userName.size() > MAX_USERNAME_SIZE)
-          return state.DoS(100, error("CheckTransaction() : username too big"));
       if (tx.pubKey.empty())
           return state.DoS(10, error("CheckTransaction() : pubKey empty"));
+      if (!tx.userName.IsSmallString())
+          return state.DoS(10, error("CheckTransaction() : username not smallstring"));
+      if (!CheckUsername( tx.userName.ExtractSmallString(), state ))
+          return state.DoS(10, error("CheckTransaction() : username check failed"));
     }
     // Size limits
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
@@ -574,7 +599,7 @@ bool CTxMemPool::addUnchecked(const uint256& userhash, CTransaction &tx)
 bool CTxMemPool::remove(const CTransaction &tx, bool fRecursive)
 {
     // Remove transaction from memory pool
-    {
+    if( !tx.IsSpamMessage() ){
         LOCK(cs);
         uint256 hash = tx.GetUsernameHash();
         if (mapTx.count(hash))
@@ -1095,7 +1120,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     }
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
-    for (unsigned int i = 0; i < block.vtx.size(); i++) {
+    for (unsigned int i = 1; i < block.vtx.size(); i++) {
         if( pblocktree->HaveTxIndex(block.vtx[i].GetUsernameHash()) )
           return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
 
@@ -1110,16 +1135,16 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     int64 nStart = GetTimeMicros();
     CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
     std::vector<std::pair<uint256, CDiskTxPos> > vPos;
-    vPos.reserve(block.vtx.size());
+    vPos.reserve(block.vtx.size()-1);
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = block.vtx[i];
 
         CTxUndo txundo;
-        if (!tx.IsSpamMessage())
+        if (!tx.IsSpamMessage()) {
             blockundo.vtxundo.push_back(txundo);
-
-        vPos.push_back(std::make_pair(tx.GetUsernameHash(), pos));
+            vPos.push_back(std::make_pair(tx.GetUsernameHash(), pos));
+        }
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }
     int64 nTime = GetTimeMicros() - nStart;

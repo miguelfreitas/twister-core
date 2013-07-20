@@ -55,9 +55,22 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     Array txs;
-    BOOST_FOREACH(const CTransaction&tx, block.vtx)
+    Array txuserhashes;
+    Array usernames;
+    std::string spamMessage;
+    BOOST_FOREACH(const CTransaction&tx, block.vtx) {
         txs.push_back(tx.GetHash().GetHex());
+        if( tx.IsSpamMessage() ) {
+          spamMessage = tx.message.ExtractPushDataString(0);
+        } else {
+          txuserhashes.push_back(tx.GetUsernameHash().GetHex());
+          usernames.push_back(tx.userName.ExtractSmallString());
+        }
+    }
     result.push_back(Pair("tx", txs));
+    result.push_back(Pair("spamMessage", spamMessage));
+    result.push_back(Pair("userhashes", txuserhashes));
+    result.push_back(Pair("usernames", usernames));
     result.push_back(Pair("time", (boost::int64_t)block.GetBlockTime()));
     result.push_back(Pair("nonce", (boost::uint64_t)block.nNonce));
     result.push_back(Pair("bits", HexBits(block.nBits)));

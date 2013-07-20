@@ -1777,6 +1777,16 @@ bool CScript::IsPayToScriptHash() const
             this->at(22) == OP_EQUAL);
 }
 
+bool CScript::IsSmallString() const
+{
+    if( !size() || this->at(0) >= OP_PUSHDATA1 )
+        return false;
+    unsigned int opSize = this->at(0);
+    if( this->size() != opSize + 1 )
+        return false;
+    return true;
+}
+
 class CScriptVisitor : public boost::static_visitor<bool>
 {
 private:

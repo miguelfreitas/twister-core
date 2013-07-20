@@ -270,6 +270,8 @@ inline bool AllowFree(double dPriority)
     return dPriority > COIN * 144 / 250;
 }
 
+bool CheckUsername(const std::string &userName, CValidationState &state);
+
 // Context-independent validity checks
 bool CheckTransaction(const CTransaction& tx, CValidationState& state);
 
