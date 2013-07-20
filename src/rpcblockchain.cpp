@@ -116,22 +116,6 @@ Value getdifficulty(const Array& params, bool fHelp)
 }
 
 
-Value settxfee(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() < 1 || params.size() > 1)
-        throw runtime_error(
-            "settxfee <amount>\n"
-            "<amount> is a real and is rounded to the nearest 0.00000001");
-
-    // Amount
-    int64 nAmount = 0;
-    if (params[0].get_real() != 0.0)
-        nAmount = AmountFromValue(params[0]);        // rejects 0.0 amounts
-
-    nTransactionFee = nAmount;
-    return true;
-}
-
 Value getrawmempool(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -139,7 +123,6 @@ Value getrawmempool(const Array& params, bool fHelp)
             "getrawmempool\n"
             "Returns all transaction ids in memory pool.");
 
-    // [MF] check: hashes are now userhash
     vector<uint256> vtxid;
     mempool.queryHashes(vtxid);
 
@@ -197,28 +180,6 @@ Value getblock(const Array& params, bool fHelp)
     }
 
     return blockToJSON(block, pblockindex);
-}
-
-Value gettxoutsetinfo(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "gettxoutsetinfo\n"
-            "Returns statistics about the unspent transaction output set.");
-
-    Object ret;
-
-    CCoinsStats stats;
-    if (pcoinsTip->GetStats(stats)) {
-        ret.push_back(Pair("height", (boost::int64_t)stats.nHeight));
-        ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
-        ret.push_back(Pair("transactions", (boost::int64_t)stats.nTransactions));
-        ret.push_back(Pair("txouts", (boost::int64_t)stats.nTransactionOutputs));
-        ret.push_back(Pair("bytes_serialized", (boost::int64_t)stats.nSerializedSize));
-        ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
-        ret.push_back(Pair("total_amount", ValueFromAmount(stats.nTotalAmount)));
-    }
-    return ret;
 }
 
 Value gettxout(const Array& params, bool fHelp)

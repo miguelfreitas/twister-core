@@ -78,43 +78,17 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 {
     entry.push_back(Pair("txid", tx.GetUsernameHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
-    //entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
-    Array vin;
-    /* [MF]
-    BOOST_FOREACH(const CTxIn& txin, tx.vin)
-    {
-        Object in;
-        if (tx.IsCoinBase())
-            in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        else
-        {
-            in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
-            in.push_back(Pair("vout", (boost::int64_t)txin.prevout.n));
-            Object o;
-            o.push_back(Pair("asm", txin.scriptSig.ToString()));
-            o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-            in.push_back(Pair("scriptSig", o));
+    entry.push_back(Pair("message", tx.message.ExtractPushDataString(0)));
+    entry.push_back(Pair("username", tx.userName.ExtractPushDataString(0)));
+    std::vector< std::vector<unsigned char> > vData;
+    if( tx.pubKey.ExtractPushData(vData) ) {
+        Array o;
+        BOOST_FOREACH(std::vector<unsigned char> vch, vData) {
+          o.push_back(HexStr(vch));
         }
-        in.push_back(Pair("sequence", (boost::int64_t)txin.nSequence));
-        vin.push_back(in);
+        entry.push_back(Pair("pubKey", o));
     }
-    */
-    entry.push_back(Pair("vin", vin));
-    Array vout;
-    /*
-    for (unsigned int i = 0; i < tx.vout.size(); i++)
-    {
-        const CTxOut& txout = tx.vout[i];
-        Object out;
-        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("n", (boost::int64_t)i));
-        Object o;
-        ScriptPubKeyToJSON(txout.scriptPubKey, o);
-        out.push_back(Pair("scriptPubKey", o));
-        vout.push_back(out);
-    }
-    */
-    entry.push_back(Pair("vout", vout));
+    entry.push_back(Pair("nonce", (int) tx.nNonce));
 
     if (hashBlock != 0)
     {
@@ -167,94 +141,6 @@ Value getrawtransaction(const Array& params, bool fHelp)
     result.push_back(Pair("hex", strHex));
     TxToJSON(tx, hashBlock, result);
     return result;
-}
-
-Value listunspent(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() > 3)
-        throw runtime_error(
-            "listunspent [minconf=1] [maxconf=9999999]  [\"address\",...]\n"
-            "Returns array of unspent transaction outputs\n"
-            "with between minconf and maxconf (inclusive) confirmations.\n"
-            "Optionally filtered to only include txouts paid to specified addresses.\n"
-            "Results are an array of Objects, each of which has:\n"
-            "{txid, vout, scriptPubKey, amount, confirmations}");
-
-    RPCTypeCheck(params, list_of(int_type)(int_type)(array_type));
-
-    int nMinDepth = 1;
-    if (params.size() > 0)
-        nMinDepth = params[0].get_int();
-
-    int nMaxDepth = 9999999;
-    if (params.size() > 1)
-        nMaxDepth = params[1].get_int();
-
-    set<CBitcoinAddress> setAddress;
-    if (params.size() > 2)
-    {
-        Array inputs = params[2].get_array();
-        BOOST_FOREACH(Value& input, inputs)
-        {
-            CBitcoinAddress address(input.get_str());
-            if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+input.get_str());
-            if (setAddress.count(address))
-                throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+input.get_str());
-           setAddress.insert(address);
-        }
-    }
-
-    Array results;
-    vector<COutput> vecOutputs;
-    pwalletMain->AvailableCoins(vecOutputs, false);
-    BOOST_FOREACH(const COutput& out, vecOutputs)
-    {
-        if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
-            continue;
-
-        if (setAddress.size())
-        {
-            CTxDestination address;
-            /*
-            if (!ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
-                continue;
-  */
-            if (!setAddress.count(address))
-                continue;
-        }
-/*
-        int64 nValue = out.tx->vout[out.i].nValue;
-        const CScript& pk = out.tx->vout[out.i].scriptPubKey;
-        Object entry;
-        entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
-        entry.push_back(Pair("vout", out.i));
-        CTxDestination address;
-        if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
-        {
-            entry.push_back(Pair("address", CBitcoinAddress(address).ToString()));
-            if (pwalletMain->mapAddressBook.count(address))
-                entry.push_back(Pair("account", pwalletMain->mapAddressBook[address]));
-        }
-        entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
-        if (pk.IsPayToScriptHash())
-        {
-            CTxDestination address;
-            if (ExtractDestination(pk, address))
-            {
-                const CScriptID& hash = boost::get<const CScriptID&>(address);
-                CScript redeemScript;
-                if (pwalletMain->GetCScript(hash, redeemScript))
-                    entry.push_back(Pair("redeemScript", HexStr(redeemScript.begin(), redeemScript.end())));
-            }
-        }
-        entry.push_back(Pair("amount",ValueFromAmount(nValue)));
-        entry.push_back(Pair("confirmations",out.nDepth));
-        results.push_back(entry);
-        */
-    }
-
-    return results;
 }
 
 Value createrawtransaction(const Array& params, bool fHelp)
