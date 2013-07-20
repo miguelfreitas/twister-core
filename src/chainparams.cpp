@@ -32,7 +32,6 @@ public:
         vAlertPubKey = ParseHex("04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284");
         nDefaultPort = 28333;
         nRPCPort = 28332;
-        //bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 1);
         nTxBits = 0x207fffff;
         nSubsidyHalvingInterval = 210000;
@@ -45,7 +44,7 @@ public:
         //     CTxIn(COutPoint(000000, -1), coinbase 04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73)
         //     CTxOut(nValue=50.00000000, scriptPubKey=0x5F1DF16B2B704C8A578D0B)
         //   vMerkleTree: 4a5e1e
-        const char* pszTimestamp = "The Times 14/Jul/2013 Globo caught bribing Receita Federal employee to rob R$615M tax evasion documents.";
+        const char* pszTimestamp = "The Times 09/Jul/2013 Globo caught bribing Receita Federal employee to rob R$615M worth tax evasion documents.";
         CTransaction txNew;
         txNew.message = CScript() << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
         txNew.nNonce  = 0; // spamMessage is not required to show POW to ease "extranonce" support
@@ -53,16 +52,13 @@ public:
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 1;
-        genesis.nTime    = 1231006505;
+        genesis.nTime    = 1373331180;
         //genesis.nBits    = 0x1d00ffff;
-        genesis.nBits    = 0x207fffff;
-        genesis.nNonce   = 0;
+        genesis.nBits    = 0x1d7fffff;
+        genesis.nNonce   = 636561156;
 
         hashGenesisBlock = genesis.GetHash();
-        printf("hashGenesisBlock %s\n", hashGenesisBlock.ToString().c_str());
-        printf("genesis.hashMerkleRoot %s\n", genesis.hashMerkleRoot.ToString().c_str());
-        //assert(hashGenesisBlock == uint256("0xa63d06dc9817b06f16f6ccfbe558400366eb2507825e29667c910decfaadd2b9"));
-        //assert(genesis.hashMerkleRoot == uint256("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+        assert(hashGenesisBlock == uint256("0x000000792bc5674af6fa5c006149d78c47265f7e03d2ca7f5a094b2475ef1328"));
 
         //vSeeds.push_back(CDNSSeedData("bitcoin.sipa.be", "seed.bitcoin.sipa.be"));
 

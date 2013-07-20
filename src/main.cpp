@@ -3398,7 +3398,7 @@ unsigned int static ScanHash_CryptoPP(char* pmidstate, char* pdata, char* phash1
 
         // Return the nonce if the hash has at least some zero bits,
         // caller will check if it has enough to reach the target
-        if (((unsigned short*)phash)[14 + 4] == 0)
+        if (((unsigned short*)phash)[14] == 0)
             return nNonce;
 
         // If nothing found after trying for a while, return -1
@@ -3694,6 +3694,98 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     }
 
     return true;
+}
+
+void GenesisMiner()
+{
+        fPrintToConsole = false;
+        //
+        // Create new block
+        //
+        CBlock block = Params().GenesisBlock();
+        CBlock *pblock = &block;
+        pblock->nNonce = 0;
+
+        printf("Running GenesisMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+               ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+
+        //
+        // Pre-build hash buffers
+        //
+        char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
+        char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
+        char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
+
+        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
+
+        unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12 + 4);
+
+        //
+        // Search
+        //
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashbuf[2];
+        uint256& hash = *alignup<16>(hashbuf);
+        loop
+        {
+            unsigned int nHashesDone = 0;
+            unsigned int nNonceFound;
+            // Crypto++ SHA256
+            nNonceFound = ScanHash_CryptoPP(pmidstate, pdata + 64, phash1,
+                                            (char*)&hash, nHashesDone);
+
+            // Check if something found
+            if (nNonceFound != (unsigned int) -1)
+            {
+                for (unsigned int i = 0; i < sizeof(hash)/4; i++)
+                    ((unsigned int*)&hash)[i] = ByteReverse(((unsigned int*)&hash)[i]);
+
+                if (hash <= hashTarget)
+                {
+                    // Found a solution
+                    pblock->nNonce = ByteReverse(nNonceFound);
+                    assert(hash == pblock->GetHash());
+                    printf("genesishash: %s\n", pblock->GetHash().ToString().c_str());
+                    printf("merkle: %s\n", pblock->hashMerkleRoot.ToString().c_str());
+                    printf("nonce: %d\n", pblock->nNonce);
+                    exit(0);
+                }
+            }
+
+            // Meter hashes/sec
+            static int64 nHashCounter;
+            if (nHPSTimerStart == 0)
+            {
+                nHPSTimerStart = GetTimeMillis();
+                nHashCounter = 0;
+            }
+            else
+                nHashCounter += nHashesDone;
+            if (GetTimeMillis() - nHPSTimerStart > 4000)
+            {
+                static CCriticalSection cs;
+                {
+                    LOCK(cs);
+                    if (GetTimeMillis() - nHPSTimerStart > 4000)
+                    {
+                        dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+                        nHPSTimerStart = GetTimeMillis();
+                        nHashCounter = 0;
+                        static int64 nLogTime;
+                        if (GetTime() - nLogTime > 30 * 60)
+                        {
+                            nLogTime = GetTime();
+                            printf("hashmeter %6.0f khash/s\n", dHashesPerSec/1000.0);
+                        }
+                    }
+                }
+            }
+
+            // Check for stop or if block needs to be rebuilt
+            boost::this_thread::interruption_point();
+            if (nBlockNonce >= 0xffff0000)
+                break;
+        }
 }
 
 void static BitcoinMiner(CWallet *pwallet)
