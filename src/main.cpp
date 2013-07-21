@@ -1077,10 +1077,10 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
 
     // undo transactions in reverse order
     // [MF] just remove from txIndex, no more coins
-    for (int i = block.vtx.size() - 1; i >= 0; i--) {
+    for (int i = block.vtx.size() - 1; i >= 1; i--) {
         const CTransaction &tx = block.vtx[i];
 
-        if( i > 0 && pblocktree->EraseTxIndex(tx.GetUsernameHash()) ) {
+        if( !pblocktree->EraseTxIndex(tx.GetUsernameHash()) ) {
             fClean = fClean && error("DisconnectBlock() : error erasing txIndex");
         }
     }
