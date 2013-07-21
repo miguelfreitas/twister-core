@@ -33,7 +33,7 @@ public:
         nDefaultPort = 28333;
         nRPCPort = 28332;
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 1);
-        nTxBits = 0x207fffff;
+        nTxBits = 0x1e03ffff;
         nSubsidyHalvingInterval = 210000;
 
         // Build the genesis block. Note that the output of the genesis coinbase cannot

@@ -145,58 +145,28 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
 Value createrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "createrawtransaction [{\"txid\":txid,\"vout\":n},...] {address:amount,...}\n"
-            "Create a transaction spending given inputs\n"
-            "(array of objects containing transaction id and output number),\n"
-            "sending to given address(es).\n"
+            "createrawtransaction <username> [pubKey=generate if omited]\n"
+            "Create a transaction registering a new user\n"
             "Returns hex-encoded raw transaction.\n"
-            "Note that the transaction's inputs are not signed, and\n"
             "it is not stored in the wallet or transmitted to the network.");
-
-    RPCTypeCheck(params, list_of(array_type)(obj_type));
-
-    Array inputs = params[0].get_array();
-    Object sendTo = params[1].get_obj();
 
     CTransaction rawTx;
 
-    BOOST_FOREACH(const Value& input, inputs)
-    {
-        const Object& o = input.get_obj();
+    if (params[0].type() != str_type)
+      throw JSONRPCError(RPC_INVALID_PARAMETER, "username must be string");
+    string username = params[0].get_str();
+    rawTx.userName = CScript() << vector<unsigned char>((const unsigned char*)username.data(), (const unsigned char*)username.data() + username.size());
 
-        uint256 txid = ParseHashO(o, "txid");
-
-        const Value& vout_v = find_value(o, "vout");
-        if (vout_v.type() != int_type)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
-        int nOutput = vout_v.get_int();
-        if (nOutput < 0)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
-
-        CTxIn in(COutPoint(txid, nOutput));
-        // [MF] rawTx.vin.push_back(in);
+    if (params.size() > 1) {
+      vector<unsigned char> txData(ParseHexV(params[1], "pubkey"));
+      rawTx.pubKey << txData;
+    } else {
+      throw JSONRPCError(RPC_INTERNAL_ERROR, "pubkey generation not implemented");
     }
 
-    set<CBitcoinAddress> setAddress;
-    BOOST_FOREACH(const Pair& s, sendTo)
-    {
-        CBitcoinAddress address(s.name_);
-        if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Bitcoin address: ")+s.name_);
-
-        if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+s.name_);
-        setAddress.insert(address);
-
-        CScript scriptPubKey;
-        scriptPubKey.SetDestination(address.Get());
-        int64 nAmount = AmountFromValue(s.value_);
-
-        CTxOut out(nAmount, scriptPubKey);
-        // [MF] rawTx.vout.push_back(out);
-    }
+    DoTxProofOfWork(rawTx);
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << rawTx;
@@ -385,8 +355,6 @@ Value signrawtransaction(const Array& params, bool fHelp)
         else
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid sighash param");
     }
-
-    bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
 
     // Sign what we can:
     /* [MF]

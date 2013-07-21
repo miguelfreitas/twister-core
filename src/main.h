@@ -272,6 +272,8 @@ inline bool AllowFree(double dPriority)
 
 bool CheckUsername(const std::string &userName, CValidationState &state);
 
+bool DoTxProofOfWork(CTransaction& tx);
+
 // Context-independent validity checks
 bool CheckTransaction(const CTransaction& tx, CValidationState& state);
 

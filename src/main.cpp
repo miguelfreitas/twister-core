@@ -477,6 +477,23 @@ bool CheckUsername(const std::string &userName, CValidationState &state)
     return true;
 }
 
+bool DoTxProofOfWork(CTransaction& tx)
+{
+  CBigNum bnTarget;
+  bnTarget.SetCompact(Params().txBits());
+
+  if (bnTarget <= 0 || bnTarget > Params().ProofOfWorkLimit())
+      return error("DoTxProofOfWork() : nBits below minimum work");
+
+    for(tx.nNonce = 0; tx.nNonce < std::numeric_limits<unsigned int>::max(); tx.nNonce++ ) {
+      if( tx.GetHash() < bnTarget.getuint256() ) {
+        printf("DoTxProofOfWork completed: nonce=%u hash=%s\n", tx.nNonce, tx.GetHash().ToString().c_str());
+        return true;
+      }
+   }
+   printf("DoTxProofOfWork error. nonce not found\n");
+   return false;
+}
 
 // [MF] check tx consistency and pow, not duplicated id.
 bool CheckTransaction(const CTransaction& tx, CValidationState &state)

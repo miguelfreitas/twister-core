@@ -574,10 +574,10 @@ public:
           return std::string();
 
         unsigned int opSize = this->at(0);
-        return std::string((const char*)&(this[1]), opSize);
+        return std::string((const char*)data()+1, opSize);
     }
 
-    std::string ExtractPushDataString(int n) const
+    std::string ExtractPushDataString(unsigned int n) const
     {
         std::vector< std::vector<unsigned char> > vData;
         if( ExtractPushData(vData) && vData.size() >= n+1 ) {
