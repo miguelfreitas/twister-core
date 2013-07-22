@@ -123,6 +123,44 @@ bool AppInit(int argc, char* argv[])
     return fRet;
 }
 
+static bool TestCreateSpamMsgTx()
+{
+    CTransaction txNew;
+
+    txNew.message = CScript() << vector<unsigned char>((const unsigned char*)strSpamMessage.data(), (const unsigned char*)strSpamMessage.data() + strSpamMessage.size());
+
+    CKey key;
+    key.MakeNewKey(true);
+
+    // compute message hash and sign it
+    CHashWriter msgHash(SER_GETHASH, PROTOCOL_VERSION);
+    msgHash << txNew.message;
+    // vchSig is sig(hash(message))
+    vector<unsigned char> vchSig;
+    if (!key.Sign(msgHash.GetHash(), vchSig)) {
+        printf("CreateNewBlock: Failed to sign SpamMessage\n");
+        return false;
+    }
+    CScript signedHash = CScript() << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
+    printf("CreateSpamMsgTx: msg = %s user = %s hash = %s signedhash = %s\n", txNew.message.ToString().c_str(), strSpamUser.c_str(),
+           msgHash.GetHash().ToString().c_str(), signedHash.ToString().c_str() );
+    // add username and signature
+    txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size());
+    txNew.userName += signedHash;
+    txNew.pubKey.clear(); // pubKey will be updated to include extranonce
+    txNew.nNonce = 0; // no update needed for spamMessage's nonce.
+
+    std::vector< std::vector<unsigned char> > vData;
+    txNew.userName.ExtractPushData(vData);
+
+    CPubKey pubkey( key.GetPubKey() );
+    printf("Verify: %d VerifyComp: %d\n",
+           pubkey.Verify(msgHash.GetHash(),vData[1]),
+           pubkey.VerifyCompact(msgHash.GetHash(),vData[1]));
+
+    return true;
+}
+
 extern void GenesisMiner();
 extern void noui_connect();
 int main(int argc, char* argv[])
@@ -136,6 +174,8 @@ int main(int argc, char* argv[])
     noui_connect();
 
     fRet = AppInit(argc, argv);
+
+    TestCreateSpamMsgTx();
 
     if (fRet && fDaemon)
         return 0;
