@@ -99,16 +99,6 @@ void UnregisterAllWallets()
     setpwalletRegistered.clear();
 }
 
-// get the wallet transaction with the given hash (if it exists)
-bool static GetTransaction(const uint256& hashTx, CWalletTx& wtx)
-{
-    LOCK(cs_setpwalletRegistered);
-    BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
-        if (pwallet->GetTransaction(hashTx,wtx))
-            return true;
-    return false;
-}
-
 // make sure all wallets know about the given transaction, in the given block
 void SyncWithWallets(const uint256 &hash, const CTransaction& tx, const CBlock* pblock, bool fUpdate)
 {
@@ -131,14 +121,6 @@ void static UpdatedTransaction(const uint256& hashTx)
     LOCK(cs_setpwalletRegistered);
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->UpdatedTransaction(hashTx);
-}
-
-// dump all wallets
-void static PrintWallets(const CBlock& block)
-{
-    LOCK(cs_setpwalletRegistered);
-    BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
-        pwallet->PrintWallet(block);
 }
 
 // notify wallets about an incoming inventory (for request counts)
@@ -2173,8 +2155,6 @@ void PrintBlockTree()
             DateTimeStrFormat("%Y-%m-%d %H:%M:%S", block.GetBlockTime()).c_str(),
             block.vtx.size());
 
-        PrintWallets(block);
-
         // put the main time-chain first
         vector<CBlockIndex*>& vNext = mapNext[pindex];
         for (unsigned int i = 0; i < vNext.size(); i++)
@@ -3245,10 +3225,12 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                     // always trickle our own transactions
                     if (!fTrickleWait)
                     {
+                        /* [MF] FIXME
                         CWalletTx wtx;
                         if (GetTransaction(inv.hash, wtx))
                             if (wtx.fFromMe)
                                 fTrickleWait = true;
+                        */
                     }
 
                     if (fTrickleWait)
