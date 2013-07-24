@@ -29,22 +29,15 @@ public:
     virtual bool GetKey(const CKeyID &address, CKey& keyOut) const =0;
     virtual void GetKeys(std::set<CKeyID> &setAddress) const =0;
     virtual bool GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const;
-
-    // Support for BIP 0013 : see https://en.bitcoin.it/wiki/BIP_0013
-    virtual bool AddCScript(const CScript& redeemScript) =0;
-    virtual bool HaveCScript(const CScriptID &hash) const =0;
-    virtual bool GetCScript(const CScriptID &hash, CScript& redeemScriptOut) const =0;
 };
 
 typedef std::map<CKeyID, CKey> KeyMap;
-typedef std::map<CScriptID, CScript > ScriptMap;
 
 /** Basic key store, that keeps keys in an address->secret map */
 class CBasicKeyStore : public CKeyStore
 {
 protected:
     KeyMap mapKeys;
-    ScriptMap mapScripts;
 
 public:
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey);
@@ -83,9 +76,6 @@ public:
         }
         return false;
     }
-    virtual bool AddCScript(const CScript& redeemScript);
-    virtual bool HaveCScript(const CScriptID &hash) const;
-    virtual bool GetCScript(const CScriptID &hash, CScript& redeemScriptOut) const;
 };
 
 typedef std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char> > > CryptedKeyMap;

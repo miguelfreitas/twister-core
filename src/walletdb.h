@@ -31,15 +31,17 @@ public:
     static const int CURRENT_VERSION=1;
     int nVersion;
     int64 nCreateTime; // 0 means unknown
+    std::string username;
 
     CKeyMetadata()
     {
         SetNull();
     }
-    CKeyMetadata(int64 nCreateTime_)
+    CKeyMetadata(int64 nCreateTime_, std::string username_)
     {
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = nCreateTime_;
+        username = username_;
     }
 
     IMPLEMENT_SERIALIZE
@@ -47,16 +49,18 @@ public:
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(nCreateTime);
+        READWRITE(username);
     )
 
     void SetNull()
     {
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
+        username.clear();
     }
 };
 
-/** Access to the wallet database (wallet.dat) */
+/** Access to the wallet database (twisterwallet.dat) */
 class CWalletDB : public CDB
 {
 public:
@@ -168,7 +172,7 @@ public:
         return Erase(std::make_pair(std::string("pool"), nPool));
     }
 
-    // Settings are no longer stored in wallet.dat; these are
+    // Settings are no longer stored in twisterwallet.dat; these are
     // used only for backwards compatibility:
     template<typename T>
     bool ReadSetting(const std::string& strKey, T& value)

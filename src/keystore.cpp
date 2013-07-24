@@ -26,31 +26,6 @@ bool CBasicKeyStore::AddKeyPubKey(const CKey& key, const CPubKey &pubkey)
     return true;
 }
 
-bool CBasicKeyStore::AddCScript(const CScript& redeemScript)
-{
-    LOCK(cs_KeyStore);
-    mapScripts[redeemScript.GetID()] = redeemScript;
-    return true;
-}
-
-bool CBasicKeyStore::HaveCScript(const CScriptID& hash) const
-{
-    LOCK(cs_KeyStore);
-    return mapScripts.count(hash) > 0;
-}
-
-bool CBasicKeyStore::GetCScript(const CScriptID &hash, CScript& redeemScriptOut) const
-{
-    LOCK(cs_KeyStore);
-    ScriptMap::const_iterator mi = mapScripts.find(hash);
-    if (mi != mapScripts.end())
-    {
-        redeemScriptOut = (*mi).second;
-        return true;
-    }
-    return false;
-}
-
 bool CCryptoKeyStore::SetCrypted()
 {
     LOCK(cs_KeyStore);

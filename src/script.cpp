@@ -77,7 +77,6 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_NONSTANDARD: return "nonstandard";
     case TX_PUBKEY: return "pubkey";
     case TX_PUBKEYHASH: return "pubkeyhash";
-    case TX_SCRIPTHASH: return "scripthash";
     case TX_MULTISIG: return "multisig";
     }
     return NULL;
@@ -1135,16 +1134,6 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         mTemplates.insert(make_pair(TX_MULTISIG, CScript() << OP_SMALLINTEGER << OP_PUBKEYS << OP_SMALLINTEGER << OP_CHECKMULTISIG));
     }
 
-    // Shortcut for pay-to-script-hash, which are more constrained than the other types:
-    // it is always OP_HASH160 20 [20 byte hash] OP_EQUAL
-    if (scriptPubKey.IsPayToScriptHash())
-    {
-        typeRet = TX_SCRIPTHASH;
-        vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.begin()+22);
-        vSolutionsRet.push_back(hashBytes);
-        return true;
-    }
-
     // Scan templates
     const CScript& script1 = scriptPubKey;
     BOOST_FOREACH(const PAIRTYPE(txnouttype, CScript)& tplate, mTemplates)
@@ -1294,8 +1283,6 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash
             scriptSigRet << vch;
         }
         return true;
-    case TX_SCRIPTHASH:
-        return keystore.GetCScript(uint160(vSolutions[0]), scriptSigRet);
 
     case TX_MULTISIG:
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
@@ -1318,8 +1305,6 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
         if (vSolutions.size() < 1 || vSolutions[0].size() < 1)
             return -1;
         return vSolutions[0][0] + 1;
-    case TX_SCRIPTHASH:
-        return 1; // doesn't include args needed by the script
     }
     return -1;
 }
@@ -1367,7 +1352,6 @@ public:
     CKeyStoreIsMineVisitor(const CKeyStore *keystoreIn) : keystore(keystoreIn) { }
     bool operator()(const CNoDestination &dest) const { return false; }
     bool operator()(const CKeyID &keyID) const { return keystore->HaveKey(keyID); }
-    bool operator()(const CScriptID &scriptID) const { return keystore->HaveCScript(scriptID); }
 };
 
 bool IsMine(const CKeyStore &keystore, const CTxDestination &dest)
@@ -1393,13 +1377,6 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     case TX_PUBKEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));
         return keystore.HaveKey(keyID);
-    case TX_SCRIPTHASH:
-    {
-        CScript subscript;
-        if (!keystore.GetCScript(CScriptID(uint160(vSolutions[0])), subscript))
-            return false;
-        return IsMine(keystore, subscript);
-    }
     case TX_MULTISIG:
     {
         // Only consider transactions "mine" if we own ALL the
@@ -1429,11 +1406,6 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     else if (whichType == TX_PUBKEYHASH)
     {
         addressRet = CKeyID(uint160(vSolutions[0]));
-        return true;
-    }
-    else if (whichType == TX_SCRIPTHASH)
-    {
-        addressRet = CScriptID(uint160(vSolutions[0]));
         return true;
     }
     // Multisig txns have more than one address...
@@ -1490,12 +1462,6 @@ public:
     void operator()(const CKeyID &keyId) {
         if (keystore.HaveKey(keyId))
             vKeys.push_back(keyId);
-    }
-
-    void operator()(const CScriptID &scriptId) {
-        CScript script;
-        if (keystore.GetCScript(scriptId, script))
-            Process(script);
     }
 
     void operator()(const CNoDestination &none) {}
@@ -1678,26 +1644,6 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
         return PushAll(sigs1);
-    case TX_SCRIPTHASH:
-        if (sigs1.empty() || sigs1.back().empty())
-            return PushAll(sigs2);
-        else if (sigs2.empty() || sigs2.back().empty())
-            return PushAll(sigs1);
-        else
-        {
-            // Recur to combine:
-            valtype spk = sigs1.back();
-            CScript pubKey2(spk.begin(), spk.end());
-
-            txnouttype txType2;
-            vector<vector<unsigned char> > vSolutions2;
-            Solver(pubKey2, txType2, vSolutions2);
-            sigs1.pop_back();
-            sigs2.pop_back();
-            CScript result = CombineSignatures(pubKey2, txTo, nIn, txType2, vSolutions2, sigs1, sigs2);
-            result << spk;
-            return result;
-        }
     case TX_MULTISIG:
         return CombineMultisig(scriptPubKey, txTo, nIn, vSolutions, sigs1, sigs2);
     }

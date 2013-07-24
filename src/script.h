@@ -43,7 +43,6 @@ enum txnouttype
     // 'standard' transaction types:
     TX_PUBKEY,
     TX_PUBKEYHASH,
-    TX_SCRIPTHASH,
     TX_MULTISIG,
 };
 

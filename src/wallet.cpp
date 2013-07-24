@@ -27,7 +27,7 @@ struct CompareValueOnly
     }
 };
 
-CPubKey CWallet::GenerateNewKey()
+CPubKey CWallet::GenerateNewKey(std::string username)
 {
     bool fCompressed = CanSupportFeature(FEATURE_COMPRPUBKEY); // default to compressed public keys if we want 0.6.0 wallets
 
@@ -43,7 +43,7 @@ CPubKey CWallet::GenerateNewKey()
 
     // Create new metadata
     int64 nCreationTime = GetTime();
-    mapKeyMetadata[pubkey.GetID()] = CKeyMetadata(nCreationTime);
+    mapKeyMetadata[pubkey.GetID()] = CKeyMetadata(nCreationTime, username);
     if (!nTimeFirstKey || nCreationTime < nTimeFirstKey)
         nTimeFirstKey = nCreationTime;
 
@@ -99,15 +99,6 @@ bool CWallet::LoadKeyMetadata(const CPubKey &pubkey, const CKeyMetadata &meta)
 bool CWallet::LoadCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret)
 {
     return CCryptoKeyStore::AddCryptedKey(vchPubKey, vchCryptedSecret);
-}
-
-bool CWallet::AddCScript(const CScript& redeemScript)
-{
-    if (!CCryptoKeyStore::AddCScript(redeemScript))
-        return false;
-    if (!fFileBacked)
-        return true;
-    return CWalletDB(strWalletFile).WriteCScript(Hash160(redeemScript), redeemScript);
 }
 
 bool CWallet::Unlock(const SecureString& strWalletPassphrase)
@@ -1247,6 +1238,7 @@ bool GetWalletFile(CWallet* pwallet, string &strWalletFileOut)
 //
 bool CWallet::NewKeyPool()
 {
+    /*
     {
         LOCK(cs_wallet);
         CWalletDB walletdb(strWalletFile);
@@ -1266,11 +1258,13 @@ bool CWallet::NewKeyPool()
         }
         printf("CWallet::NewKeyPool wrote %"PRI64d" new keys\n", nKeys);
     }
+    */
     return true;
 }
 
 bool CWallet::TopUpKeyPool()
 {
+    /*
     {
         LOCK(cs_wallet);
 
@@ -1292,6 +1286,7 @@ bool CWallet::TopUpKeyPool()
             printf("keypool added key %"PRI64d", size=%"PRIszu"\n", nEnd, setKeyPool.size());
         }
     }
+    */
     return true;
 }
 
@@ -1360,6 +1355,7 @@ void CWallet::ReturnKey(int64 nIndex)
 
 bool CWallet::GetKeyFromPool(CPubKey& result, bool fAllowReuse)
 {
+    /* [MF] pool is going to die.
     int64 nIndex = 0;
     CKeyPool keypool;
     {
@@ -1380,6 +1376,8 @@ bool CWallet::GetKeyFromPool(CPubKey& result, bool fAllowReuse)
         result = keypool.vchPubKey;
     }
     return true;
+    */
+    return false;
 }
 
 int64 CWallet::GetOldestKeyPoolTime()
