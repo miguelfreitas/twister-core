@@ -3522,21 +3522,25 @@ static bool CreateSpamMsgTx(CTransaction &txNew)
         printf("CreateNewBlock: Failed to get privKey to sign SpamMessage\n");
         return false;
     }
+
     // compute message hash and sign it
-    CHashWriter msgHash(SER_GETHASH, PROTOCOL_VERSION);
-    msgHash << txNew.message;
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << txNew.message;
+    uint256 hashMsg = ss.GetHash();
+
     // vchSig is sig(hash(message))
     vector<unsigned char> vchSig;
-    if (!key.Sign(msgHash.GetHash(), vchSig)) {
+    if (!key.Sign(hashMsg, vchSig)) {
         printf("CreateNewBlock: Failed to sign SpamMessage\n");
         return false;
     }
-    CScript signedHash = CScript() << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
+
     printf("CreateSpamMsgTx: msg = %s user = %s hash = %s signedhash = %s\n", txNew.message.ToString().c_str(), strSpamUser.c_str(),
-           msgHash.GetHash().ToString().c_str(), signedHash.ToString().c_str() );
+           hashMsg.ToString().c_str(), EncodeBase64(&vchSig[0], vchSig.size()).c_str() );
+
     // add username and signature
     txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size());
-    txNew.userName += signedHash;
+    txNew.userName += CScript() << vchSig;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.
 

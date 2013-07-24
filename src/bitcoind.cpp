@@ -123,43 +123,66 @@ bool AppInit(int argc, char* argv[])
     return fRet;
 }
 
+
+static const string strSecret1C    ("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw");
+
 static bool TestCreateSpamMsgTx()
 {
     CTransaction txNew;
 
     txNew.message = CScript() << vector<unsigned char>((const unsigned char*)strSpamMessage.data(), (const unsigned char*)strSpamMessage.data() + strSpamMessage.size());
 
+    CBitcoinSecret bsecret1;
+    bsecret1.SetString (strSecret1C);
+
     CKey key;
     key.MakeNewKey(true);
+    //CKey key =  bsecret1.GetKey();
+    CPubKey pubkey( key.GetPubKey() );
+
+    printf("key valid: %d compressed: %d\n", key.IsValid(), key.IsCompressed());
+    printf("pubkey: %s\n", EncodeBase64(&pubkey[0], pubkey.size()).c_str() );
 
     // compute message hash and sign it
-    CHashWriter msgHash(SER_GETHASH, PROTOCOL_VERSION);
-    msgHash << txNew.message;
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << txNew.message;
+    uint256 hashMsg = ss.GetHash();
+
     // vchSig is sig(hash(message))
     vector<unsigned char> vchSig;
-    if (!key.Sign(msgHash.GetHash(), vchSig)) {
+    if (!key.Sign(hashMsg, vchSig)) {
         printf("CreateNewBlock: Failed to sign SpamMessage\n");
         return false;
     }
-    CScript signedHash = CScript() << vector<unsigned char>((const unsigned char*)vchSig.data(), (const unsigned char*)vchSig.data() + vchSig.size());
+
+    /*
+    vector<unsigned char> vchSigCompact;
+    if (!key.SignCompact(hashMsg, vchSigCompact)) {
+        printf("CreateNewBlock: Failed to sign SpamMessage2\n");
+        return false;
+    }
+    printf("sign size: %zu signCompact size: %zu\n", vchSig.size(), vchSigCompact.size());
+    printf("signCompact: %s\n", EncodeBase64(&vchSigCompact[0], vchSigCompact.size()).c_str());
+    */
+
     printf("CreateSpamMsgTx: msg = %s user = %s hash = %s signedhash = %s\n", txNew.message.ToString().c_str(), strSpamUser.c_str(),
-           msgHash.GetHash().ToString().c_str(), signedHash.ToString().c_str() );
+           hashMsg.ToString().c_str(), EncodeBase64(&vchSig[0], vchSig.size()).c_str() );
+
     // add username and signature
     txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size());
-    txNew.userName += signedHash;
+    txNew.userName += CScript() << vchSig;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.
 
     std::vector< std::vector<unsigned char> > vData;
     txNew.userName.ExtractPushData(vData);
 
-    CPubKey pubkey( key.GetPubKey() );
-    printf("Verify: %d VerifyComp: %d\n",
-           pubkey.Verify(msgHash.GetHash(),vData[1]),
-           pubkey.VerifyCompact(msgHash.GetHash(),vData[1]));
+    printf("Verify: %d\n", pubkey.Verify(hashMsg,vData[1]));
 
-    return true;
+    exit(1);
 }
+
+
 
 extern void GenesisMiner();
 extern void noui_connect();
@@ -169,13 +192,12 @@ int main(int argc, char* argv[])
     fHaveGUI = false;
 
     //GenesisMiner();
+    //TestCreateSpamMsgTx();
 
     // Connect bitcoind signal handlers
     noui_connect();
 
     fRet = AppInit(argc, argv);
-
-    TestCreateSpamMsgTx();
 
     if (fRet && fDaemon)
         return 0;
