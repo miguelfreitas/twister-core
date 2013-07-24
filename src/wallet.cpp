@@ -719,9 +719,12 @@ void CWallet::ReacceptWalletTransactions()
             if (wtx.IsSpamMessage() && wtx.IsSpent(0))
                 continue;
 
-            CCoins coins;
+            CTransaction tx;
+            uint256 hashBlock;
             bool fUpdated = false;
-            bool fFound = pcoinsTip->GetCoins(wtx.GetUsernameHash(), coins);
+            bool fFound = false;
+            // [MF] can't use GetTransaction from main.cpp here. so?
+            // GetTransaction(wtx.GetUsernameHash(), tx, hashBlock);
             if (fFound || wtx.GetDepthInMainChain() > 0)
             {
               /*

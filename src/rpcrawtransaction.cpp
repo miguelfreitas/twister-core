@@ -300,8 +300,8 @@ Value signrawtransaction(const Array& params, bool fHelp)
             CScript scriptPubKey(pkData.begin(), pkData.end());
 
             CCoins coins;
+            /*
             if (view.GetCoins(txid, coins)) {
-                /*
                 if (coins.IsAvailable(nOut) && coins.vout[nOut].scriptPubKey != scriptPubKey) {
                     string err("Previous output scriptPubKey mismatch:\n");
                     err = err + coins.vout[nOut].scriptPubKey.ToString() + "\nvs:\n"+
@@ -309,15 +309,13 @@ Value signrawtransaction(const Array& params, bool fHelp)
                     throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
                 // what todo if txid is known, but the actual output isn't?
-                */
             }
-            /*
             if ((unsigned int)nOut >= coins.vout.size())
                 coins.vout.resize(nOut+1);
             coins.vout[nOut].scriptPubKey = scriptPubKey;
             coins.vout[nOut].nValue = 0; // we don't know the actual output value
-            */
             view.SetCoins(txid, coins);
+            */
 
             // if redeemScript given and not using the local wallet (private keys
             // given), add redeemScript to the tempKeystore so it can be signed:
@@ -414,20 +412,20 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     uint256 hashTx = tx.GetUsernameHash();
 
     bool fHave = false;
-    CCoinsViewCache &view = *pcoinsTip;
-    CCoins existingCoins;
-    {
-        fHave = view.GetCoins(tx.GetUsernameHash(), existingCoins);
-        if (!fHave) {
-            // push to local node
-            CValidationState state;
-            if (!mempool.accept(state, tx, false, NULL))
-                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected"); // TODO: report validation state
-        }
+    uint256 hashBlock;
+    CTransaction tx2;
+    fHave = GetTransaction(hashTx, tx2, hashBlock);
+    if (!fHave) {
+        // push to local node
+        CValidationState state;
+        if (!mempool.accept(state, tx, false, NULL))
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected"); // TODO: report validation state
     }
     if (fHave) {
-        if (existingCoins.nHeight < 1000000000)
+        if (hashBlock != uint256())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "transaction already in block chain");
+        if (tx.GetHash() != tx2.GetHash())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "conflict transaction detected (same user, different tx)");
         // Not in block, but already in the memory pool; will drop
         // through to re-relay it.
     } else {

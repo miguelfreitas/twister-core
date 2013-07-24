@@ -24,6 +24,7 @@ void static BatchWriteHashBestChain(CLevelDBBatch &batch, const uint256 &hash) {
 CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe) {
 }
 
+/*
 bool CCoinsViewDB::GetCoins(const uint256 &txid, CCoins &coins) { 
     return db.Read(make_pair('c', txid), coins); 
 }
@@ -37,6 +38,7 @@ bool CCoinsViewDB::SetCoins(const uint256 &txid, const CCoins &coins) {
 bool CCoinsViewDB::HaveCoins(const uint256 &txid) {
     return db.Exists(make_pair('c', txid)); 
 }
+*/
 
 CBlockIndex *CCoinsViewDB::GetBestBlock() {
     uint256 hashBestChain;

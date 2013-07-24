@@ -1051,16 +1051,6 @@ struct CCoinsStats
 class CCoinsView
 {
 public:
-    // Retrieve the CCoins (unspent transaction outputs) for a given txid
-    virtual bool GetCoins(const uint256 &txid, CCoins &coins);
-
-    // Modify the CCoins for a given txid
-    virtual bool SetCoins(const uint256 &txid, const CCoins &coins);
-
-    // Just check whether we have data for a given txid.
-    // This may (but cannot always) return true for fully spent transactions
-    virtual bool HaveCoins(const uint256 &txid);
-
     // Retrieve the block index whose state this CCoinsView currently represents
     virtual CBlockIndex *GetBestBlock();
 
@@ -1085,9 +1075,6 @@ protected:
 
 public:
     CCoinsViewBacked(CCoinsView &viewIn);
-    bool GetCoins(const uint256 &txid, CCoins &coins);
-    bool SetCoins(const uint256 &txid, const CCoins &coins);
-    bool HaveCoins(const uint256 &txid);
     CBlockIndex *GetBestBlock();
     bool SetBestBlock(CBlockIndex *pindex);
     void SetBackend(CCoinsView &viewIn);
@@ -1105,18 +1092,9 @@ protected:
 public:
     CCoinsViewCache(CCoinsView &baseIn, bool fDummy = false);
 
-    // Standard CCoinsView methods
-    bool GetCoins(const uint256 &txid, CCoins &coins);
-    bool SetCoins(const uint256 &txid, const CCoins &coins);
-    bool HaveCoins(const uint256 &txid);
     CBlockIndex *GetBestBlock();
     bool SetBestBlock(CBlockIndex *pindex);
     bool BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex);
-
-    // Return a modifiable reference to a CCoins. Check HaveCoins first.
-    // Many methods explicitly require a CCoinsViewCache because of this method, to reduce
-    // copying.
-    CCoins &GetCoins(const uint256 &txid);
 
     // Push the modifications applied to this cache to its base.
     // Failure to call this method before destruction will cause the changes to be forgotten.

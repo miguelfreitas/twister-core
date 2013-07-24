@@ -182,47 +182,6 @@ Value getblock(const Array& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
-Value gettxout(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() < 2 || params.size() > 3)
-        throw runtime_error(
-            "gettxout <txid> <n> [includemempool=true]\n"
-            "Returns details about an unspent transaction output.");
-
-    Object ret;
-
-    std::string strHash = params[0].get_str();
-    uint256 hash(strHash);
-    int n = params[1].get_int();
-    bool fMempool = true;
-    if (params.size() > 2)
-        fMempool = params[2].get_bool();
-
-    CCoins coins;
-    if (fMempool) {
-        LOCK(mempool.cs);
-        CCoinsViewMemPool view(*pcoinsTip, mempool);
-        if (!view.GetCoins(hash, coins))
-            return Value::null;
-        //mempool.pruneSpent(hash, coins); // TODO: this should be done by the CCoinsViewMemPool
-    } else {
-        if (!pcoinsTip->GetCoins(hash, coins))
-            return Value::null;
-    }
-
-    ret.push_back(Pair("bestblock", pcoinsTip->GetBestBlock()->GetBlockHash().GetHex()));
-    if ((unsigned int)coins.nHeight == MEMPOOL_HEIGHT)
-        ret.push_back(Pair("confirmations", 0));
-    else
-        ret.push_back(Pair("confirmations", pcoinsTip->GetBestBlock()->nHeight - coins.nHeight + 1));
-    ret.push_back(Pair("userName", coins.userName.ToString()));
-    Object o;
-    ScriptPubKeyToJSON(coins.pubKey, o);
-    ret.push_back(Pair("pubKey", o));
-    ret.push_back(Pair("version", coins.nVersion));
-
-    return ret;
-}
 
 Value verifychain(const Array& params, bool fHelp)
 {

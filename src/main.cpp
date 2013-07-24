@@ -269,9 +269,6 @@ int CBlockLocator::GetHeight()
 // CCoinsView implementations
 //
 
-bool CCoinsView::GetCoins(const uint256 &txid, CCoins &coins) { return false; }
-bool CCoinsView::SetCoins(const uint256 &txid, const CCoins &coins) { return false; }
-bool CCoinsView::HaveCoins(const uint256 &txid) { return false; }
 CBlockIndex *CCoinsView::GetBestBlock() { return NULL; }
 bool CCoinsView::SetBestBlock(CBlockIndex *pindex) { return false; }
 bool CCoinsView::BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex) { return false; }
@@ -279,9 +276,6 @@ bool CCoinsView::GetStats(CCoinsStats &stats) { return false; }
 
 
 CCoinsViewBacked::CCoinsViewBacked(CCoinsView &viewIn) : base(&viewIn) { }
-bool CCoinsViewBacked::GetCoins(const uint256 &txid, CCoins &coins) { return base->GetCoins(txid, coins); }
-bool CCoinsViewBacked::SetCoins(const uint256 &txid, const CCoins &coins) { return base->SetCoins(txid, coins); }
-bool CCoinsViewBacked::HaveCoins(const uint256 &txid) { return base->HaveCoins(txid); }
 CBlockIndex *CCoinsViewBacked::GetBestBlock() { return base->GetBestBlock(); }
 bool CCoinsViewBacked::SetBestBlock(CBlockIndex *pindex) { return base->SetBestBlock(pindex); }
 void CCoinsViewBacked::SetBackend(CCoinsView &viewIn) { base = &viewIn; }
@@ -289,45 +283,6 @@ bool CCoinsViewBacked::BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBl
 bool CCoinsViewBacked::GetStats(CCoinsStats &stats) { return base->GetStats(stats); }
 
 CCoinsViewCache::CCoinsViewCache(CCoinsView &baseIn, bool fDummy) : CCoinsViewBacked(baseIn), pindexTip(NULL) { }
-
-bool CCoinsViewCache::GetCoins(const uint256 &txid, CCoins &coins) {
-    if (cacheCoins.count(txid)) {
-        coins = cacheCoins[txid];
-        return true;
-    }
-    if (base->GetCoins(txid, coins)) {
-        cacheCoins[txid] = coins;
-        return true;
-    }
-    return false;
-}
-
-std::map<uint256,CCoins>::iterator CCoinsViewCache::FetchCoins(const uint256 &txid) {
-    std::map<uint256,CCoins>::iterator it = cacheCoins.lower_bound(txid);
-    if (it != cacheCoins.end() && it->first == txid)
-        return it;
-    CCoins tmp;
-    if (!base->GetCoins(txid,tmp))
-        return cacheCoins.end();
-    std::map<uint256,CCoins>::iterator ret = cacheCoins.insert(it, std::make_pair(txid, CCoins()));
-    tmp.swap(ret->second);
-    return ret;
-}
-
-CCoins &CCoinsViewCache::GetCoins(const uint256 &txid) {
-    std::map<uint256,CCoins>::iterator it = FetchCoins(txid);
-    assert(it != cacheCoins.end());
-    return it->second;
-}
-
-bool CCoinsViewCache::SetCoins(const uint256 &txid, const CCoins &coins) {
-    cacheCoins[txid] = coins;
-    return true;
-}
-
-bool CCoinsViewCache::HaveCoins(const uint256 &txid) {
-    return FetchCoins(txid) != cacheCoins.end();
-}
 
 CBlockIndex *CCoinsViewCache::GetBestBlock() {
     if (pindexTip == NULL)
@@ -362,24 +317,8 @@ unsigned int CCoinsViewCache::GetCacheSize() {
     It does not check for spendings by memory pool transactions. */
 CCoinsViewMemPool::CCoinsViewMemPool(CCoinsView &baseIn, CTxMemPool &mempoolIn) : CCoinsViewBacked(baseIn), mempool(mempoolIn) { }
 
-bool CCoinsViewMemPool::GetCoins(const uint256 &txid, CCoins &coins) {
-    if (base->GetCoins(txid, coins))
-        return true;
-    if (mempool.exists(txid)) {
-        const CTransaction &tx = mempool.lookup(txid);
-        coins = CCoins(tx, MEMPOOL_HEIGHT);
-        return true;
-    }
-    return false;
-}
-
-bool CCoinsViewMemPool::HaveCoins(const uint256 &txid) {
-    return mempool.exists(txid) || base->HaveCoins(txid);
-}
-
 CCoinsViewCache *pcoinsTip = NULL;
 CBlockTreeDB *pblocktree = NULL;
-
 
 
 bool IsStandardTx(const CTransaction& tx, string& reason)
@@ -408,19 +347,20 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     CBlock blockTmp;
 
     if (pblock == NULL) {
-      /* [MF] FIXME: Use GetTransaction to obtain block? */
-      /*
-      CCoins coins;
-        if (pcoinsTip->GetCoins(GetUsernameHash(), coins)) {
-            CBlockIndex *pindex = FindBlockByHeight(coins.nHeight);
-            if (pindex) {
-                if (!ReadBlockFromDisk(blockTmp, pindex))
-                    return 0;
-                pblock = &blockTmp;
+        CTransaction tx2;
+        uint256 hashBlock2;
+
+        if( GetTransaction(GetUsernameHash(), tx2, hashBlock2) && hashBlock2 != uint256() ) {
+            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock2);
+            if (mi != mapBlockIndex.end()) {
+                CBlockIndex *pindex = (*mi).second;
+                if (pindex) {
+                    if (!ReadBlockFromDisk(blockTmp, pindex))
+                        return 0;
+                    pblock = &blockTmp;
+                }
             }
         }
-       */
-      return 0;
     }
 
     if (pblock) {
@@ -1142,11 +1082,6 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
         if( pblocktree->HaveTxIndex(block.vtx[i].GetUsernameHash()) )
           return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
-
-        // [MF] FIXME: check here for indexTx (done above!)
-        //uint256 hash = block.GetTxHash(i);
-        //if (view.HaveCoins(block.vtx[i].GetUsernameHash()))
-        //    return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
     }
 
     CBlockUndo blockundo;
@@ -1527,7 +1462,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
     return true;
 }
 
-// [MF] consistency check, don't check if tx already exists in db
+// [MF] basic consistency check. doesn't check if tx already exists in db
 bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     // These are checks that are independent of context
@@ -1775,6 +1710,7 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
     {
         uint256 hash = block.vtx[i].GetHash();
         // [MF] unsure. force 0, use userhash for filter, hash for merkletree
+        // [MF] FIXME: this is most likely broken!
         if (i == 0 || filter.IsRelevantAndUpdate(block.vtx[i], block.vtx[i].GetUsernameHash()))
         {
             vMatch.push_back(true);
