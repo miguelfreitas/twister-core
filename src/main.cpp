@@ -3511,7 +3511,7 @@ public:
 
 static bool CreateSpamMsgTx(CTransaction &txNew)
 {
-    txNew.message = CScript() << vector<unsigned char>((const unsigned char*)strSpamMessage.data(), (const unsigned char*)strSpamMessage.data() + strSpamMessage.size());
+    txNew.message = CScript() << strSpamMessage;
 
     // get keyid from wallet (hopefully this is pubkey of strSpamUser)
     CKeyID defaultKeyId( pwalletMain->vchDefaultKey.GetID() );
@@ -3539,7 +3539,7 @@ static bool CreateSpamMsgTx(CTransaction &txNew)
            hashMsg.ToString().c_str(), EncodeBase64(&vchSig[0], vchSig.size()).c_str() );
 
     // add username and signature
-    txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size());
+    txNew.userName = CScript() << strSpamUser;
     txNew.userName += CScript() << vchSig;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.

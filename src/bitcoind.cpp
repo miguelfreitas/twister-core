@@ -130,7 +130,7 @@ static bool TestCreateSpamMsgTx()
 {
     CTransaction txNew;
 
-    txNew.message = CScript() << vector<unsigned char>((const unsigned char*)strSpamMessage.data(), (const unsigned char*)strSpamMessage.data() + strSpamMessage.size());
+    txNew.message = CScript() << strSpamMessage;
 
     CBitcoinSecret bsecret1;
     bsecret1.SetString (strSecret1C);
@@ -169,7 +169,7 @@ static bool TestCreateSpamMsgTx()
            hashMsg.ToString().c_str(), EncodeBase64(&vchSig[0], vchSig.size()).c_str() );
 
     // add username and signature
-    txNew.userName = CScript() << vector<unsigned char>((const unsigned char*)strSpamUser.data(), (const unsigned char*)strSpamUser.data() + strSpamUser.size());
+    txNew.userName = CScript() << strSpamUser;
     txNew.userName += CScript() << vchSig;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.

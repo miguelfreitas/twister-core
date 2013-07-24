@@ -387,6 +387,13 @@ public:
         return *this;
     }
 
+    CScript& operator<<(const std::string &s)
+    {
+        const std::vector<unsigned char> b((const unsigned char*)s.data(),
+                                           (const unsigned char*)s.data() + s.size());
+        return operator<<(b);
+    }
+
     CScript& operator<<(const CScript& b)
     {
         // I'm not sure if this should push the script or concatenate scripts.
