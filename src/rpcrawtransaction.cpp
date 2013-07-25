@@ -446,6 +446,13 @@ Value sendnewusertransaction(const Array& params, bool fHelp)
   if( !pwalletMain->GetPubKey(keyID, pubkey) )
     throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: no public key found");
 
+  // [MF] prevent redoing POW and resending an existing transaction
+  CTransaction txOut;
+  uint256 hashBlock;
+  uint256 userhash = SerializeHash(strUsername);
+  if( GetTransaction(userhash, txOut, hashBlock) )
+      throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in tx database");
+
   Array createTxParams;
   createTxParams.push_back(strUsername);
   createTxParams.push_back(HexStr(pubkey));
