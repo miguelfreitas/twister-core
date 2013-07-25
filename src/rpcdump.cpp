@@ -67,15 +67,13 @@ std::string DecodeDumpString(const std::string &str) {
 
 Value importprivkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "importprivkey <bitcoinprivkey> [label] [rescan=true]\n"
+            "importprivkey <bitcoinprivkey> <username> [rescan=true]\n"
             "Adds a private key (as returned by dumpprivkey) to your wallet.");
 
     string strSecret = params[0].get_str();
-    string strLabel = "";
-    if (params.size() > 1)
-        strLabel = params[1].get_str();
+    string strUsername = params[1].get_str();
 
     // Whether to perform rescan after import
     bool fRescan = true;
@@ -94,7 +92,6 @@ Value importprivkey(const Array& params, bool fHelp)
         LOCK2(cs_main, pwalletMain->cs_wallet);
 
         pwalletMain->MarkDirty();
-        pwalletMain->SetAddressBookName(vchAddress, strLabel);
 
         // Don't throw error in case a key is already there
         if (pwalletMain->HaveKey(vchAddress))
@@ -102,6 +99,9 @@ Value importprivkey(const Array& params, bool fHelp)
 
         if (!pwalletMain->AddKeyPubKey(key, pubkey))
             throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
+
+        pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = GetTime();
+        pwalletMain->mapKeyMetadata[vchAddress].username = strUsername;
 
         if (fRescan) {
             pwalletMain->ScanForWalletTransactions(pindexGenesisBlock, true);
@@ -151,28 +151,29 @@ Value importwallet(const Array& params, bool fHelp)
             continue;
         }
         int64 nTime = DecodeDumpTime(vstr[1]);
-        std::string strLabel;
-        bool fLabel = true;
+        std::string strUsername;
+        bool fUsername = false;
         for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
             if (boost::algorithm::starts_with(vstr[nStr], "#"))
                 break;
-            if (vstr[nStr] == "change=1")
-                fLabel = false;
-            if (vstr[nStr] == "reserve=1")
-                fLabel = false;
-            if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
-                strLabel = DecodeDumpString(vstr[nStr].substr(6));
-                fLabel = true;
+            if (boost::algorithm::starts_with(vstr[nStr], "username=")) {
+                strUsername = DecodeDumpString(vstr[nStr].substr(9));
+                fUsername = true;
             }
         }
-        printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
+        printf("Importing %s (username=%s)...\n", CBitcoinAddress(keyid).ToString().c_str(),
+               strUsername.c_str());
+        if (!fUsername) {
+          printf("Missing username, skipping.\n");
+          fGood = false;
+          continue;
+        }
         if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
             fGood = false;
             continue;
         }
         pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
-        if (fLabel)
-            pwalletMain->SetAddressBookName(keyid, strLabel);
+        pwalletMain->mapKeyMetadata[keyid].username = strUsername;
         nTimeBegin = std::min(nTimeBegin, nTime);
     }
     file.close();
@@ -196,21 +197,18 @@ Value dumpprivkey(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "dumpprivkey <bitcoinaddress>\n"
-            "Reveals the private key corresponding to <bitcoinaddress>.");
+            "dumpprivkey <username>\n"
+            "Reveals the private key corresponding to <username>.");
 
     EnsureWalletIsUnlocked();
 
-    string strAddress = params[0].get_str();
-    CBitcoinAddress address;
-    if (!address.SetString(strAddress))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address");
+    string strUsername = params[0].get_str();
     CKeyID keyID;
-    if (!address.GetKeyID(keyID))
-        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+    if (!pwalletMain->GetKeyIdFromUsername(strUsername, keyID))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Username not found");
     CKey vchSecret;
     if (!pwalletMain->GetKey(keyID, vchSecret))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for username " + strUsername + " is not known");
     return CBitcoinSecret(vchSecret).ToString();
 }
 
@@ -243,7 +241,7 @@ Value dumpwallet(const Array& params, bool fHelp)
     std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
     // produce output
-    file << strprintf("# Wallet dump created by Bitcoin %s (%s)\n", CLIENT_BUILD.c_str(), CLIENT_DATE.c_str());
+    file << strprintf("# Wallet dump created by Twister %s (%s)\n", CLIENT_BUILD.c_str(), CLIENT_DATE.c_str());
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()).c_str());
     file << strprintf("# * Best block at time of backup was %i (%s),\n", nBestHeight, hashBestChain.ToString().c_str());
     file << strprintf("#   mined on %s\n", EncodeDumpTime(pindexBest->nTime).c_str());
@@ -254,12 +252,15 @@ Value dumpwallet(const Array& params, bool fHelp)
         std::string strAddr = CBitcoinAddress(keyid).ToString();
         CKey key;
         if (pwalletMain->GetKey(keyid, key)) {
-            if (pwalletMain->mapAddressBook.count(keyid)) {
-                file << strprintf("%s %s label=%s # addr=%s\n", CBitcoinSecret(key).ToString().c_str(), strTime.c_str(), EncodeDumpString(pwalletMain->mapAddressBook[keyid]).c_str(), strAddr.c_str());
-            } else if (setKeyPool.count(keyid)) {
-                file << strprintf("%s %s reserve=1 # addr=%s\n", CBitcoinSecret(key).ToString().c_str(), strTime.c_str(), strAddr.c_str());
+            if (pwalletMain->mapKeyMetadata.count(keyid)) {
+                file << strprintf("%s %s username=%s # addr=%s\n",
+                                  CBitcoinSecret(key).ToString().c_str(),
+                                  strTime.c_str(),
+                                  EncodeDumpString(pwalletMain->mapKeyMetadata[keyid].username).c_str(), strAddr.c_str());
             } else {
-                file << strprintf("%s %s change=1 # addr=%s\n", CBitcoinSecret(key).ToString().c_str(), strTime.c_str(), strAddr.c_str());
+                file << strprintf("%s %s noname=1 # addr=%s\n",
+                                  CBitcoinSecret(key).ToString().c_str(),
+                                  strTime.c_str(), strAddr.c_str());
             }
         }
     }
