@@ -978,14 +978,9 @@ void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev)
 
 
 
-bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool* pfClean)
+bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     assert(pindex == view.GetBestBlock());
-
-    if (pfClean)
-        *pfClean = false;
-
-    bool fClean = true;
 
     CBlockUndo blockUndo;
     CDiskBlockPos pos = pindex->GetUndoPos();
@@ -1002,20 +997,14 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
     for (int i = block.vtx.size() - 1; i >= 1; i--) {
         const CTransaction &tx = block.vtx[i];
 
-        if( !pblocktree->EraseTxIndex(tx.GetUsernameHash()) ) {
-            fClean = fClean && error("DisconnectBlock() : error erasing txIndex");
-        }
+        if( !fJustCheck )
+          pblocktree->EraseTxIndex(tx.GetUsernameHash());
     }
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev);
 
-    if (pfClean) {
-        *pfClean = fClean;
-        return true;
-    } else {
-        return fClean;
-    }
+    return true;
 }
 
 void static FlushBlockFile(bool fFinalize = false)
@@ -1171,7 +1160,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
         if (!ReadBlockFromDisk(block, pindex))
             return state.Abort(_("Failed to read block"));
         int64 nStart = GetTimeMicros();
-        if (!DisconnectBlock(block, state, pindex, view))
+        if (!DisconnectBlock(block, state, pindex, view, false))
             return error("SetBestBlock() : DisconnectBlock %s failed", pindex->GetBlockHash().ToString().c_str());
         if (fBenchmark)
             printf("- Disconnect: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
@@ -2017,7 +2006,7 @@ bool VerifyDB(int nCheckLevel, int nCheckDepth)
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
         if (nCheckLevel >= 3 && pindex == pindexState && (coins.GetCacheSize() + pcoinsTip->GetCacheSize()) <= 2*nCoinCacheSize + 32000) {
             bool fClean = true;
-            if (!DisconnectBlock(block, state, pindex, coins, &fClean))
+            if (!DisconnectBlock(block, state, pindex, coins, nCheckLevel < 4))
                 return error("VerifyDB() : *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString().c_str());
             pindexState = pindex->pprev;
             if (!fClean) {
