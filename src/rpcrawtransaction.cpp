@@ -145,9 +145,9 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
 Value createrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() != 2)
         throw runtime_error(
-            "createrawtransaction <username> [pubKey=generate if omited]\n"
+            "createrawtransaction <username> <pubKey>\n"
             "Create a transaction registering a new user\n"
             "Returns hex-encoded raw transaction.\n"
             "it is not stored in the wallet or transmitted to the network.");
@@ -159,13 +159,12 @@ Value createrawtransaction(const Array& params, bool fHelp)
     string username = params[0].get_str();
     rawTx.userName = CScript() << vector<unsigned char>((const unsigned char*)username.data(), (const unsigned char*)username.data() + username.size());
 
-    if (params.size() > 1) {
-      vector<unsigned char> txData(ParseHexV(params[1], "pubkey"));
-      rawTx.pubKey << txData;
-    } else {
-      pwalletMain->GenerateNewKey(username);
-      throw JSONRPCError(RPC_INTERNAL_ERROR, "pubkey generation not implemented");
-    }
+    vector<unsigned char> vch(ParseHexV(params[1], "pubkey"));
+    CPubKey pubkey(vch);
+    if( !pubkey.IsValid() )
+      throw JSONRPCError(RPC_INTERNAL_ERROR, "pubkey is not valid");
+
+    rawTx.pubKey << vch;
 
     DoTxProofOfWork(rawTx);
 
@@ -425,3 +424,36 @@ Value sendrawtransaction(const Array& params, bool fHelp)
 
     return hashTx.GetHex();
 }
+
+Value sendnewusertransaction(const Array& params, bool fHelp)
+{
+  if (fHelp || params.size() != 1)
+      throw runtime_error(
+          "sendnewusertransaction <username>\n"
+          "Send a transaction registering a previously created new user\n"
+          "using createuserkey or imported to the wallet\n"
+          "Submits raw transaction (serialized, hex-encoded) to local node and network.");
+
+  if (params[0].type() != str_type)
+    throw JSONRPCError(RPC_INVALID_PARAMETER, "username must be string");
+  string strUsername = params[0].get_str();
+
+  CKeyID keyID;
+  if( !pwalletMain->GetKeyIdFromUsername(strUsername, keyID) )
+    throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: username must exist in wallet");
+
+  CPubKey pubkey;
+  if( !pwalletMain->GetPubKey(keyID, pubkey) )
+    throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: no public key found");
+
+  Array createTxParams;
+  createTxParams.push_back(strUsername);
+  createTxParams.push_back(HexStr(pubkey));
+  Value txValue = createrawtransaction(createTxParams, false);
+
+  std::string strTxHex = txValue.get_str();
+  Array sendTxParams;
+  sendTxParams.push_back(strTxHex);
+  return sendrawtransaction(sendTxParams, false);
+}
+

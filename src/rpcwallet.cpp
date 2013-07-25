@@ -109,7 +109,7 @@ Value createuserkey(const Array& params, bool fHelp)
       throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in wallet");
 
     uint256 userhash = SerializeHash(strUsername);
-    printf("usernamehash(%s) = %s\n", strUsername.c_str(), userhash.GetHex().c_str());
+    printf("createuserkey: usernamehash(%s) = %s\n", strUsername.c_str(), userhash.GetHex().c_str());
 
     CTransaction txOut;
     uint256 hashBlock;
