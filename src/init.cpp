@@ -840,12 +840,14 @@ bool AppInit2(boost::thread_group& threadGroup)
         // Create new keyUser and set as default key
         RandAddSeedPerfmon();
 
+        /* [MF] FIXME: require user on initialization?
         CPubKey newDefaultKey;
         if (pwalletMain->GetKeyFromPool(newDefaultKey, false)) {
             pwalletMain->SetDefaultKey(newDefaultKey);
             if (!pwalletMain->SetAddressBookName(pwalletMain->vchDefaultKey.GetID(), ""))
                 strErrors << _("Cannot write default address") << "\n";
         }
+        */
 
         pwalletMain->SetBestChain(CBlockLocator(pindexBest));
     }
