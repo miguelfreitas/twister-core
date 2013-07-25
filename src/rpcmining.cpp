@@ -13,17 +13,17 @@ using namespace std;
 
 // Key used by getwork/getblocktemplate miners.
 // Allocated in InitRPCMining, free'd in ShutdownRPCMining
-static CReserveKey* pMiningKey = NULL;
+static std::vector<unsigned char> salt;
 
 void InitRPCMining()
 {
     // getwork/getblocktemplate mining rewards paid here:
-    pMiningKey = new CReserveKey(pwalletMain);
+    salt.resize(4);
+    RAND_bytes(salt.data(), sizeof(salt));
 }
 
 void ShutdownRPCMining()
 {
-    delete pMiningKey; pMiningKey = NULL;
 }
 
 Value getgenerate(const Array& params, bool fHelp)
@@ -148,7 +148,7 @@ Value getwork(const Array& params, bool fHelp)
             nStart = GetTime();
 
             // Create new block
-            pblocktemplate = CreateNewBlock(*pMiningKey);
+            pblocktemplate = CreateNewBlock(salt);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlockTemplate.push_back(pblocktemplate);
@@ -210,7 +210,7 @@ Value getwork(const Array& params, bool fHelp)
         */
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
-        return CheckWork(pblock, *pwalletMain, *pMiningKey);
+        return CheckWork(pblock, *pwalletMain);
     }
 }
 
@@ -283,7 +283,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             delete pblocktemplate;
             pblocktemplate = NULL;
         }
-        pblocktemplate = CreateNewBlock(*pMiningKey);
+        pblocktemplate = CreateNewBlock(salt);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 

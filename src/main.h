@@ -17,7 +17,6 @@ class CWallet;
 class CBlock;
 class CBlockIndex;
 class CKeyItem;
-class CReserveKey;
 
 class CAddress;
 class CInv;
@@ -109,7 +108,6 @@ extern string strSpamUser;
 static const uint64 nMinDiskSpace = 52428800;
 
 
-class CReserveKey;
 class CCoinsDB;
 class CBlockTreeDB;
 struct CDiskBlockPos;
@@ -166,13 +164,13 @@ bool SendMessages(CNode* pto, bool fSendTrickle);
 /** Run the miner threads */
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet);
 /** Generate a new block, without valid proof-of-work */
-CBlockTemplate* CreateNewBlock(CReserveKey& reservekey);
+CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt);
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
 /** Do mining precalculation */
 void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1);
 /** Check mined block */
-bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
+bool CheckWork(CBlock* pblock, CWallet& wallet);
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 /** Calculate the minimum amount of work a received block needs, without knowing its direct parent */

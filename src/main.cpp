@@ -3416,19 +3416,19 @@ public:
 };
 
 
-static bool CreateSpamMsgTx(CTransaction &txNew)
+static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &salt)
 {
     txNew.message = CScript() << strSpamMessage;
+    std::string strUsername = strSpamUser;
 
-    // get keyid from wallet (hopefully this is pubkey of strSpamUser)
-    CKeyID defaultKeyId( pwalletMain->vchDefaultKey.GetID() );
-    printf("CreateSpamMsgTx: keyId = %s\n", defaultKeyId.ToString().c_str() );
-    CKey key;
-    // get privkey from pubkey
-    if( !pwalletMain->GetKey(defaultKeyId, key) ) {
-        printf("CreateNewBlock: Failed to get privKey to sign SpamMessage\n");
-        return false;
+    CKeyID keyID;
+    if( !pwalletMain->GetKeyIdFromUsername(strSpamUser, keyID) ) {
+      if( pwalletMain->vchDefaultKey.IsValid() ) {
+        keyID = pwalletMain->vchDefaultKey.GetID();
+        strUsername = pwalletMain->mapKeyMetadata[keyID].username;
+      }
     }
+    printf("CreateSpamMsgTx: keyId = %s\n", keyID.ToString().c_str() );
 
     // compute message hash and sign it
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
@@ -3437,25 +3437,36 @@ static bool CreateSpamMsgTx(CTransaction &txNew)
 
     // vchSig is sig(hash(message))
     vector<unsigned char> vchSig;
-    if (!key.Sign(hashMsg, vchSig)) {
-        printf("CreateNewBlock: Failed to sign SpamMessage\n");
-        return false;
+
+    if( keyID != CKeyID() ) {
+      CKey key;
+      // get privkey from pubkey
+      if( !pwalletMain->GetKey(keyID, key) ) {
+          printf("CreateNewBlock: Failed to get privKey to sign SpamMessage\n");
+          return false;
+      }
+
+      if (!key.Sign(hashMsg, vchSig)) {
+          printf("CreateNewBlock: Failed to sign SpamMessage\n");
+          return false;
+      }
     }
 
-    printf("CreateSpamMsgTx: msg = %s user = %s hash = %s signedhash = %s\n", txNew.message.ToString().c_str(), strSpamUser.c_str(),
+    printf("CreateSpamMsgTx: msg = %s user = %s hash = %s signedhash = %s\n",
+           txNew.message.ToString().c_str(), strUsername.c_str(),
            hashMsg.ToString().c_str(), EncodeBase64(&vchSig[0], vchSig.size()).c_str() );
 
     // add username and signature
-    txNew.userName = CScript() << strSpamUser;
+    txNew.userName = CScript() << strUsername;
     txNew.userName += CScript() << vchSig;
+    txNew.userName += CScript() << salt;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.
 
     return true;
 }
 
-// [MF] FIXME: reservekey gives uniqueness to this worker thread, but it's not being used in twister.
-CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
+CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
@@ -3465,7 +3476,7 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
 
     // Create coinbase tx
     CTransaction txNew;
-    if( !CreateSpamMsgTx(txNew) )
+    if( !CreateSpamMsgTx(txNew, salt) )
         return NULL;
 
     // Add our coinbase tx as first transaction
@@ -3613,7 +3624,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 }
 
 
-bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
+bool CheckWork(CBlock* pblock, CWallet& wallet)
 {
     uint256 hash = pblock->GetHash();
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
@@ -3632,9 +3643,6 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         LOCK(cs_main);
         if (pblock->hashPrevBlock != hashBestChain)
             return error("BitcoinMiner : generated block is stale");
-
-        // Remove key from key pool
-        reservekey.KeepKey();
 
         // Track how many getdata requests this block gets
         {
@@ -3749,8 +3757,9 @@ void static BitcoinMiner(CWallet *pwallet)
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("bitcoin-miner");
 
-    // Each thread has its own key and counter
-    CReserveKey reservekey(pwallet);
+    // Each thread has its own salt and counter
+    std::vector<unsigned char> salt(4);
+    RAND_bytes(salt.data(), sizeof(salt));
     unsigned int nExtraNonce = 0;
 
     try { loop {
@@ -3767,7 +3776,7 @@ void static BitcoinMiner(CWallet *pwallet)
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrev = pindexBest;
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(salt));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;
@@ -3819,7 +3828,7 @@ void static BitcoinMiner(CWallet *pwallet)
                     assert(hash == pblock->GetHash());
 
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                    CheckWork(pblock, *pwalletMain, reservekey);
+                    CheckWork(pblock, *pwalletMain);
                     SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
                     // In regression test mode, stop mining after a block is found. This
