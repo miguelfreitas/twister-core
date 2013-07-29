@@ -189,7 +189,7 @@ void send_bitfield(stream_socket& s, char const* bits)
 
 void do_handshake(stream_socket& s, sha1_hash const& ih, char* buffer)
 {
-	char handshake[] = "\x13" "BitTorrent protocol\0\0\0\0\0\0\0\x04"
+	char handshake[] = "\x13" "twister protocollll\0\0\0\0\0\0\0\x04"
 		"                    " // space for info-hash
 		"aaaaaaaaaaaaaaaaaaaa"; // peer-id
 	std::cout << time_now_string() << " ==> handshake" << std::endl;
@@ -209,7 +209,7 @@ void do_handshake(stream_socket& s, sha1_hash const& ih, char* buffer)
 	std::cout << time_now_string() << " <== handshake" << std::endl;
 
 	TEST_CHECK(buffer[0] == 19);
-	TEST_CHECK(std::memcmp(buffer + 1, "BitTorrent protocol", 19) == 0);
+	TEST_CHECK(std::memcmp(buffer + 1, "twister protocollll", 19) == 0);
 
 	char* extensions = buffer + 20;
 	// check for fast extension support

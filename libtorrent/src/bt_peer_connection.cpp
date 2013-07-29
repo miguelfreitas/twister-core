@@ -701,7 +701,7 @@ namespace libtorrent
 		TORRENT_ASSERT(t);
 
 		// add handshake to the send buffer
-		const char version_string[] = "BitTorrent protocol";
+		const char version_string[] = "twister protocollll";
 		const int string_len = sizeof(version_string)-1;
 
 		char handshake[1 + string_len + 8 + 20 + 20];
@@ -2888,7 +2888,7 @@ namespace libtorrent
 			recv_buffer = receive_buffer();
 
 			int packet_size = recv_buffer[0];
-			const char protocol_string[] = "\x13" "BitTorrent protocol";
+			const char protocol_string[] = "\x13" "twister protocollll";
 
 			if (packet_size != 19 ||
 				memcmp(recv_buffer.begin, protocol_string, 20) != 0)
@@ -2954,7 +2954,7 @@ namespace libtorrent
 #endif
 
 #ifdef TORRENT_VERBOSE_LOGGING
-				peer_log("<== BitTorrent protocol");
+				peer_log("<== twister protocollll");
 #endif
 			}
 
