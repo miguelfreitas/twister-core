@@ -60,9 +60,9 @@ query = 'get_peers'
 
 print 'test random info-hashes'
 for i in xrange(1, 30000):
-	send_dht_message({'a': {'id': node_id, 'info_hash': random_key()}, 'q': query, 'y': 'q', 't': '%d' % i})
+	send_dht_message({'a': {'id': node_id, 'info_hash': random_key()}, 'q': query, 'z': 'q', 't': '%d' % i})
 
 print 'test random peer-ids'
 for i in xrange(1, 30000):
-	send_dht_message({'a': {'id': random_key(), 'info_hash': random_key()}, 'q': query, 'y': 'q', 't': '%d' % i})
+	send_dht_message({'a': {'id': random_key(), 'info_hash': random_key()}, 'q': query, 'z': 'q', 't': '%d' % i})
 

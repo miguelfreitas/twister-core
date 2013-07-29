@@ -209,7 +209,7 @@ void node_impl::unreachable(udp::endpoint const& ep)
 void node_impl::incoming(msg const& m)
 {
 	// is this a reply?
-	lazy_entry const* y_ent = m.message.dict_find_string("y");
+	lazy_entry const* y_ent = m.message.dict_find_string("z");
 	if (!y_ent || y_ent->string_length() == 0)
 	{
 		entry e;
@@ -231,7 +231,7 @@ void node_impl::incoming(msg const& m)
 		}
 		case 'q':
 		{
-			TORRENT_ASSERT(m.message.dict_find_string_value("y") == "q");
+			TORRENT_ASSERT(m.message.dict_find_string_value("z") == "q");
 			entry e;
 			incoming_request(m, e);
 			m_sock->send_packet(e, m.addr, 0);
@@ -281,7 +281,7 @@ namespace
 			o->m_in_constructor = false;
 #endif
 			entry e;
-			e["y"] = "q";
+			e["z"] = "q";
 			e["q"] = "announce_peer";
 			entry& a = e["a"];
 			a["info_hash"] = ih.to_string();
@@ -318,7 +318,7 @@ void node_impl::add_node(udp::endpoint node)
 	o->m_in_constructor = false;
 #endif
 	entry e;
-	e["y"] = "q";
+	e["z"] = "q";
 	e["q"] = "ping";
 	m_rpc.invoke(e, node, o);
 }
@@ -593,7 +593,7 @@ bool verify_message(lazy_entry const* msg, key_desc_t const desc[], lazy_entry c
 
 void incoming_error(entry& e, char const* msg)
 {
-	e["y"] = "e";
+	e["z"] = "e";
 	entry::list_type& l = e["e"].list();
 	l.push_back(entry(203));
 	l.push_back(entry(msg));
@@ -603,7 +603,7 @@ void incoming_error(entry& e, char const* msg)
 void node_impl::incoming_request(msg const& m, entry& e)
 {
 	e = entry(entry::dictionary_t);
-	e["y"] = "r";
+	e["z"] = "r";
 	e["t"] = m.message.dict_find_string_value("t");
 
 	key_desc_t top_desc[] = {

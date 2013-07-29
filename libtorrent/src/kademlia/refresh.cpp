@@ -71,7 +71,7 @@ observer_ptr refresh::new_observer(void* ptr
 bool refresh::invoke(observer_ptr o)
 {
 	entry e;
-	e["y"] = "q";
+	e["z"] = "q";
 	e["q"] = "find_node";
 	entry& a = e["a"];
 	a["target"] = target().to_string();

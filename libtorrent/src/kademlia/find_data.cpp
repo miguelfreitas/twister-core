@@ -205,7 +205,7 @@ bool find_data::invoke(observer_ptr o)
 	}
 
 	entry e;
-	e["y"] = "q";
+	e["z"] = "q";
 	e["q"] = "get_peers";
 	entry& a = e["a"];
 	a["info_hash"] = m_target.to_string();

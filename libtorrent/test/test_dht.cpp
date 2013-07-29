@@ -106,7 +106,7 @@ void send_dht_msg(node_impl& node, char const* msg, udp::endpoint const& ep
 	entry e;
 	e["q"] = msg;
 	e["t"] = t;
-	e["y"] = "q";
+	e["z"] = "q";
 	entry::dictionary_type& a = e["a"].dict();
 	a["id"] = generate_next().to_string();
 	if (info_hash) a["info_hash"] = std::string(info_hash, 20);
@@ -194,7 +194,7 @@ void announce_immutable_items(node_impl& node, udp::endpoint const* eps
 					{ "id", lazy_entry::string_t, 20, 0},
 					{ "token", lazy_entry::string_t, 0, 0},
 					{ "ip", lazy_entry::string_t, 0, key_desc_t::optional | key_desc_t::last_child},
-				{ "y", lazy_entry::string_t, 1, 0},
+				{ "z", lazy_entry::string_t, 1, 0},
 			};
 
 			lazy_entry const* parsed[5];
@@ -228,7 +228,7 @@ void announce_immutable_items(node_impl& node, udp::endpoint const* eps
 
 			key_desc_t desc2[] =
 			{
-				{ "y", lazy_entry::string_t, 1, 0 }
+				{ "z", lazy_entry::string_t, 1, 0 }
 			};
 
 			ret = verify_message(&response, desc2, parsed, 1, error_string, sizeof(error_string));
@@ -260,7 +260,7 @@ void announce_immutable_items(node_impl& node, udp::endpoint const* eps
 			{ "r", lazy_entry::dict_t, 0, key_desc_t::parse_children },
 				{ "v", lazy_entry::dict_t, 0, 0},
 				{ "id", lazy_entry::string_t, 20, key_desc_t::last_child},
-			{ "y", lazy_entry::string_t, 1, 0},
+			{ "z", lazy_entry::string_t, 1, 0},
 		};
 
 		lazy_entry const* parsed[4];
@@ -313,7 +313,7 @@ int test_main()
 	send_dht_msg(node, "ping", source, &response, "10");
 
 	dht::key_desc_t pong_desc[] = {
-		{"y", lazy_entry::string_t, 1, 0},
+		{"z", lazy_entry::string_t, 1, 0},
 		{"t", lazy_entry::string_t, 2, 0},
 		{"r", lazy_entry::dict_t, 0, key_desc_t::parse_children},
 			{"id", lazy_entry::string_t, 20, key_desc_t::last_child},
@@ -337,7 +337,7 @@ int test_main()
 	send_dht_msg(node, "find_node", source, &response, "10");
 
 	dht::key_desc_t err_desc[] = {
-		{"y", lazy_entry::string_t, 1, 0},
+		{"z", lazy_entry::string_t, 1, 0},
 		{"e", lazy_entry::list_t, 2, 0},
 		{"r", lazy_entry::dict_t, 0, key_desc_t::parse_children},
 			{"id", lazy_entry::string_t, 20, key_desc_t::last_child},
@@ -369,7 +369,7 @@ int test_main()
 	send_dht_msg(node, "get_peers", source, &response, "10", "01010101010101010101");
 
 	dht::key_desc_t peer1_desc[] = {
-		{"y", lazy_entry::string_t, 1, 0},
+		{"z", lazy_entry::string_t, 1, 0},
 		{"r", lazy_entry::dict_t, 0, key_desc_t::parse_children},
 			{"token", lazy_entry::string_t, 0, 0},
 			{"id", lazy_entry::string_t, 20, key_desc_t::last_child},
@@ -396,7 +396,7 @@ int test_main()
 	send_dht_msg(node, "announce_peer", source, &response, "10", "01010101010101010101", "test", token, 8080);
 
 	dht::key_desc_t ann_desc[] = {
-		{"y", lazy_entry::string_t, 1, 0},
+		{"z", lazy_entry::string_t, 1, 0},
 		{"r", lazy_entry::dict_t, 0, key_desc_t::parse_children},
 			{"id", lazy_entry::string_t, 20, key_desc_t::last_child},
 	};
@@ -444,7 +444,7 @@ int test_main()
 		, 0, no, 0, 0, 0, true);
 
 	dht::key_desc_t peer2_desc[] = {
-		{"y", lazy_entry::string_t, 1, 0},
+		{"z", lazy_entry::string_t, 1, 0},
 		{"r", lazy_entry::dict_t, 0, key_desc_t::parse_children},
 			{"BFpe", lazy_entry::string_t, 256, 0},
 			{"BFse", lazy_entry::string_t, 256, 0},
@@ -565,7 +565,7 @@ int test_main()
 			{ "id", lazy_entry::string_t, 20, 0},
 			{ "token", lazy_entry::string_t, 0, 0},
 			{ "ip", lazy_entry::string_t, 0, key_desc_t::optional | key_desc_t::last_child},
-		{ "y", lazy_entry::string_t, 1, 0},
+		{ "z", lazy_entry::string_t, 1, 0},
 	};
 
 	ret = verify_message(&response, desc, parsed, 5, error_string, sizeof(error_string));
@@ -601,7 +601,7 @@ int test_main()
 
 	key_desc_t desc2[] =
 	{
-		{ "y", lazy_entry::string_t, 1, 0 }
+		{ "z", lazy_entry::string_t, 1, 0 }
 	};
 
 	ret = verify_message(&response, desc2, parsed, 1, error_string, sizeof(error_string));
