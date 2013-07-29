@@ -74,7 +74,7 @@ public:
 		, nodes_callback const& ncallback
 		, bool noseeds);
 
-	virtual char const* name() const { return "get_peers"; }
+	virtual char const* name() const { return "getPeers"; }
 
 	node_id const target() const { return m_target; }
 

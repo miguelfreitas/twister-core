@@ -109,7 +109,7 @@ void send_dht_msg(node_impl& node, char const* msg, udp::endpoint const& ep
 	e["z"] = "q";
 	entry::dictionary_type& a = e["x"].dict();
 	a["id"] = generate_next().to_string();
-	if (info_hash) a["info_hash"] = std::string(info_hash, 20);
+	if (info_hash) a["infoHash"] = std::string(info_hash, 20);
 	if (name) a["n"] = name;
 	if (!token.empty()) a["token"] = token;
 	if (port) a["port"] = port;
@@ -334,7 +334,7 @@ int test_main()
 
 	// ====== invalid message ======
 
-	send_dht_msg(node, "find_node", source, &response, "10");
+	send_dht_msg(node, "findNode", source, &response, "10");
 
 	dht::key_desc_t err_desc[] = {
 		{"z", lazy_entry::string_t, 1, 0},
@@ -366,7 +366,7 @@ int test_main()
 
 	// ====== get_peers ======
 
-	send_dht_msg(node, "get_peers", source, &response, "10", "01010101010101010101");
+	send_dht_msg(node, "getPeers", source, &response, "10", "01010101010101010101");
 
 	dht::key_desc_t peer1_desc[] = {
 		{"z", lazy_entry::string_t, 1, 0},
@@ -393,7 +393,7 @@ int test_main()
 
 	// ====== announce ======
 
-	send_dht_msg(node, "announce_peer", source, &response, "10", "01010101010101010101", "test", token, 8080);
+	send_dht_msg(node, "announcePeer", source, &response, "10", "01010101010101010101", "test", token, 8080);
 
 	dht::key_desc_t ann_desc[] = {
 		{"z", lazy_entry::string_t, 1, 0},
@@ -418,7 +418,7 @@ int test_main()
 	for (int i = 0; i < 100; ++i)
 	{
 		source = udp::endpoint(rand_v4(), 6000);
-		send_dht_msg(node, "get_peers", source, &response, "10", "01010101010101010101");
+		send_dht_msg(node, "getPeers", source, &response, "10", "01010101010101010101");
 		ret = dht::verify_message(&response, peer1_desc, parsed, 4, error_string, sizeof(error_string));
 
 		if (ret)
@@ -433,14 +433,14 @@ int test_main()
 			fprintf(stderr, "   invalid get_peers response: %s\n", error_string);
 		}
 		response.clear();
-		send_dht_msg(node, "announce_peer", source, &response, "10", "01010101010101010101"
+		send_dht_msg(node, "announcePeer", source, &response, "10", "01010101010101010101"
 			, "test", token, 8080, 0, 0, false, i >= 50);
 		response.clear();
 	}
 
 	// ====== get_peers ======
 
-	send_dht_msg(node, "get_peers", source, &response, "10", "01010101010101010101"
+	send_dht_msg(node, "getPeers", source, &response, "10", "01010101010101010101"
 		, 0, no, 0, 0, 0, true);
 
 	dht::key_desc_t peer2_desc[] = {

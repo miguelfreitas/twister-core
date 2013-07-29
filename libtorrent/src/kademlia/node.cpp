@@ -282,9 +282,9 @@ namespace
 #endif
 			entry e;
 			e["z"] = "q";
-			e["q"] = "announce_peer";
+			e["q"] = "announcePeer";
 			entry& a = e["x"];
-			a["info_hash"] = ih.to_string();
+			a["infoHash"] = ih.to_string();
 			a["port"] = listen_port;
 			a["token"] = i->second;
 			a["seed"] = int(seed);
@@ -641,10 +641,10 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		// we already have 't' and 'id' in the response
 		// no more left to add
 	}
-	else if (strcmp(query, "get_peers") == 0)
+	else if (strcmp(query, "getPeers") == 0)
 	{
 		key_desc_t msg_desc[] = {
-			{"info_hash", lazy_entry::string_t, 20, 0},
+			{"infoHash", lazy_entry::string_t, 20, 0},
 			{"ifhpfxl", lazy_entry::int_t, 0, key_desc_t::optional},
 			{"noseed", lazy_entry::int_t, 0, key_desc_t::optional},
 			{"scrape", lazy_entry::int_t, 0, key_desc_t::optional},
@@ -681,7 +681,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		}
 #endif
 	}
-	else if (strcmp(query, "find_node") == 0)
+	else if (strcmp(query, "findNode") == 0)
 	{
 		key_desc_t msg_desc[] = {
 			{"target", lazy_entry::string_t, 20, 0},
@@ -701,10 +701,10 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		m_table.find_node(target, n, 0);
 		write_nodes_entry(reply, n);
 	}
-	else if (strcmp(query, "announce_peer") == 0)
+	else if (strcmp(query, "announcePeer") == 0)
 	{
 		key_desc_t msg_desc[] = {
-			{"info_hash", lazy_entry::string_t, 20, 0},
+			{"infoHash", lazy_entry::string_t, 20, 0},
 			{"port", lazy_entry::int_t, 0, 0},
 			{"token", lazy_entry::string_t, 0, 0},
 			{"n", lazy_entry::string_t, 0, key_desc_t::optional},
@@ -1029,12 +1029,12 @@ void node_impl::incoming_request(msg const& m, entry& e)
 	else
 	{
 		// if we don't recognize the message but there's a
-		// 'target' or 'info_hash' in the arguments, treat it
+		// 'target' or 'infoHash' in the arguments, treat it
 		// as find_node to be future compatible
 		lazy_entry const* target_ent = arg_ent->dict_find_string("target");
 		if (target_ent == 0 || target_ent->string_length() != 20)
 		{
-			target_ent = arg_ent->dict_find_string("info_hash");
+			target_ent = arg_ent->dict_find_string("infoHash");
 			if (target_ent == 0 || target_ent->string_length() != 20)
 			{
 				incoming_error(e, "unknown message");

@@ -56,13 +56,13 @@ def random_key():
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 node_id = '1' * 20;
-query = 'get_peers'
+query = 'getPeers'
 
 print 'test random info-hashes'
 for i in xrange(1, 30000):
-	send_dht_message({'x': {'id': node_id, 'info_hash': random_key()}, 'q': query, 'z': 'q', 't': '%d' % i})
+	send_dht_message({'x': {'id': node_id, 'infoHash': random_key()}, 'q': query, 'z': 'q', 't': '%d' % i})
 
 print 'test random peer-ids'
 for i in xrange(1, 30000):
-	send_dht_message({'x': {'id': random_key(), 'info_hash': random_key()}, 'q': query, 'z': 'q', 't': '%d' % i})
+	send_dht_message({'x': {'id': random_key(), 'infoHash': random_key()}, 'q': query, 'z': 'q', 't': '%d' % i})
 

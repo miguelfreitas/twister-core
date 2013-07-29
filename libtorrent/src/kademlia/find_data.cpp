@@ -206,9 +206,9 @@ bool find_data::invoke(observer_ptr o)
 
 	entry e;
 	e["z"] = "q";
-	e["q"] = "get_peers";
+	e["q"] = "getPeers";
 	entry& a = e["x"];
-	a["info_hash"] = m_target.to_string();
+	a["infoHash"] = m_target.to_string();
 	if (m_noseeds) a["noseed"] = 1;
 	return m_node.m_rpc.invoke(e, o->target_ep(), o);
 }
