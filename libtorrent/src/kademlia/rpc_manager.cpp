@@ -466,7 +466,7 @@ bool rpc_manager::invoke(entry& e, udp::endpoint target_addr
 	if (m_destructing) return false;
 
 	e["z"] = "q";
-	entry& a = e["a"];
+	entry& a = e["x"];
 	add_our_id(a);
 
 	std::string transaction_id;

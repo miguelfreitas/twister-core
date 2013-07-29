@@ -107,7 +107,7 @@ void send_dht_msg(node_impl& node, char const* msg, udp::endpoint const& ep
 	e["q"] = msg;
 	e["t"] = t;
 	e["z"] = "q";
-	entry::dictionary_type& a = e["a"].dict();
+	entry::dictionary_type& a = e["x"].dict();
 	a["id"] = generate_next().to_string();
 	if (info_hash) a["info_hash"] = std::string(info_hash, 20);
 	if (name) a["n"] = name;

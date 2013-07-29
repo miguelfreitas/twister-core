@@ -283,7 +283,7 @@ namespace
 			entry e;
 			e["z"] = "q";
 			e["q"] = "announce_peer";
-			entry& a = e["a"];
+			entry& a = e["x"];
 			a["info_hash"] = ih.to_string();
 			a["port"] = listen_port;
 			a["token"] = i->second;
@@ -608,7 +608,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 
 	key_desc_t top_desc[] = {
 		{"q", lazy_entry::string_t, 0, 0},
-		{"a", lazy_entry::dict_t, 0, key_desc_t::parse_children},
+		{"x", lazy_entry::dict_t, 0, key_desc_t::parse_children},
 			{"id", lazy_entry::string_t, 20, key_desc_t::last_child},
 	};
 
