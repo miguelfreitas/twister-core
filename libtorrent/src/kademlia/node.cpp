@@ -633,8 +633,11 @@ void node_impl::incoming_request(msg const& m, entry& e)
 
 	// if this nodes ID doesn't match its IP, tell it what
 	// its IP is
-	if (!verify_id(id, m.addr.address()))
+	if (!verify_id(id, m.addr.address())) {
 		reply["ip"] = address_to_bytes(m.addr.address());
+		//[MF] enforce ID verification.
+		return;
+	}
 
 	if (strcmp(query, "ping") == 0)
 	{
