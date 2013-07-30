@@ -312,32 +312,6 @@ bool rpc_manager::incoming(msg const& m, node_id* id)
 		return false;
 	}
 
-	lazy_entry const* ext_ip = ret_ent->dict_find_string("ip");
-	if (ext_ip && ext_ip->string_length() == 4)
-	{
-		// this node claims we use the wrong node-ID!
-		address_v4::bytes_type b;
-		memcpy(&b[0], ext_ip->string_ptr(), 4);
-		if (m_observer)
-			m_observer->set_external_address(address_v4(b)
-				, m.addr.address());
-		// [MF] enforced: no valid response is sent along with "ip".
-		return false;
-	}
-#if TORRENT_USE_IPV6
-	else if (ext_ip && ext_ip->string_length() == 16)
-	{
-		// this node claims we use the wrong node-ID!
-		address_v6::bytes_type b;
-		memcpy(&b[0], ext_ip->string_ptr(), 16);
-		if (m_observer)
-			m_observer->set_external_address(address_v6(b)
-				, m.addr.address());
-		// [MF] enforced: no valid response is sent along with "ip".
-		return false;
-	}
-#endif
-
 	ptime now = time_now_hires();
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
@@ -363,6 +337,32 @@ bool rpc_manager::incoming(msg const& m, node_id* id)
 		m_sock->send_packet(e, m.addr, 0);
 		return false;
 	}
+
+	lazy_entry const* ext_ip = ret_ent->dict_find_string("ip");
+	if (ext_ip && ext_ip->string_length() == 4)
+	{
+		// this node claims we use the wrong node-ID!
+		address_v4::bytes_type b;
+		memcpy(&b[0], ext_ip->string_ptr(), 4);
+		if (m_observer)
+			m_observer->set_external_address(address_v4(b)
+				, m.addr.address());
+		// [MF] enforced: no valid response is sent along with "ip".
+		return false;
+	}
+#if TORRENT_USE_IPV6
+	else if (ext_ip && ext_ip->string_length() == 16)
+	{
+		// this node claims we use the wrong node-ID!
+		address_v6::bytes_type b;
+		memcpy(&b[0], ext_ip->string_ptr(), 16);
+		if (m_observer)
+			m_observer->set_external_address(address_v6(b)
+				, m.addr.address());
+		// [MF] enforced: no valid response is sent along with "ip".
+		return false;
+	}
+#endif
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(rpc) << "[" << o->m_algorithm.get() << "] Reply with transaction id: " 
