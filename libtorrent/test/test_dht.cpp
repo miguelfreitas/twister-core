@@ -108,7 +108,8 @@ void send_dht_msg(node_impl& node, char const* msg, udp::endpoint const& ep
 	e["t"] = t;
 	e["z"] = "q";
 	entry::dictionary_type& a = e["x"].dict();
-	a["id"] = generate_next().to_string();
+	//a["id"] = generate_next().to_string();
+	a["id"] = generate_id(ep.address()).to_string();
 	if (info_hash) a["infoHash"] = std::string(info_hash, 20);
 	if (name) a["n"] = name;
 	if (!token.empty()) a["token"] = token;
@@ -126,6 +127,7 @@ void send_dht_msg(node_impl& node, char const* msg, udp::endpoint const& ep
 // this yields a lot of output. too much
 //	std::cerr << "sending: " <<  e << "\n";
 #endif
+	//fprintf(stderr, "sending: %s\n", msg_buf);
 
 	lazy_entry decoded;
 	error_code ec;
