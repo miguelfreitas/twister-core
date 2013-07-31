@@ -206,6 +206,7 @@ void node_impl::unreachable(udp::endpoint const& ep)
 	m_rpc.unreachable(ep);
 }
 
+// new message received from network
 void node_impl::incoming(msg const& m)
 {
 	// is this a reply?
@@ -225,12 +226,15 @@ void node_impl::incoming(msg const& m)
 		case 'r':
 		{
 			node_id id;
+			// reply to our request?
+			// map transaction => observer, call o->reply, ret true if ok
 			if (m_rpc.incoming(m, &id))
 				refresh(id, boost::bind(&nop));
 			break;
 		}
 		case 'q':
 		{
+			// new request received
 			TORRENT_ASSERT(m.message.dict_find_string_value("z") == "q");
 			entry e;
 			incoming_request(m, e);
