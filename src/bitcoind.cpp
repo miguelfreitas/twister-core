@@ -182,8 +182,6 @@ static bool TestCreateSpamMsgTx()
     exit(1);
 }
 
-
-
 extern void GenesisMiner();
 extern void noui_connect();
 int main(int argc, char* argv[])

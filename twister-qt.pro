@@ -119,6 +119,13 @@ QMAKE_EXTRA_TARGETS += genleveldb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
 QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; cd $$PWD/src/leveldb ; $(MAKE) clean
 
+# libtorrent hack
+INCLUDEPATH += libtorrent/include
+LIBS += $$PWD/libtorrent/src/.libs/libtorrent-rasterbar.a
+DEFINES += TORRENT_DEBUG
+DEFINES += BOOST_ASIO_SEPARATE_COMPILATION
+#DEFINES += BOOST_ASIO_DYN_LINK
+
 # regenerate src/build.h
 !win32|contains(USE_BUILD_INFO, 1) {
     genbuild.depends = FORCE
