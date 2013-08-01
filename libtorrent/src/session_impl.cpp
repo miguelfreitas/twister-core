@@ -597,6 +597,7 @@ namespace aux {
 		, fingerprint const& cl_fprint
 		, char const* listen_interface
 		, boost::uint32_t alert_mask
+		, char const* ext_ip
 		)
 		: m_ipv4_peer_pool(500)
 #if TORRENT_USE_IPV6
@@ -710,6 +711,10 @@ namespace aux {
 		if (!listen_interface) listen_interface = "0.0.0.0";
 		m_listen_interface = tcp::endpoint(address::from_string(listen_interface, ec), listen_port_range.first);
 		TORRENT_ASSERT_VAL(!ec, ec);
+
+		if (ext_ip) {
+			m_external_ip.cast_vote(address::from_string(ext_ip), source_router, address());
+		}
 
 		// ---- generate a peer id ----
 		static seed_random_generator seeder;

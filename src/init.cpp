@@ -961,16 +961,34 @@ bool AppInit2(boost::thread_group& threadGroup)
 #include "libtorrent/bencode.hpp"
 #include "libtorrent/session.hpp"
 
+#define TORRENT_DISABLE_GEO_IP
+#include "libtorrent/aux_/session_impl.hpp"
+
 using namespace libtorrent;
 static session *ses;
 
-void startSessionTorrent(boost::thread_group& threadGroup)
+void ThreadWaitExtIP()
 {
+    RenameThread("wait-extip");
+
+    std::string ipStr;
+
+    // wait up to 5 seconds for bitcoin to get the external IP
+    for( int i = 0; i < 10; i++ ) {
+        const CNetAddr paddrPeer("8.8.8.8");
+        CAddress addr( GetLocalAddress(&paddrPeer) );
+        if( addr != CAddress() ) {
+            ipStr = addr.ToStringIP();
+            break;
+        }
+        MilliSleep(500);
+    }
+
     error_code ec;
     int listen_port = GetListenPort() + 1000;
     std::string bind_to_interface = "";
 
-    printf("startSessionTorrent port=%d\n", listen_port);
+    printf("Creating new libtorrent session ext_ip=%s port=%d\n", ipStr.c_str(), listen_port);
 
     ses = new session(fingerprint("LT", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
@@ -978,7 +996,8 @@ void startSessionTorrent(boost::thread_group& threadGroup)
                     & ~(alert::dht_notification
                     + alert::progress_notification
                     + alert::debug_notification
-                    + alert::stats_notification));
+                    + alert::stats_notification)
+            , ipStr.size() ? ipStr.c_str() : NULL );
 
     /*
     std::vector<char> in;
@@ -1001,5 +1020,12 @@ void startSessionTorrent(boost::thread_group& threadGroup)
 
     ses->start_dht();
     printf("libtorrent + dht started\n");
+}
+
+void startSessionTorrent(boost::thread_group& threadGroup)
+{
+    printf("startSessionTorrent (waiting for external IP)\n");
+
+    threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
 }
 

@@ -398,7 +398,7 @@ namespace libtorrent
 #endif
 
 	void session::init(std::pair<int, int> listen_range, char const* listen_interface
-		, fingerprint const& id, boost::uint32_t alert_mask)
+		, fingerprint const& id, boost::uint32_t alert_mask, char const* ext_ip)
 	{
 #if defined _MSC_VER && defined TORRENT_DEBUG
 		// workaround for microsofts
@@ -407,7 +407,7 @@ namespace libtorrent
 		::_set_se_translator(straight_to_debugger);
 #endif
 
-		m_impl.reset(new session_impl(listen_range, id, listen_interface, alert_mask));
+		m_impl.reset(new session_impl(listen_range, id, listen_interface, alert_mask, ext_ip));
 
 #ifdef TORRENT_MEMDEBUG
 		start_malloc_debug();

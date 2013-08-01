@@ -215,7 +215,8 @@ namespace libtorrent
 				std::pair<int, int> listen_port_range
 				, fingerprint const& cl_fprint
 				, char const* listen_interface
-				, boost::uint32_t alert_mask);
+				, boost::uint32_t alert_mask
+				, char const* ext_ip);
 			virtual ~session_impl();
 			void update_dht_announce_interval();
 			void init();

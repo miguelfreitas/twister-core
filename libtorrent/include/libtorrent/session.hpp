@@ -139,10 +139,11 @@ namespace libtorrent
 			, LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
 			, int flags = start_default_features | add_default_plugins
 			, boost::uint32_t alert_mask = alert::error_notification
+			, char const* ext_ip = NULL
 			TORRENT_LOGPATH_ARG_DEFAULT)
 		{
 			TORRENT_CFG();
-			init(std::make_pair(0, 0), "0.0.0.0", print, alert_mask);
+			init(std::make_pair(0, 0), "0.0.0.0", print, alert_mask, ext_ip);
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 			set_log_path(logpath);
 #endif
@@ -153,12 +154,13 @@ namespace libtorrent
 			, char const* listen_interface = "0.0.0.0"
 			, int flags = start_default_features | add_default_plugins
 			, int alert_mask = alert::error_notification
+			, char const* ext_ip = NULL
 			TORRENT_LOGPATH_ARG_DEFAULT)
 		{
 			TORRENT_CFG();
 			TORRENT_ASSERT(listen_port_range.first > 0);
 			TORRENT_ASSERT(listen_port_range.first < listen_port_range.second);
-			init(listen_port_range, listen_interface, print, alert_mask);
+			init(listen_port_range, listen_interface, print, alert_mask, ext_ip);
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 			set_log_path(logpath);
 #endif
@@ -851,7 +853,7 @@ namespace libtorrent
 	private:
 
 		void init(std::pair<int, int> listen_range, char const* listen_interface
-			, fingerprint const& id, boost::uint32_t alert_mask);
+			, fingerprint const& id, boost::uint32_t alert_mask, char const* ext_ip);
 		void set_log_path(std::string const& p);
 		void start(int flags);
 
