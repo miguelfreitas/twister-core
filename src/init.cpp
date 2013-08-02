@@ -101,6 +101,7 @@ void Shutdown()
 
     RenameThread("bitcoin-shutoff");
     nTransactionsUpdated++;
+    stopSessionTorrent();
     StopRPCThreads();
     ShutdownRPCMining();
     bitdb.Flush(false);

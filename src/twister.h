@@ -12,6 +12,6 @@ public:
 };
 
 void startSessionTorrent(boost::thread_group& threadGroup);
-
+void stopSessionTorrent();
 
 #endif // TWISTER_H

@@ -2,6 +2,8 @@
 
 #include "main.h"
 
+#include <boost/filesystem.hpp>
+
 twister::twister()
 {
 }
@@ -17,7 +19,85 @@ twister::twister()
 #include "libtorrent/aux_/session_impl.hpp"
 
 using namespace libtorrent;
-static session *ses;
+static session *ses = NULL;
+
+int load_file(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000)
+{
+	ec.clear();
+	FILE* f = fopen(filename.c_str(), "rb");
+	if (f == NULL)
+	{
+		ec.assign(errno, boost::system::get_generic_category());
+		return -1;
+	}
+
+	int r = fseek(f, 0, SEEK_END);
+	if (r != 0)
+	{
+		ec.assign(errno, boost::system::get_generic_category());
+		fclose(f);
+		return -1;
+	}
+	long s = ftell(f);
+	if (s < 0)
+	{
+		ec.assign(errno, boost::system::get_generic_category());
+		fclose(f);
+		return -1;
+	}
+
+	if (s > limit)
+	{
+		fclose(f);
+		return -2;
+	}
+
+	r = fseek(f, 0, SEEK_SET);
+	if (r != 0)
+	{
+		ec.assign(errno, boost::system::get_generic_category());
+		fclose(f);
+		return -1;
+	}
+
+	v.resize(s);
+	if (s == 0)
+	{
+		fclose(f);
+		return 0;
+	}
+
+	r = fread(&v[0], 1, v.size(), f);
+	if (r < 0)
+	{
+		ec.assign(errno, boost::system::get_generic_category());
+		fclose(f);
+		return -1;
+	}
+
+	fclose(f);
+
+	if (r != s) return -3;
+
+	return 0;
+}
+
+int save_file(std::string const& filename, std::vector<char>& v)
+{
+	using namespace libtorrent;
+
+	// TODO: don't use internal file type here. use fopen()
+	file f;
+	error_code ec;
+	if (!f.open(filename, file::write_only, ec)) return -1;
+	if (ec) return -1;
+	file::iovec_t b = {&v[0], v.size()};
+	size_type written = f.writev(0, &b, 1, ec);
+	if (written != int(v.size())) return -3;
+	if (ec) return -3;
+	return 0;
+}
+
 
 void ThreadWaitExtIP()
 {
@@ -42,7 +122,7 @@ void ThreadWaitExtIP()
 
     printf("Creating new libtorrent session ext_ip=%s port=%d\n", ipStr.c_str(), listen_port);
 
-    ses = new session(fingerprint("LT", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
+    ses = new session(fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
             , alert::all_categories
                     & ~(alert::dht_notification
@@ -51,15 +131,17 @@ void ThreadWaitExtIP()
                     + alert::stats_notification)
             , ipStr.size() ? ipStr.c_str() : NULL );
 
-    /*
     std::vector<char> in;
-    if (load_file(".ses_state", in, ec) == 0)
+    boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
+    if (load_file(sesStatePath.string(), in, ec) == 0)
     {
             lazy_entry e;
             if (lazy_bdecode(&in[0], &in[0] + in.size(), e, ec) == 0)
-                    ses.load_state(e);
+                    ses->load_state(e);
     }
-    */
+
+    ses->start_upnp();
+    ses->start_natpmp();
 
     ses->listen_on(std::make_pair(listen_port, listen_port)
             , ec, bind_to_interface.c_str());
@@ -71,6 +153,9 @@ void ThreadWaitExtIP()
     }
 
     ses->start_dht();
+
+    //ses->set_settings(settings);
+
     printf("libtorrent + dht started\n");
 }
 
@@ -79,5 +164,26 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     printf("startSessionTorrent (waiting for external IP)\n");
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
+}
+
+void stopSessionTorrent()
+{
+    if( ses ){
+            ses->pause();
+
+            printf("\nsaving session state\n");
+
+            entry session_state;
+            ses->save_state(session_state);
+
+	    std::vector<char> out;
+	    bencode(std::back_inserter(out), session_state);
+	    boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
+	    save_file(sesStatePath.string(), out);
+
+	    delete ses;
+	    ses = NULL;
+    }
+    printf("libtorrent + dht stopped\n");
 }
 
