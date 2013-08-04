@@ -75,6 +75,7 @@ struct traversal_algorithm : boost::noncopyable
 	virtual void start();
 
 	node_id const& target() const { return m_target; }
+	void set_target(node_id target) { m_target = target; }
 
 	void add_entry(node_id const& id, udp::endpoint addr, unsigned char flags);
 

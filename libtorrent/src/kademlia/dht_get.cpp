@@ -30,15 +30,19 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#include "../../src/twister.h"
+
 #include "libtorrent/pch.hpp"
 
-#include <libtorrent/kademlia/find_data.hpp>
+#include <libtorrent/kademlia/dht_get.hpp>
 #include <libtorrent/kademlia/routing_table.hpp>
 #include <libtorrent/kademlia/rpc_manager.hpp>
 #include <libtorrent/kademlia/node.hpp>
 #include <libtorrent/io.hpp>
 #include <libtorrent/socket.hpp>
 #include <libtorrent/socket_io.hpp>
+#include <libtorrent/bencode.hpp>
+#include <libtorrent/hasher.hpp>
 #include <vector>
 
 namespace libtorrent { namespace dht
@@ -54,7 +58,7 @@ using detail::read_v4_endpoint;
 using detail::read_v6_endpoint;
 #endif
 
-void find_data_observer::reply(msg const& m)
+void dht_get_observer::reply(msg const& m)
 {
 	lazy_entry const* r = m.message.dict_find_dict("r");
 	if (!r)
@@ -76,7 +80,7 @@ void find_data_observer::reply(msg const& m)
 	lazy_entry const* token = r->dict_find_string("token");
 	if (token)
 	{
-		static_cast<find_data*>(m_algorithm.get())->got_write_token(
+		static_cast<dht_get*>(m_algorithm.get())->got_write_token(
 			node_id(id->string_ptr()), token->string_value());
 	}
 
@@ -84,42 +88,45 @@ void find_data_observer::reply(msg const& m)
 	lazy_entry const* n = r->dict_find_list("values");
 	if (n)
 	{
-		std::vector<tcp::endpoint> peer_list;
-		if (n->list_size() == 1 && n->list_at(0)->type() == lazy_entry::string_t)
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+		TORRENT_LOG(traversal)
+			<< "[" << m_algorithm.get() << "] GETDATA"
+			<< " invoke-count: " << m_algorithm->invoke_count()
+			<< " branch-factor: " << m_algorithm->branch_factor()
+			<< " addr: " << m.addr
+			<< " id: " << node_id(id->string_ptr())
+			<< " distance: " << distance_exp(m_algorithm->target(), node_id(id->string_ptr()))
+			<< " p: " << ((end - peers) / 6);
+#endif
+		entry::list_type values_list;
+		for (int i = 0; i < n->list_size(); ++i)
 		{
-			// assume it's mainline format
-			char const* peers = n->list_at(0)->string_ptr();
-			char const* end = peers + n->list_at(0)->string_length();
+			lazy_entry const* e = n->list_at(i);
+			if (e->type() != lazy_entry::dict_t) continue;
 
+			lazy_entry const* p = e->dict_find("p");
+			lazy_entry const* sig_p = e->dict_find("sig_p");
+			lazy_entry const* sig_user = e->dict_find("sig_user");
+			if (!p || !sig_p || !sig_user) continue;
+			if (p->type() != lazy_entry::dict_t) continue;
+			if (sig_p->type() != lazy_entry::string_t) continue;
+			if (sig_user->type() != lazy_entry::string_t) continue;
+
+			std::pair<char const*, int> buf = p->data_section();
+			if (!verifySignature(std::string(buf.first,buf.second),
+					    sig_user->string_value(),
+					    sig_p->string_value())) {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(traversal)
-				<< "[" << m_algorithm.get() << "] PEERS"
-				<< " invoke-count: " << m_algorithm->invoke_count()
-				<< " branch-factor: " << m_algorithm->branch_factor()
-				<< " addr: " << m.addr
-				<< " id: " << node_id(id->string_ptr())
-				<< " distance: " << distance_exp(m_algorithm->target(), node_id(id->string_ptr()))
-				<< " p: " << ((end - peers) / 6);
+				TORRENT_LOG(traversal) << "dht_get_observer::reply verifySignature failed";
 #endif
-			while (end - peers >= 6)
-				peer_list.push_back(read_v4_endpoint<tcp::endpoint>(peers));
+				continue;
+			}
+
+			values_list.push_back(entry());
+			values_list.back() = *e;
 		}
-		else
-		{
-			// assume it's uTorrent/libtorrent format
-			read_endpoint_list<tcp::endpoint>(n, peer_list);
-#ifdef TORRENT_DHT_VERBOSE_LOGGING
-			TORRENT_LOG(traversal)
-				<< "[" << m_algorithm.get() << "] PEERS"
-				<< " invoke-count: " << m_algorithm->invoke_count()
-				<< " branch-factor: " << m_algorithm->branch_factor()
-				<< " addr: " << m.addr
-				<< " id: " << node_id(id->string_ptr())
-				<< " distance: " << distance_exp(m_algorithm->target(), node_id(id->string_ptr()))
-				<< " p: " << n->list_size();
-#endif
-		}
-		static_cast<find_data*>(m_algorithm.get())->got_peers(peer_list);
+
+		static_cast<dht_get*>(m_algorithm.get())->got_data(values_list);
 	}
 
 	// look for nodes
@@ -169,34 +176,53 @@ static void add_entry_fun(void* userdata, node_entry const& e)
 	f->add_entry(e.id, e.ep(), observer::flag_initial);
 }
 
-find_data::find_data(
+dht_get::dht_get(
 	node_impl& node
-	, node_id target
+	, std::string &targetUser
+	, std::string &targetResource
+	, bool multi
 	, data_callback const& dcallback
 	, nodes_callback const& ncallback
-	, bool noseeds)
-	: traversal_algorithm(node, target)
+	, bool justToken)
+	: traversal_algorithm(node, node_id())
 	, m_data_callback(dcallback)
 	, m_nodes_callback(ncallback)
-	, m_target(target)
+	, m_target()
+	, m_targetUser(targetUser)
+	, m_targetResource(targetResource)
+	, m_multi(multi)
 	, m_done(false)
-	, m_got_peers(false)
-	, m_noseeds(noseeds)
+	, m_got_data(false)
+	, m_justToken(justToken)
 {
+	m_target["n"] = m_targetUser;
+	m_target["r"] = m_targetResource;
+	m_target["t"] = (m_multi) ? "m" : "s";
+
+	std::vector<char> buf;
+	bencode(std::back_inserter(buf), m_target);
+	sha1_hash target;
+	target = hasher(buf.data(), buf.size()).final();
+	set_target(target);
+
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+	//TORRENT_LOG(traversal) << "[" << this << "] NEW"
+	//	" target: " << target << " k: " << m_node.m_table.bucket_size();
+#endif
 	node.m_table.for_each_node(&add_entry_fun, 0, (traversal_algorithm*)this);
 }
 
-observer_ptr find_data::new_observer(void* ptr
+observer_ptr dht_get::new_observer(void* ptr
 	, udp::endpoint const& ep, node_id const& id)
 {
-	observer_ptr o(new (ptr) find_data_observer(this, ep, id));
+	observer_ptr o(new (ptr) dht_get_observer(this, ep, id));
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 	o->m_in_constructor = false;
 #endif
 	return o;
 }
 
-bool find_data::invoke(observer_ptr o)
+bool dht_get::invoke(observer_ptr o)
 {
 	if (m_done)
 	{
@@ -206,27 +232,28 @@ bool find_data::invoke(observer_ptr o)
 
 	entry e;
 	e["z"] = "q";
-	e["q"] = "getPeers";
+	e["q"] = "getData";
 	entry& a = e["x"];
-	a["infoHash"] = m_target.to_string();
-	if (m_noseeds) a["noseed"] = 1;
+	entry& target = a["target"];
+	target = m_target;
+	if (m_justToken) a["justtoken"] = 1;
 	return m_node.m_rpc.invoke(e, o->target_ep(), o);
 }
 
-void find_data::got_peers(std::vector<tcp::endpoint> const& peers)
+void dht_get::got_data(entry::list_type const& values_list)
 {
-	if (!peers.empty()) m_got_peers = true;
-	m_data_callback(peers);
+	if (!values_list.empty()) m_got_data = true;
+	m_data_callback(values_list);
 }
 
-void find_data::done()
+void dht_get::done()
 {
 	if (m_invoke_count != 0) return;
 
 	m_done = true;
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(traversal) << "[" << this << "] get_peers DONE";
+	TORRENT_LOG(traversal) << "[" << this << "] getData DONE";
 #endif
 
 	std::vector<std::pair<node_entry, std::string> > results;
@@ -242,7 +269,7 @@ void find_data::done()
 		results.push_back(std::make_pair(node_entry(o->id(), o->target_ep()), j->second));
 		--num_results;
 	}
-	m_nodes_callback(results, m_got_peers);
+	m_nodes_callback(results, m_got_data);
 
 	traversal_algorithm::done();
 }

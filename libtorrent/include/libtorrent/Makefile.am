@@ -139,6 +139,7 @@ nobase_include_HEADERS = \
   kademlia/dht_tracker.hpp          \
   kademlia/dht_observer.hpp         \
   kademlia/find_data.hpp            \
+  kademlia/dht_get.hpp              \
   kademlia/logging.hpp              \
   kademlia/msg.hpp                  \
   kademlia/node.hpp                 \

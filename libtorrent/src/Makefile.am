@@ -4,6 +4,7 @@ if ENABLE_DHT
 KADEMLIA_SOURCES = \
   kademlia/dht_tracker.cpp      \
   kademlia/find_data.cpp        \
+  kademlia/dht_get.cpp          \
   kademlia/node.cpp             \
   kademlia/node_id.cpp          \
   kademlia/refresh.cpp          \

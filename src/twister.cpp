@@ -1,8 +1,11 @@
 #include "twister.h"
 
 #include "main.h"
+#include "init.h"
 
 #include <boost/filesystem.hpp>
+
+const string strTwisterMessageMagic = "twister Signed Message:\n";
 
 twister::twister()
 {
@@ -187,3 +190,82 @@ void stopSessionTorrent()
     printf("libtorrent + dht stopped\n");
 }
 
+std::string createSignature(std::string &strMessage, std::string &strUsername)
+{
+    if (pwalletMain->IsLocked()) {
+        printf("createSignature: Error please enter the wallet passphrase with walletpassphrase first.\n");
+        return std::string();
+    }
+
+    CKeyID keyID;
+    if( !pwalletMain->GetKeyIdFromUsername(strUsername, keyID) ) {
+        printf("createSignature: user '%s' unknown.\n", strUsername.c_str());
+        return std::string();
+    }
+
+    CKey key;
+    if (!pwalletMain->GetKey(keyID, key)) {
+        printf("createSignature: private key not available for user '%s'.\n", strUsername.c_str());
+        return std::string();
+    }
+
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strTwisterMessageMagic;
+    ss << strMessage;
+
+    vector<unsigned char> vchSig;
+    if (!key.SignCompact(ss.GetHash(), vchSig)) {
+        printf("createSignature: sign failed.\n");
+        return std::string();
+    }
+
+    return std::string((const char *)&vchSig[0], vchSig.size());
+}
+
+
+bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign)
+{
+    CPubKey pubkey;
+    {
+      CKeyID keyID;
+      if( pwalletMain->GetKeyIdFromUsername(strUsername, keyID) ) {
+        if( !pwalletMain->GetPubKey(keyID, pubkey) ) {
+            // error? should not have failed.
+        }
+      }
+    }
+
+    if( !pubkey.IsValid() ) {
+      CTransaction txOut;
+      uint256 hashBlock;
+      uint256 userhash = SerializeHash(strUsername);
+      if( !GetTransaction(userhash, txOut, hashBlock) ) {
+          //printf("verifySignature: user unknown '%s'\n", strUsername.c_str());
+          return false;
+      }
+
+      std::vector< std::vector<unsigned char> > vData;
+      if( !txOut.pubKey.ExtractPushData(vData) || vData.size() < 1 ) {
+          printf("verifySignature: broken pubkey for user '%s'\n", strUsername.c_str());
+          return false;
+      }
+      pubkey = CPubKey(vData[0]);
+      if( !pubkey.IsValid() ) {
+          printf("verifySignature: invalid pubkey for user '%s'\n", strUsername.c_str());
+          return false;
+      }
+    }
+
+    vector<unsigned char> vchSig((const unsigned char*)strSign.data(),
+                                 (const unsigned char*)strSign.data() + strSign.size());
+
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strTwisterMessageMagic;
+    ss << strMessage;
+
+    CPubKey pubkeyRec;
+    if (!pubkeyRec.RecoverCompact(ss.GetHash(), vchSig))
+        return false;
+
+    return (pubkeyRec.GetID() == pubkey.GetID());
+}
