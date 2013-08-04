@@ -208,7 +208,7 @@ void announce_immutable_items(node_impl& node, udp::endpoint const* eps
 			{
 				TEST_EQUAL(parsed[4]->string_value(), "r");
 				token = parsed[2]->string_value();
-				fprintf(stderr, "got token: %s\n", token.c_str());
+				//fprintf(stderr, "got token: %s\n", token.c_str());
 			}
 			else
 			{
@@ -385,7 +385,7 @@ int test_main()
 	{
 		TEST_CHECK(parsed[0]->string_value() == "r");
 		token = parsed[2]->string_value();
-		fprintf(stderr, "got token: %s\n", token.c_str());
+		//fprintf(stderr, "got token: %s\n", token.c_str());
 	}
 	else
 	{
@@ -427,7 +427,7 @@ int test_main()
 		{
 			TEST_CHECK(parsed[0]->string_value() == "r");
 			token = parsed[2]->string_value();
-			fprintf(stderr, "got token: %s\n", token.c_str());
+			//fprintf(stderr, "got token: %s\n", token.c_str());
 		}
 		else
 		{
@@ -575,7 +575,7 @@ int test_main()
 	{
 		TEST_EQUAL(parsed[4]->string_value(), "r");
 		token = parsed[2]->string_value();
-		fprintf(stderr, "got token: %s\n", token.c_str());
+		//fprintf(stderr, "got token: %s\n", token.c_str());
 	}
 	else
 	{
@@ -669,4 +669,21 @@ int test_main()
 }
 
 #endif
+
+std::string createSignature(std::string &strMessage, std::string &strUsername)
+{
+    return std::string("signature!");
+}
+
+
+bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign)
+{
+    return true;
+}
+
+int getBestHeight()
+{
+    return 10;
+}
+
 
