@@ -1144,10 +1144,12 @@ void node_impl::incoming_request(msg const& m, entry& e)
 
 			// if not multi, seq must increase
 			if(!multi) {
-			    dht_storage_item &item = lsto[0];
-			    // FIXME: Implement
-			    // if( msg_keys[mk_seq]->int_value() > lsto[0].p.seq ) etc
-				if( msg_keys[mk_seq]->int_value() ) {
+				dht_storage_item &item = lsto[0];
+				lazy_entry p;
+				int pos;
+				error_code err;
+				int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+				if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
 					item.p = str_p;
 					item.sig_p = msg_keys[mk_sig_p]->string_value();
 					item.sig_user = msg_keys[mk_sig_user]->string_value();
