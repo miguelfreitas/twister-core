@@ -315,7 +315,8 @@ void get_put_get(node_impl& node, udp::endpoint const* eps
 {
         std::string username("username");
         std::string resource("res");
-        bool multi = false;
+        //bool multi = false;
+        bool multi = true;
         std::string sig_user("username");
         int seq=1;
 
@@ -364,9 +365,11 @@ void get_put_get(node_impl& node, udp::endpoint const* eps
 				TEST_EQUAL(addr, eps[i].address());
 			}
 
+			entry testentry;
+			testentry["j"] = j;
 			send_put_dht(node, eps[i], &response, "10",
 					  username.c_str(), resource.c_str(), multi,
-					  token, &items[j].ent, sig_user, seq++, 1000, getBestHeight());
+					  token, &testentry, sig_user, seq++, 1000, getBestHeight());
 
 			key_desc_t desc2[] =
 			{
@@ -408,10 +411,12 @@ void get_put_get(node_impl& node, udp::endpoint const* eps
 		lazy_entry const* parsed[4];
 		char error_string[200];
 
+		//fprintf(stderr, "msg: %s\n", print_entry(response).c_str());
 		int ret = verify_message(&response, desc, parsed, 4, error_string, sizeof(error_string));
 		if (ret)
 		{
 			items_num.insert(items_num.begin(), j);
+			fprintf(stderr, "values: %s\n", print_entry(*parsed[1]).c_str());
 		}
 	}
 

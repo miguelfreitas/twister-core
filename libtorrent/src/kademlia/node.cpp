@@ -1068,7 +1068,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
 
 		// pointer and length to the whole entry
 		std::pair<char const*, int> buf = msg_keys[mk_p]->data_section();
-		if (buf.second > 767 || buf.second <= 0)
+		int maxSize = (multi) ? 512 : 8192; // single is bigger for avatar image etc
+		if (buf.second > maxSize || buf.second <= 0)
 		{
 			incoming_error(e, "message too big");
 			return;
@@ -1245,8 +1246,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			{
 				entry::dictionary_type v;
 				v["p"] = bdecode(j->p.begin(), j->p.end());
-				v["sig_p"] = bdecode(j->sig_p.begin(), j->sig_p.end());
-				v["sig_user"] = bdecode(j->sig_user.begin(), j->sig_user.end());
+				v["sig_p"] = j->sig_p;
+				v["sig_user"] = j->sig_user;
 				values.push_back(v);
 			}
 		}
