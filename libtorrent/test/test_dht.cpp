@@ -44,6 +44,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "test.hpp"
 #include "setup_transfer.hpp"
 
+#include "../../src/twister.h"
+
 using namespace libtorrent;
 using namespace libtorrent::dht;
 
@@ -176,6 +178,252 @@ struct announce_item
 		target = hasher(buf, len).final();
 	}
 };
+
+
+void send_put_dht(node_impl& node, udp::endpoint const& ep
+	, lazy_entry* reply, char const* t
+	, char const* name, char const* resource, bool multi
+	, std::string const token
+	, entry const* value
+	, std::string const sig_user
+	, int seq = -1, int timeutc = 0, int height = 0)
+{
+	// we're about to clear out the backing buffer
+	// for this lazy_entry, so we better clear it now
+	reply->clear();
+	entry e;
+	e["q"] = "putData";
+	e["t"] = t;
+	e["z"] = "q";
+
+	entry::dictionary_type& a = e["x"].dict();
+	a["id"] = generate_id(ep.address()).to_string();
+	a["token"] = token;
+
+	entry::dictionary_type& p = a["p"].dict();
+	entry::dictionary_type& target = p["target"].dict();
+	target["n"] = name;
+	target["r"] = resource;
+	target["t"] = (multi) ? "m" : "s";
+	if (seq >= 0) p["seq"] = seq;
+	p["v"] = *value;
+	if (timeutc) p["time"] = timeutc;
+	if (height) p["height"] = height;
+
+	std::vector<char> pbuf;
+	bencode(std::back_inserter(pbuf), p);
+	std::string sig_p = createSignature(std::string(pbuf.data(),pbuf.size()), sig_user);
+
+	a["sig_p"] = sig_p;
+	a["sig_user"] = sig_user;
+
+	char msg_buf[1500];
+	int size = bencode(msg_buf, e);
+#if defined TORRENT_DEBUG && TORRENT_USE_IOSTREAM
+// this yields a lot of output. too much
+//	std::cerr << "sending: " <<  e << "\n";
+#endif
+	//fprintf(stderr, "sending: %s\n", msg_buf);
+
+	lazy_entry decoded;
+	error_code ec;
+	lazy_bdecode(msg_buf, msg_buf + size, decoded, ec);
+	if (ec) fprintf(stderr, "lazy_bdecode failed: %s\n", ec.message().c_str());
+
+	dht::msg m(decoded, ep);
+	node.incoming(m);
+
+	// by now the node should have invoked the send function and put the
+	// response in g_responses
+
+	std::list<std::pair<udp::endpoint, entry> >::iterator i
+		= std::find_if(g_responses.begin(), g_responses.end()
+			, boost::bind(&std::pair<udp::endpoint, entry>::first, _1) == ep);
+	if (i == g_responses.end())
+	{
+		TEST_ERROR("not response from DHT node");
+		return;
+	}
+
+	static char inbuf[1500];
+	int len = bencode(inbuf, i->second);
+	g_responses.erase(i);
+	int ret = lazy_bdecode(inbuf, inbuf + len, *reply, ec);
+	TEST_CHECK(ret == 0);
+}
+
+void send_get_dht(node_impl& node, udp::endpoint const& ep
+	, lazy_entry* reply, char const* t
+	, char const* name, char const* resource, bool multi
+	, bool justtoken = false)
+{
+	// we're about to clear out the backing buffer
+	// for this lazy_entry, so we better clear it now
+	reply->clear();
+	entry e;
+	e["q"] = "getData";
+	e["t"] = t;
+	e["z"] = "q";
+
+	entry::dictionary_type& a = e["x"].dict();
+	a["id"] = generate_id(ep.address()).to_string();
+
+	entry::dictionary_type& target = a["target"].dict();
+	target["n"] = name;
+	target["r"] = resource;
+	target["t"] = (multi) ? "m" : "s";
+
+	if (justtoken) a["justtoken"] = 1;
+
+	char msg_buf[1500];
+	int size = bencode(msg_buf, e);
+#if defined TORRENT_DEBUG && TORRENT_USE_IOSTREAM
+// this yields a lot of output. too much
+//	std::cerr << "sending: " <<  e << "\n";
+#endif
+	//fprintf(stderr, "sending: %s\n", msg_buf);
+
+	lazy_entry decoded;
+	error_code ec;
+	lazy_bdecode(msg_buf, msg_buf + size, decoded, ec);
+	if (ec) fprintf(stderr, "lazy_bdecode failed: %s\n", ec.message().c_str());
+
+	dht::msg m(decoded, ep);
+	node.incoming(m);
+
+	// by now the node should have invoked the send function and put the
+	// response in g_responses
+
+	std::list<std::pair<udp::endpoint, entry> >::iterator i
+		= std::find_if(g_responses.begin(), g_responses.end()
+			, boost::bind(&std::pair<udp::endpoint, entry>::first, _1) == ep);
+	if (i == g_responses.end())
+	{
+		TEST_ERROR("not response from DHT node");
+		return;
+	}
+
+	static char inbuf[1500];
+	int len = bencode(inbuf, i->second);
+	g_responses.erase(i);
+	int ret = lazy_bdecode(inbuf, inbuf + len, *reply, ec);
+	TEST_CHECK(ret == 0);
+}
+
+void get_put_get(node_impl& node, udp::endpoint const* eps
+        , announce_item const* items, int num_items)
+{
+        std::string username("username");
+        std::string resource("res");
+        bool multi = false;
+        std::string sig_user("username");
+        int seq=1;
+
+	std::string token;
+	for (int i = 0; i < 1; ++i)
+	{
+		for (int j = 0; j < num_items; ++j)
+		{
+			//if ((i % items[j].num_peers) == 0) continue;
+			lazy_entry response;
+			send_get_dht(node, eps[i], &response, "10",
+				     username.c_str(), resource.c_str(), multi, true);
+
+			key_desc_t desc[] =
+			{
+				{ "r", lazy_entry::dict_t, 0, key_desc_t::parse_children },
+					{ "id", lazy_entry::string_t, 20, 0},
+					{ "token", lazy_entry::string_t, 0, 0},
+					{ "ip", lazy_entry::string_t, 0, key_desc_t::optional | key_desc_t::last_child},
+				{ "z", lazy_entry::string_t, 1, 0},
+			};
+
+			lazy_entry const* parsed[5];
+			char error_string[200];
+
+			//fprintf(stderr, "msg: %s\n", print_entry(response).c_str());
+			int ret = verify_message(&response, desc, parsed, 5, error_string, sizeof(error_string));
+			if (ret)
+			{
+				TEST_EQUAL(parsed[4]->string_value(), "r");
+				token = parsed[2]->string_value();
+				//fprintf(stderr, "got token: %s\n", token.c_str());
+			}
+			else
+			{
+				fprintf(stderr, "msg: %s\n", print_entry(response).c_str());
+				fprintf(stderr, "   invalid get response: %s\n", error_string);
+				TEST_ERROR(error_string);
+			}
+
+			if (parsed[3])
+			{
+				address_v4::bytes_type b;
+				memcpy(&b[0], parsed[3]->string_ptr(), b.size());
+				address_v4 addr(b);
+				TEST_EQUAL(addr, eps[i].address());
+			}
+
+			send_put_dht(node, eps[i], &response, "10",
+					  username.c_str(), resource.c_str(), multi,
+					  token, &items[j].ent, sig_user, seq++, 1000, getBestHeight());
+
+			key_desc_t desc2[] =
+			{
+				{ "z", lazy_entry::string_t, 1, 0 }
+			};
+
+			ret = verify_message(&response, desc2, parsed, 1, error_string, sizeof(error_string));
+			if (ret)
+			{
+				if (parsed[0]->string_value() != "r")
+					fprintf(stderr, "msg: %s\n", print_entry(response).c_str());
+
+				TEST_EQUAL(parsed[0]->string_value(), "r");
+			}
+			else
+			{
+				fprintf(stderr, "msg: %s\n", print_entry(response).c_str());
+				fprintf(stderr, "   invalid put response: %s\n", error_string);
+				TEST_ERROR(error_string);
+			}
+		}
+	}
+
+	std::set<int> items_num;
+	for (int j = 0; j < num_items; ++j)
+	{
+		lazy_entry response;
+		send_get_dht(node, eps[j], &response, "10",
+			     username.c_str(), resource.c_str(), multi, false);
+
+		key_desc_t desc[] =
+		{
+			{ "r", lazy_entry::dict_t, 0, key_desc_t::parse_children },
+				{ "values", lazy_entry::list_t, 0, 0},
+				{ "id", lazy_entry::string_t, 20, key_desc_t::last_child},
+			{ "z", lazy_entry::string_t, 1, 0},
+		};
+
+		lazy_entry const* parsed[4];
+		char error_string[200];
+
+		int ret = verify_message(&response, desc, parsed, 4, error_string, sizeof(error_string));
+		if (ret)
+		{
+			items_num.insert(items_num.begin(), j);
+		}
+	}
+
+	TEST_EQUAL(items_num.size(), 8);
+
+	// items_num should contain 1,2 and 3
+	// #error this doesn't quite hold
+//	TEST_CHECK(items_num.find(1) != items_num.end());
+//	TEST_CHECK(items_num.find(2) != items_num.end());
+//	TEST_CHECK(items_num.find(3) != items_num.end());
+}
+
 
 void announce_immutable_items(node_impl& node, udp::endpoint const* eps
 	, announce_item const* items, int num_items)
@@ -658,6 +906,9 @@ int test_main()
 #endif
 	}
 
+	printf("\n\n\n*** get_put_get test ***\n");
+	get_put_get(node, eps, items, sizeof(items)/sizeof(items[0]));
+
 	return 0;
 }
 
@@ -670,7 +921,7 @@ int test_main()
 
 #endif
 
-std::string createSignature(std::string &strMessage, std::string &strUsername)
+std::string createSignature(std::string const &strMessage, std::string const &strUsername)
 {
     return std::string("signature!");
 }

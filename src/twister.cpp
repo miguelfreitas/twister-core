@@ -188,7 +188,7 @@ void stopSessionTorrent()
     printf("libtorrent + dht stopped\n");
 }
 
-std::string createSignature(std::string &strMessage, std::string &strUsername)
+std::string createSignature(std::string const &strMessage, std::string const &strUsername)
 {
     if (pwalletMain->IsLocked()) {
         printf("createSignature: Error please enter the wallet passphrase with walletpassphrase first.\n");

@@ -14,7 +14,7 @@ public:
 void startSessionTorrent(boost::thread_group& threadGroup);
 void stopSessionTorrent();
 
-std::string createSignature(std::string &strMessage, std::string &strUsername);
+std::string createSignature(std::string const &strMessage, std::string const &strUsername);
 bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign);
 
 int getBestHeight();

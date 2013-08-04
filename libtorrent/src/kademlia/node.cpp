@@ -1081,12 +1081,18 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		}
 
 		// target id is hash of bencoded dict "target"
-		std::pair<char const*, int> targetbuf = msg_keys[1]->data_section();
+		std::pair<char const*, int> targetbuf = msg_keys[mk_target]->data_section();
 		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
 
-		fprintf(stderr, "PUT target: %s = {%s,%s,%s}\n"
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+		std::string target_str(targetbuf.first,targetbuf.second);
+		fprintf(stderr, "PUT target: %s = {%s,%s,%s} = '%s'\n"
 			, to_hex(target.to_string()).c_str()
-			, msg_keys[mk_n], msg_keys[mk_r], msg_keys[mk_t]);
+			, msg_keys[mk_n]->string_value().c_str()
+			, msg_keys[mk_r]->string_value().c_str()
+			, msg_keys[mk_t]->string_value().c_str()
+			, target_str.c_str());
+#endif
 
 		// verify the write-token. tokens are only valid to write to
 		// specific target hashes. it must match the one we got a "get" for
@@ -1111,8 +1117,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
-		if (!multi || !msg_keys[mk_seq] || msg_keys[mk_seq]->int_value() <= 0) {
-			incoming_error(e, "seq is required");
+		if (!multi && (!msg_keys[mk_seq] || msg_keys[mk_seq]->int_value() <= 0)) {
+			incoming_error(e, "seq is required for single");
 			return;
 		}
 
@@ -1211,10 +1217,15 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		bool justtoken = false;
 		if (msg_keys[mk_justtoken] && msg_keys[mk_justtoken]->int_value() != 0) justtoken = true;
 
-		fprintf(stderr, "GET target: %s = {%s,%s,%s}\n"
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+		std::string target_str(targetbuf.first,targetbuf.second);
+		fprintf(stderr, "GET target: %s = {%s,%s,%s} = '%s'\n"
 			, to_hex(target.to_string()).c_str()
-			, msg_keys[mk_n], msg_keys[mk_r], msg_keys[mk_t]);
-
+			, msg_keys[mk_n]->string_value().c_str()
+			, msg_keys[mk_r]->string_value().c_str()
+			, msg_keys[mk_t]->string_value().c_str()
+			, target_str.c_str());
+#endif
 		reply["token"] = generate_token(m.addr, target.to_string().c_str());
 
 		nodes_t n;
