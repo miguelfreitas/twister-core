@@ -53,6 +53,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/kademlia/find_data.hpp"
 #include "libtorrent/rsa.hpp"
 
+#include "../../src/twister.h"
+
 namespace libtorrent { namespace dht
 {
 
@@ -1033,6 +1035,148 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			}
 		}
 	}
+	else if (strcmp(query, "putData") == 0)
+	{
+		const static key_desc_t msg_desc[] = {
+			{"token", lazy_entry::string_t, 0, 0},
+			{"sig_p", lazy_entry::string_t, 0, 0},
+			{"sig_user", lazy_entry::string_t, 0, 0},
+			{"p", lazy_entry::dict_t, 0, key_desc_t::parse_children},
+			    {"v", lazy_entry::none_t, 0, 0},
+			    {"seq", lazy_entry::int_t, 0, key_desc_t::optional},
+			    {"time", lazy_entry::int_t, 0, 0},
+			    {"height", lazy_entry::int_t, 0, 0},
+			    {"target", lazy_entry::dict_t, 0, key_desc_t::parse_children},
+				{"n", lazy_entry::string_t, 0, 0},
+				{"r", lazy_entry::string_t, 0, 0},
+				{"t", lazy_entry::string_t, 0, 0},
+		};
+		enum {mk_token=0, mk_sig_p, mk_sig_user, mk_p, mk_v,
+		      mk_seq, mk_time, mk_height, mk_target, mk_n,
+		      mk_r, mk_t};
+
+		// attempt to parse the message
+		lazy_entry const* msg_keys[12];
+		if (!verify_message(arg_ent, msg_desc, msg_keys, 12, error_string, sizeof(error_string)))
+		{
+			incoming_error(e, error_string);
+			return;
+		}
+
+		// is this a multi-item?
+		bool multi = (msg_keys[mk_t]->string_value() == "m");
+
+		// pointer and length to the whole entry
+		std::pair<char const*, int> buf = msg_keys[mk_p]->data_section();
+		if (buf.second > 767 || buf.second <= 0)
+		{
+			incoming_error(e, "message too big");
+			return;
+		}
+
+		// "target" must be a dict of 3 entries
+		if (msg_keys[mk_target]->dict_size() != 3) {
+			incoming_error(e, "target dict size != 3");
+			return;
+		}
+
+		// target id is hash of bencoded dict "target"
+		std::pair<char const*, int> targetbuf = msg_keys[1]->data_section();
+		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
+
+		fprintf(stderr, "PUT target: %s = {%s,%s,%s}\n"
+			, to_hex(target.to_string()).c_str()
+			, msg_keys[mk_n], msg_keys[mk_r], msg_keys[mk_t]);
+
+		// verify the write-token. tokens are only valid to write to
+		// specific target hashes. it must match the one we got a "get" for
+		if (!verify_token(msg_keys[mk_token]->string_value(), (char const*)&target[0], m.addr))
+		{
+			incoming_error(e, "invalid token");
+			return;
+		}
+
+		std::pair<char const*, int> bufp = msg_keys[mk_p]->data_section();
+		std::string str_p(bufp.first,bufp.second);
+		if (!verifySignature(str_p,
+				    msg_keys[mk_sig_user]->string_value(),
+				    msg_keys[mk_sig_p]->string_value())) {
+			incoming_error(e, "invalid signature");
+			return;
+		}
+
+		if (!multi && msg_keys[mk_sig_user]->string_value() !=
+			      msg_keys[mk_n]->string_value() ) {
+			incoming_error(e, "only owner is allowed");
+			return;
+		}
+
+		if (!multi || !msg_keys[mk_seq] || msg_keys[mk_seq]->int_value() <= 0) {
+			incoming_error(e, "seq is required");
+			return;
+		}
+
+		if (msg_keys[mk_height]->int_value() > getBestHeight() ) {
+			incoming_error(e, "future messages not allowed");
+			return;
+		}
+
+		dht_storage_table_t::iterator i = m_storage_table.find(target);
+		if (i == m_storage_table.end()) {
+			// make sure we don't add too many items
+			if (int(m_storage_table.size()) >= m_settings.max_dht_items)
+			{
+				// erase one? preferably a multi
+			}
+
+			dht_storage_item item;
+			item.p = str_p;
+			item.sig_p = msg_keys[mk_sig_p]->string_value();
+			item.sig_user = msg_keys[mk_sig_user]->string_value();
+
+			dht_storage_list_t to_add;
+			to_add.push_back(item);
+
+			boost::tie(i, boost::tuples::ignore) = m_storage_table.insert(
+				std::make_pair(target, to_add));
+		} else {
+			dht_storage_list_t & lsto = i->second;
+
+			// if not multi, seq must increase
+			if(!multi) {
+			    dht_storage_item &item = lsto[0];
+			    // FIXME: Implement
+			    // if( msg_keys[mk_seq]->int_value() > lsto[0].p.seq ) etc
+				if( msg_keys[mk_seq]->int_value() ) {
+					item.p = str_p;
+					item.sig_p = msg_keys[mk_sig_p]->string_value();
+					item.sig_user = msg_keys[mk_sig_user]->string_value();
+				} else {
+					incoming_error(e, "old sequence number");
+					return;
+				}
+			} else {
+			    dht_storage_list_t::iterator j = lsto.begin(), end(lsto.end());
+			    for (; j != end; ++j)
+			    {
+				// compare p contents before adding to the list
+				if( j->p == str_p ) break;
+			    }
+			    if(j == end) {
+				// new entry
+				dht_storage_item item;
+				item.p = str_p;
+				item.sig_p = msg_keys[mk_sig_p]->string_value();
+				item.sig_user = msg_keys[mk_sig_user]->string_value();
+				lsto.push_back(item);
+			    }
+			}
+		}
+
+		m_table.node_seen(id, m.addr, 0xffff);
+
+		//f->last_seen = time_now();
+	}
 	else if (strcmp(query, "getData") == 0)
 	{
 		key_desc_t msg_desc[] = {
@@ -1042,6 +1186,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 				{"r", lazy_entry::string_t, 0, 0},
 				{"t", lazy_entry::string_t, 0, 0},
 		};
+		enum {mk_justtoken=0, mk_target, mk_n, mk_r, mk_t};
 
 		// attempt to parse the message
 		lazy_entry const* msg_keys[5];
@@ -1052,23 +1197,23 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		}
 
 		// "target" must be a dict of 3 entries
-		if (msg_keys[1]->dict_size() != 3) {
+		if (msg_keys[mk_target]->dict_size() != 3) {
 			incoming_error(e, "target dict size != 3");
 			return;
 		}
 
 		// target id is hash of bencoded dict "target"
-		std::pair<char const*, int> buf = msg_keys[1]->data_section();
-		sha1_hash target(std::string(buf.first,buf.second));
+		std::pair<char const*, int> targetbuf = msg_keys[mk_target]->data_section();
+		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
 
 		bool justtoken = false;
-		if (msg_keys[0] && msg_keys[0]->int_value() != 0) justtoken = true;
+		if (msg_keys[mk_justtoken] && msg_keys[mk_justtoken]->int_value() != 0) justtoken = true;
 
 		fprintf(stderr, "GET target: %s = {%s,%s,%s}\n"
 			, to_hex(target.to_string()).c_str()
-			, msg_keys[2], msg_keys[3], msg_keys[4]);
+			, msg_keys[mk_n], msg_keys[mk_r], msg_keys[mk_t]);
 
-		reply["token"] = generate_token(m.addr, msg_keys[0]->string_ptr());
+		reply["token"] = generate_token(m.addr, target.to_string().c_str());
 
 		nodes_t n;
 		// always return nodes as well as peers

@@ -267,3 +267,8 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
 
     return (pubkeyRec.GetID() == pubkey.GetID());
 }
+
+int getBestHeight()
+{
+    return nBestHeight;
+}

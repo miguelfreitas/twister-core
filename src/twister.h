@@ -17,5 +17,6 @@ void stopSessionTorrent();
 std::string createSignature(std::string &strMessage, std::string &strUsername);
 bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign);
 
+int getBestHeight();
 
 #endif // TWISTER_H
