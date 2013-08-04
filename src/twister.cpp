@@ -5,8 +5,6 @@
 
 #include <boost/filesystem.hpp>
 
-const string strTwisterMessageMagic = "twister Signed Message:\n";
-
 twister::twister()
 {
 }
@@ -210,7 +208,7 @@ std::string createSignature(std::string &strMessage, std::string &strUsername)
     }
 
     CHashWriter ss(SER_GETHASH, 0);
-    ss << strTwisterMessageMagic;
+    ss << strMessageMagic;
     ss << strMessage;
 
     vector<unsigned char> vchSig;
@@ -260,7 +258,7 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
                                  (const unsigned char*)strSign.data() + strSign.size());
 
     CHashWriter ss(SER_GETHASH, 0);
-    ss << strTwisterMessageMagic;
+    ss << strMessageMagic;
     ss << strMessage;
 
     CPubKey pubkeyRec;
