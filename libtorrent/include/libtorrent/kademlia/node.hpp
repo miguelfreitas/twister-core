@@ -140,6 +140,18 @@ struct dht_mutable_item : dht_immutable_item
 	rsa_key key;
 };
 
+struct dht_storage_item
+{
+    dht_storage_item() : p(), sig_p(), sig_user() {}
+        std::string p;
+        std::string sig_p;
+        std::string sig_user;
+        // the last time we heard about this
+        //ptime last_seen;
+};
+
+
+
 // internal
 inline bool operator<(rsa_key const& lhs, rsa_key const& rhs)
 {
@@ -188,6 +200,8 @@ class TORRENT_EXTRA_EXPORT node_impl : boost::noncopyable
 typedef std::map<node_id, torrent_entry> table_t;
 typedef std::map<node_id, dht_immutable_item> dht_immutable_table_t;
 typedef std::map<node_id, dht_mutable_item> dht_mutable_table_t;
+typedef std::vector<dht_storage_item> dht_storage_list_t;
+typedef std::map<node_id, dht_storage_list_t> dht_storage_table_t;
 
 public:
 	node_impl(alert_dispatcher* alert_disp, udp_socket_interface* sock
@@ -298,6 +312,7 @@ private:
 	table_t m_map;
 	dht_immutable_table_t m_immutable_table;
 	dht_mutable_table_t m_mutable_table;
+	dht_storage_table_t m_storage_table;
 	
 	ptime m_last_tracker_tick;
 

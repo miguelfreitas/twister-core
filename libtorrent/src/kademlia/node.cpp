@@ -1033,6 +1033,66 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			}
 		}
 	}
+	else if (strcmp(query, "getData") == 0)
+	{
+		key_desc_t msg_desc[] = {
+			{"justtoken", lazy_entry::int_t, 0, key_desc_t::optional},
+			{"target", lazy_entry::dict_t, 0, key_desc_t::parse_children},
+				{"n", lazy_entry::string_t, 0, 0},
+				{"r", lazy_entry::string_t, 0, 0},
+				{"t", lazy_entry::string_t, 0, 0},
+		};
+
+		// attempt to parse the message
+		lazy_entry const* msg_keys[5];
+		if (!verify_message(arg_ent, msg_desc, msg_keys, 5, error_string, sizeof(error_string)))
+		{
+			incoming_error(e, error_string);
+			return;
+		}
+
+		// "target" must be a dict of 3 entries
+		if (msg_keys[1]->dict_size() != 3) {
+			incoming_error(e, "target dict size != 3");
+			return;
+		}
+
+		// target id is hash of bencoded dict "target"
+		std::pair<char const*, int> buf = msg_keys[1]->data_section();
+		sha1_hash target(std::string(buf.first,buf.second));
+
+		bool justtoken = false;
+		if (msg_keys[0] && msg_keys[0]->int_value() != 0) justtoken = true;
+
+		fprintf(stderr, "GET target: %s = {%s,%s,%s}\n"
+			, to_hex(target.to_string()).c_str()
+			, msg_keys[2], msg_keys[3], msg_keys[4]);
+
+		reply["token"] = generate_token(m.addr, msg_keys[0]->string_ptr());
+
+		nodes_t n;
+		// always return nodes as well as peers
+		m_table.find_node(target, n, 0);
+		write_nodes_entry(reply, n);
+
+		dht_storage_table_t::iterator i = m_storage_table.find(target);
+		if (i != m_storage_table.end())
+		{
+			reply["values"] = entry::list_type();
+			entry::list_type &values = reply["values"].list();
+
+			dht_storage_list_t const& lsto = i->second;
+			for (dht_storage_list_t::const_iterator j = lsto.begin()
+				  , end(lsto.end()); j != end && !justtoken; ++j)
+			{
+				entry::dictionary_type v;
+				v["p"] = bdecode(j->p.begin(), j->p.end());
+				v["sig_p"] = bdecode(j->sig_p.begin(), j->sig_p.end());
+				v["sig_user"] = bdecode(j->sig_user.begin(), j->sig_user.end());
+				values.push_back(v);
+			}
+		}
+	}
 	else
 	{
 		// if we don't recognize the message but there's a
