@@ -51,6 +51,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/kademlia/refresh.hpp"
 #include "libtorrent/kademlia/find_data.hpp"
+#include "libtorrent/kademlia/dht_get.hpp"
 #include "libtorrent/rsa.hpp"
 
 #include "../../src/twister.h"
@@ -297,6 +298,63 @@ namespace
 			node.m_rpc.invoke(e, i->first.ep(), o);
 		}
 	}
+
+	void putData_fun(std::vector<std::pair<node_entry, std::string> > const& v,
+			 node_impl& node,
+			 std::string const &username, std::string const &resource, bool multi,
+			 entry const &value, std::string const &sig_user,
+			 int timeutc, int seq)
+	{
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+		TORRENT_LOG(node) << "sending putData [ username: " << username
+			<< " res: " << resource
+			<< " nodes: " << v.size() << " ]" ;
+#endif
+
+		// create a dummy traversal_algorithm
+		boost::intrusive_ptr<traversal_algorithm> algo(
+			new traversal_algorithm(node, (node_id::min)()));
+
+		// store on the first k nodes
+		for (std::vector<std::pair<node_entry, std::string> >::const_iterator i = v.begin()
+			, end(v.end()); i != end; ++i)
+		{
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+			TORRENT_LOG(node) << "  putData-distance: " << (160 - distance_exp(ih, i->first.id));
+#endif
+
+			void* ptr = node.m_rpc.allocate_observer();
+			if (ptr == 0) return;
+			observer_ptr o(new (ptr) announce_observer(algo, i->first.ep(), i->first.id));
+#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
+			o->m_in_constructor = false;
+#endif
+			entry e;
+			e["z"] = "q";
+			e["q"] = "putData";
+			entry& a = e["x"];
+			a["token"] = i->second;
+
+			entry& p = a["p"];
+			entry& target = p["target"];
+			target["n"] = username;
+			target["r"] = resource;
+			target["t"] = (multi) ? "m" : "s";
+			if (seq >= 0 && !multi) p["seq"] = seq;
+			p["v"] = value;
+			p["time"] = timeutc;
+			p["height"] = getBestHeight()-1; // be conservative
+
+			std::vector<char> pbuf;
+			bencode(std::back_inserter(pbuf), p);
+			std::string sig_p = createSignature(std::string(pbuf.data(),pbuf.size()), sig_user);
+
+			a["sig_p"] = sig_p;
+			a["sig_user"] = sig_user;
+
+			node.m_rpc.invoke(e, i->first.ep(), o);
+		}
+	}
 }
 
 void node_impl::add_router_node(udp::endpoint router)
@@ -340,6 +398,23 @@ void node_impl::announce(sha1_hash const& info_hash, int listen_port, bool seed
 	boost::intrusive_ptr<find_data> ta(new find_data(*this, info_hash, f
 		, boost::bind(&announce_fun, _1, boost::ref(*this)
 		, listen_port, info_hash, seed), seed));
+	ta->start();
+}
+
+void node_impl::putData(std::string const &username, std::string const &resource, bool multi,
+                        entry const &value, std::string const &sig_user,
+                        int timeutc, int seq,
+                        boost::function<void(entry::list_type const&)> f)
+{
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+	TORRENT_LOG(node) << "putData [ username: " << info_hash << " res: " << resource << " ]" ;
+#endif
+	// search for nodes with ids close to id or with peers
+	// for info-hash id. then send announce_peer to them.
+	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi, f,
+		 boost::bind(&putData_fun, _1, boost::ref(*this),
+			     username, resource, multi,
+			     value, sig_user, timeutc, seq), true));
 	ta->start();
 }
 

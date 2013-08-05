@@ -71,7 +71,7 @@ public:
 	{ m_write_tokens[n] = write_token; }
 
 	dht_get(node_impl& node
-		, std::string &targetUser, std::string &targetResource, bool multi
+		, std::string const &targetUser, std::string const &targetResource, bool multi
 		, data_callback const& dcallback
 		, nodes_callback const& ncallback
 		, bool justToken);

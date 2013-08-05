@@ -178,8 +178,8 @@ static void add_entry_fun(void* userdata, node_entry const& e)
 
 dht_get::dht_get(
 	node_impl& node
-	, std::string &targetUser
-	, std::string &targetResource
+	, std::string const &targetUser
+	, std::string const &targetResource
 	, bool multi
 	, data_callback const& dcallback
 	, nodes_callback const& ncallback

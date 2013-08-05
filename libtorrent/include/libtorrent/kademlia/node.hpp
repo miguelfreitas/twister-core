@@ -245,6 +245,11 @@ public:
 	void announce(sha1_hash const& info_hash, int listen_port, bool seed
 		, boost::function<void(std::vector<tcp::endpoint> const&)> f);
 
+	void putData(std::string const &username, std::string const &resource, bool multi,
+		     entry const &value, std::string const &sig_user,
+		     int timeutc, int seq,
+		     boost::function<void(entry::list_type const&)> f);
+
 	bool verify_token(std::string const& token, char const* info_hash
 		, udp::endpoint const& addr);
 
