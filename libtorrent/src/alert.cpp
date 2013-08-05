@@ -351,6 +351,13 @@ namespace libtorrent {
 		return msg;
 	}
 
+	std::string dht_reply_data_alert::message() const
+	{
+		char msg[200];
+		snprintf(msg, sizeof(msg), "reply to dht getData received %d entries", m_lst.size());
+		return msg;
+	}
+
 	stats_alert::stats_alert(torrent_handle const& h, int in
 		, stat const& s)
 		: torrent_alert(h)

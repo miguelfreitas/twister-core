@@ -422,6 +422,19 @@ namespace libtorrent { namespace dht
 		m_dht.announce(ih, listen_port, seed, f);
 	}
 
+	void dht_tracker::putData(std::string const &username, std::string const &resource, bool multi,
+		     entry const &value, std::string const &sig_user,
+		     int timeutc, int seq)
+	{
+		m_dht.putData(username,resource, multi, value, sig_user, timeutc, seq);
+	}
+
+	void dht_tracker::getData(std::string const &username, std::string const &resource, bool multi,
+		     boost::function<void(entry::list_type const&)> f)
+	{
+		m_dht.getData(username, resource, multi, f);
+	}
+
 
 	// translate bittorrent kademlia message into the generice kademlia message
 	// used by the library

@@ -1149,6 +1149,20 @@ namespace libtorrent
 		sha1_hash info_hash;
 	};
 
+	struct TORRENT_EXPORT dht_reply_data_alert: alert
+	{
+		dht_reply_data_alert(entry::list_type const& lst)
+			: m_lst(lst)
+		{}
+
+		TORRENT_DEFINE_ALERT(dht_reply_data_alert);
+
+		const static int static_category = alert::dht_notification;
+		virtual std::string message() const;
+
+		entry::list_type const m_lst;
+	};
+
 	struct TORRENT_EXPORT stats_alert: torrent_alert
 	{
 		stats_alert(torrent_handle const& h, int interval

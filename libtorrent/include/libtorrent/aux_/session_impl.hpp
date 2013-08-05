@@ -307,6 +307,13 @@ namespace libtorrent
 			// the DHT, to get the initial peers quickly
 			void prioritize_dht(boost::weak_ptr<torrent> t);
 
+			void dht_putData(std::string const &username, std::string const &resource, bool multi,
+				     entry const &value, std::string const &sig_user,
+				     int timeutc, int seq);
+
+			void dht_getData(std::string const &username, std::string const &resource, bool multi);
+
+
 #ifndef TORRENT_NO_DEPRECATE
 			entry dht_state() const;
 #endif

@@ -437,6 +437,13 @@ namespace libtorrent
 		void add_dht_node(std::pair<std::string, int> const& node);
 		void add_dht_router(std::pair<std::string, int> const& node);
 
+		// [MF] twister
+		void dht_putData(std::string const &username, std::string const &resource, bool multi,
+			     entry const &value, std::string const &sig_user,
+			     int timeutc, int seq);
+
+		void dht_getData(std::string const &username, std::string const &resource, bool multi);
+
 #ifndef TORRENT_NO_DEPRECATE
 		// deprecated in 0.15
 		// use save_state and load_state instead

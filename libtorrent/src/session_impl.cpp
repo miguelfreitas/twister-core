@@ -5733,6 +5733,26 @@ retry:
 			boost::bind(&session_impl::on_dht_router_name_lookup, this, _1, _2));
 	}
 
+
+	void session_impl::dht_putData(std::string const &username, std::string const &resource, bool multi,
+		     entry const &value, std::string const &sig_user,
+		     int timeutc, int seq)
+	{
+	    if (m_dht) m_dht->putData(username, resource, multi, value, sig_user, timeutc, seq);
+	}
+
+	void post_dht_getData(aux::session_impl *si, entry::list_type const&lst)
+	{
+	    if( si->m_alerts.should_post<dht_reply_data_alert>() ) {
+		si->m_alerts.post_alert(dht_reply_data_alert(lst));
+	    }
+	}
+
+	void session_impl::dht_getData(std::string const &username, std::string const &resource, bool multi)
+	{
+	    if (m_dht) m_dht->getData(username, resource, multi, boost::bind( post_dht_getData, this, _1));
+	}
+
 	void session_impl::on_dht_router_name_lookup(error_code const& e
 		, tcp::resolver::iterator host)
 	{
