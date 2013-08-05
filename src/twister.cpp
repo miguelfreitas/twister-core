@@ -125,11 +125,7 @@ void ThreadWaitExtIP()
 
     ses = new session(fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
-            , alert::all_categories
-                    & ~(alert::dht_notification
-                    + alert::progress_notification
-                    + alert::debug_notification
-                    + alert::stats_notification)
+            , alert::dht_notification
             , ipStr.size() ? ipStr.c_str() : NULL );
 
     std::vector<char> in;
@@ -160,11 +156,37 @@ void ThreadWaitExtIP()
     printf("libtorrent + dht started\n");
 }
 
+void ThreadMaintainDHTNodes()
+{
+    RenameThread("maintain-dht-nodes");
+
+    while(1) {
+        MilliSleep(5000);
+
+        if( ses ) {
+            session_status ss = ses->status();
+            if( ss.dht_nodes == 0 && vNodes.size() ) {
+                printf("ThreadMaintainDHTNodes: no dht_nodes, trying to add some...\n");
+                LOCK(cs_vNodes);
+                BOOST_FOREACH(CNode* pnode, vNodes) {
+                    BOOST_FOREACH(CAddress const &knownAddr, pnode->setAddrKnown) {
+                        std::string addr = knownAddr.ToStringIP();
+                        int port = knownAddr.GetPort() + LIBTORRENT_PORT_OFFSET;
+                        printf("Adding dht node %s:%d\n", addr.c_str(), port);
+                        ses->add_dht_node(std::pair<std::string, int>(addr, port));
+                    }
+                }
+            }
+        }
+    }
+}
+
 void startSessionTorrent(boost::thread_group& threadGroup)
 {
     printf("startSessionTorrent (waiting for external IP)\n");
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
+    threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
 }
 
 void stopSessionTorrent()
