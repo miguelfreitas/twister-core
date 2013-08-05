@@ -403,18 +403,31 @@ void node_impl::announce(sha1_hash const& info_hash, int listen_port, bool seed
 
 void node_impl::putData(std::string const &username, std::string const &resource, bool multi,
                         entry const &value, std::string const &sig_user,
-                        int timeutc, int seq,
-                        boost::function<void(entry::list_type const&)> f)
+                        int timeutc, int seq)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "putData [ username: " << info_hash << " res: " << resource << " ]" ;
 #endif
 	// search for nodes with ids close to id or with peers
-	// for info-hash id. then send announce_peer to them.
-	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi, f,
+	// for info-hash id. then send putData to them.
+	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+		 boost::bind(&nop),
 		 boost::bind(&putData_fun, _1, boost::ref(*this),
 			     username, resource, multi,
 			     value, sig_user, timeutc, seq), true));
+	ta->start();
+}
+
+void node_impl::getData(std::string const &username, std::string const &resource, bool multi,
+			boost::function<void(entry::list_type const&)> f)
+{
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
+	TORRENT_LOG(node) << "getData [ username: " << info_hash << " res: " << resource << " ]" ;
+#endif
+	// search for nodes with ids close to id or with peers
+	// for info-hash id. callback is used to return data.
+	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi, f,
+		 boost::bind(&nop), false));
 	ta->start();
 }
 

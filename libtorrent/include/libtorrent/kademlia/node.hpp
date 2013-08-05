@@ -247,7 +247,9 @@ public:
 
 	void putData(std::string const &username, std::string const &resource, bool multi,
 		     entry const &value, std::string const &sig_user,
-		     int timeutc, int seq,
+		     int timeutc, int seq);
+
+	void getData(std::string const &username, std::string const &resource, bool multi,
 		     boost::function<void(entry::list_type const&)> f);
 
 	bool verify_token(std::string const& token, char const* info_hash
