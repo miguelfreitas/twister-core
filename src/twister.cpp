@@ -29,6 +29,20 @@ twister::twister()
 using namespace libtorrent;
 static session *ses = NULL;
 
+static CCriticalSection cs_dhtgetMap;
+static map<uint256, alert_manager*> m_dhtgetMap;
+
+
+uint256 dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
+{
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << username;
+    ss << resource;
+    ss << type;
+
+    return ss.GetHash();
+}
+
 int load_file(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000)
 {
 	ec.clear();
@@ -209,27 +223,31 @@ void ThreadSessionAlerts()
                 dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(*i);
                 if (rd)
                 {
-                    for (entry::list_type::const_iterator j = rd->m_lst.begin()
-                         , end(rd->m_lst.end()); j != end; ++j) {
-                        if( j->type() == entry::dictionary_t ) {
-                            entry const *p = j->find_key("p");
-                            //entry const *sig_p = j->find_key("sig_p"); // already verified in dht_get.cpp
-                            entry const *sig_user = j->find_key("sig_user");
-                            if( p && sig_user ) {
-                                printf("ThreadSessionAlerts: dht data reply with sig_user=%s\n",
-                                       sig_user->string().c_str());
-                                entry const *v = p->find_key("v");
-                                if( v ) {
-                                    if( v->type() == entry::string_t ) {
-                                        printf("ThreadSessionAlerts: dht data reply value '%s'\n",
-                                               v->string().c_str());
+                    if( rd->m_lst.size() ) {
+                        // use first one to recover target
+                        entry const *p = rd->m_lst.begin()->find_key("p");
+                        if( p && p->type() == entry::dictionary_t ) {
+                            entry const *target = p->find_key("target");
+                            if( target && target->type() == entry::dictionary_t ) {
+                                entry const *n = target->find_key("n");
+                                entry const *r = target->find_key("r");
+                                entry const *t = target->find_key("t");
+                                if( n && n->type() == entry::string_t &&
+                                    r && r->type() == entry::string_t &&
+                                    t && t->type() == entry::string_t) {
+                                    uint256 th = dhtTargetHash(n->string(), r->string(), t->string());
+
+                                    LOCK(cs_dhtgetMap);
+                                    std::map<uint256, alert_manager*>::iterator mi = m_dhtgetMap.find(th);
+                                    if( mi != m_dhtgetMap.end() ) {
+                                        alert_manager *am = (*mi).second;
+                                        am->post_alert(*rd);
+                                    } else {
+                                        printf("ThreadSessionAlerts: received dht [%s,%s,%s] but no alert_manager registered\n",
+                                               n->string().c_str(), r->string().c_str(), t->string().c_str() );
                                     }
                                 }
-                            } else {
-                                printf("ThreadSessionAlerts: Error: p, sig_p or sig_user missing\n");
                             }
-                        } else {
-                            printf("ThreadSessionAlerts: Error: non-dictionary returned by dht data reply\n");
                         }
                     }
                     continue;
@@ -420,7 +438,33 @@ Value dhtget(const Array& params, bool fHelp)
 
     bool multi = (strMulti == "m");
 
+    alert_manager am(10, alert::dht_notification);
+    uint256 th = dhtTargetHash(strUsername,strResource,strMulti);
+
+    {
+        LOCK(cs_dhtgetMap);
+        m_dhtgetMap[th] = &am;
+    }
+
     ses->dht_getData(strUsername, strResource, multi);
-    return Value();
+
+    Value ret;
+
+    if( am.wait_for_alert(seconds(10)) ) {
+        std::auto_ptr<alert> a(am.get());
+
+        dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
+        entry const *p = rd->m_lst.begin()->find_key("p");
+
+        // FIXME: temporary. implement proper parsing/conversion
+        ret = rd->m_lst.begin()->find_key("sig_p")->string();
+    }
+
+    {
+        LOCK(cs_dhtgetMap);
+        m_dhtgetMap.erase(th);
+    }
+
+    return ret;
 }
 
