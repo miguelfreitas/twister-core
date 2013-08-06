@@ -1221,18 +1221,14 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
+		dht_storage_item item(str_p, msg_keys[mk_sig_p], msg_keys[mk_sig_user]);
 		dht_storage_table_t::iterator i = m_storage_table.find(target);
 		if (i == m_storage_table.end()) {
 			// make sure we don't add too many items
 			if (int(m_storage_table.size()) >= m_settings.max_dht_items)
 			{
-				// erase one? preferably a multi
+				// FIXME: erase one? preferably a multi
 			}
-
-			dht_storage_item item;
-			item.p = str_p;
-			item.sig_p = msg_keys[mk_sig_p]->string_value();
-			item.sig_user = msg_keys[mk_sig_user]->string_value();
 
 			dht_storage_list_t to_add;
 			to_add.push_back(item);
@@ -1242,37 +1238,39 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		} else {
 			dht_storage_list_t & lsto = i->second;
 
-			// if not multi, seq must increase
-			if(!multi) {
-				dht_storage_item &item = lsto[0];
+			int j;
+			for( j = 0; j < lsto.size(); j++) {
+				dht_storage_item &olditem = lsto[j];
+
 				lazy_entry p;
 				int pos;
 				error_code err;
-				int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
-				if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
-					item.p = str_p;
-					item.sig_p = msg_keys[mk_sig_p]->string_value();
-					item.sig_user = msg_keys[mk_sig_user]->string_value();
+				// FIXME: optimize to avoid bdecode (store seq separated, etc)
+				int ret = lazy_bdecode(olditem.p.data(), olditem.p.data() + olditem.p.size(), p, err, &pos, 10, 500);
+
+				if( !multi ) {
+				    if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
+					    olditem = item;
+				    } else {
+					    incoming_error(e, "old sequence number");
+					    return;
+				    }
 				} else {
-					incoming_error(e, "old sequence number");
-					return;
+				    std::pair<char const*, int> bufv = msg_keys[mk_v]->data_section();
+
+				    // compare contents before adding to the list
+				    std::pair<char const*, int> bufoldv = p.dict_find("v")->data_section();
+				    if( bufv.second == bufoldv.second &&
+					!memcmp(bufv.first, bufoldv.first,bufv.second)) {
+					    break;
+				    }
 				}
-			} else {
-			    dht_storage_list_t::iterator j = lsto.begin(), end(lsto.end());
-			    for (; j != end; ++j)
-			    {
-				// compare p contents before adding to the list
-				if( j->p == str_p ) break;
-			    }
-			    if(j == end) {
-				// new entry
-				dht_storage_item item;
-				item.p = str_p;
-				item.sig_p = msg_keys[mk_sig_p]->string_value();
-				item.sig_user = msg_keys[mk_sig_user]->string_value();
-				lsto.push_back(item);
-			    }
 			}
+			if(multi && j == lsto.size()) {
+				// new entry
+				lsto.push_back(item);
+			}
+
 		}
 
 		m_table.node_seen(id, m.addr, 0xffff);
