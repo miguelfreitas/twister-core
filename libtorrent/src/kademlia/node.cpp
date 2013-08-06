@@ -304,6 +304,7 @@ namespace
 		}
 	}
 
+	// [MF] FIXME: putData_fun must receive {p, sig_p} (no need to sign it several times)
 	void putData_fun(std::vector<std::pair<node_entry, std::string> > const& v,
 			 node_impl& node,
 			 std::string const &username, std::string const &resource, bool multi,
@@ -353,6 +354,10 @@ namespace
 			std::vector<char> pbuf;
 			bencode(std::back_inserter(pbuf), p);
 			std::string sig_p = createSignature(std::string(pbuf.data(),pbuf.size()), sig_user);
+			if( !sig_p.size() ) {
+				printf("putData_fun: createSignature error (this should have been caught earlier)\n");
+				return;
+			}
 
 			a["sig_p"] = sig_p;
 			a["sig_user"] = sig_user;
@@ -413,6 +418,8 @@ void node_impl::putData(std::string const &username, std::string const &resource
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "putData [ username: " << info_hash << " res: " << resource << " ]" ;
 #endif
+	printf("putData: username=%s,res=%s,multi=%d sig_user=%s\n",
+		   username.c_str(), resource.c_str(), multi, sig_user.c_str());
 	// search for nodes with ids close to id or with peers
 	// for info-hash id. then send putData to them.
 	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,

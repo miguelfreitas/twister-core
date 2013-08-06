@@ -369,7 +369,7 @@ int getBestHeight()
 
 Value dhtput(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 6)
+    if (fHelp || params.size() < 5 || params.size() > 6)
         throw runtime_error(
             "dhtput <username> <resource> <s(ingle)/m(ulti)> <value> <sig_user> <seq>\n"
             "Sign a message with the private key of an address");
@@ -381,12 +381,27 @@ Value dhtput(const Array& params, bool fHelp)
     string strMulti    = params[2].get_str();
     string strValue    = params[3].get_str();
     string strSigUser  = params[4].get_str();
-    string strSeq      = params[5].get_str();
+
+    // Test for private key here to avoid going into dht
+    CKeyID keyID;
+    if( !pwalletMain->GetKeyIdFromUsername(strSigUser, keyID) )
+      throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: no sig_user in wallet");
+    CKey key;
+    if (!pwalletMain->GetKey(keyID, key))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key of sig_user not available");
 
     bool multi = (strMulti == "m");
+    if( !multi && params.size() != 6 )
+        throw JSONRPCError(RPC_WALLET_ERROR, "Seq parameter required for single");
+
+    int seq = -1;
+    if( params.size() == 6 ) seq = atoi( params[5].get_str().c_str() );
+
+    if( !multi && strUsername != strSigUser )
+        throw JSONRPCError(RPC_WALLET_ERROR, "Username must be the same as sig_user for single");
+
     entry value = entry::string_type(strValue);
     int timeutc = time(NULL);
-    int seq = atoi(strSeq.c_str());
 
     ses->dht_putData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
     return Value();
