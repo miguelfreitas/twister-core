@@ -125,7 +125,7 @@ void dht_get_observer::reply(msg const& m)
 			values_list.push_back(entry());
 			values_list.back() = *e;
 		}
-
+		printf("dht_get::reply calling got_data with %d entries\n", values_list.size());
 		static_cast<dht_get*>(m_algorithm.get())->got_data(values_list);
 	}
 

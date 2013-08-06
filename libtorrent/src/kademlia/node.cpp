@@ -253,6 +253,11 @@ void node_impl::incoming(msg const& m)
 				TORRENT_LOG(node) << "INCOMING ERROR: " << err->list_string_value_at(1);
 			}
 #endif
+			lazy_entry const* err = m.message.dict_find_list("e");
+			if (err && err->list_size() >= 2)
+			{
+				printf("INCOMING ERROR: %s\n", err->list_string_value_at(1).c_str());
+			}
 			break;
 		}
 	}
@@ -1173,15 +1178,15 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		std::pair<char const*, int> targetbuf = msg_keys[mk_target]->data_section();
 		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
 
-#ifdef TORRENT_DHT_VERBOSE_LOGGING
+//#ifdef TORRENT_DHT_VERBOSE_LOGGING
 		std::string target_str(targetbuf.first,targetbuf.second);
-		fprintf(stderr, "PUT target: %s = {%s,%s,%s} = '%s'\n"
+		printf("PUT target: %s = {%s,%s,%s} = '%s'\n"
 			, to_hex(target.to_string()).c_str()
 			, msg_keys[mk_n]->string_value().c_str()
 			, msg_keys[mk_r]->string_value().c_str()
 			, msg_keys[mk_t]->string_value().c_str()
 			, target_str.c_str());
-#endif
+//#endif
 
 		// verify the write-token. tokens are only valid to write to
 		// specific target hashes. it must match the one we got a "get" for
@@ -1306,15 +1311,15 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		bool justtoken = false;
 		if (msg_keys[mk_justtoken] && msg_keys[mk_justtoken]->int_value() != 0) justtoken = true;
 
-#ifdef TORRENT_DHT_VERBOSE_LOGGING
+//#ifdef TORRENT_DHT_VERBOSE_LOGGING
 		std::string target_str(targetbuf.first,targetbuf.second);
-		fprintf(stderr, "GET target: %s = {%s,%s,%s} = '%s'\n"
+		printf("GET target: %s = {%s,%s,%s} = '%s'\n"
 			, to_hex(target.to_string()).c_str()
 			, msg_keys[mk_n]->string_value().c_str()
 			, msg_keys[mk_r]->string_value().c_str()
 			, msg_keys[mk_t]->string_value().c_str()
 			, target_str.c_str());
-#endif
+//#endif
 		reply["token"] = generate_token(m.addr, target.to_string().c_str());
 
 		nodes_t n;

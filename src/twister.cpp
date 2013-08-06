@@ -2,8 +2,14 @@
 
 #include "main.h"
 #include "init.h"
+#include "bitcoinrpc.h"
+
+using namespace json_spirit;
+using namespace std;
 
 #include <boost/filesystem.hpp>
+
+#include <time.h>
 
 twister::twister()
 {
@@ -15,6 +21,7 @@ twister::twister()
 #include "libtorrent/entry.hpp"
 #include "libtorrent/bencode.hpp"
 #include "libtorrent/session.hpp"
+#include "libtorrent/alert_types.hpp"
 
 #define TORRENT_DISABLE_GEO_IP
 #include "libtorrent/aux_/session_impl.hpp"
@@ -181,12 +188,77 @@ void ThreadMaintainDHTNodes()
     }
 }
 
+void ThreadSessionAlerts()
+{
+    while(!ses) {
+        MilliSleep(200);
+    }
+    while (ses) {
+        alert const* a = ses->wait_for_alert(seconds(10));
+        if (a == 0) continue;
+
+        std::deque<alert*> alerts;
+        ses->pop_alerts(&alerts);
+        std::string now = time_now_string();
+        for (std::deque<alert*>::iterator i = alerts.begin()
+                , end(alerts.end()); i != end; ++i)
+        {
+                // make sure to delete each alert
+                std::auto_ptr<alert> a(*i);
+
+                dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(*i);
+                if (rd)
+                {
+                    for (entry::list_type::const_iterator j = rd->m_lst.begin()
+                         , end(rd->m_lst.end()); j != end; ++j) {
+                        if( j->type() == entry::dictionary_t ) {
+                            entry const *p = j->find_key("p");
+                            //entry const *sig_p = j->find_key("sig_p"); // already verified in dht_get.cpp
+                            entry const *sig_user = j->find_key("sig_user");
+                            if( p && sig_user ) {
+                                printf("ThreadSessionAlerts: dht data reply with sig_user=%s\n",
+                                       sig_user->string().c_str());
+                                entry const *v = p->find_key("v");
+                                if( v ) {
+                                    if( v->type() == entry::string_t ) {
+                                        printf("ThreadSessionAlerts: dht data reply value '%s'\n",
+                                               v->string().c_str());
+                                    }
+                                }
+                            } else {
+                                printf("ThreadSessionAlerts: Error: p, sig_p or sig_user missing\n");
+                            }
+                        } else {
+                            printf("ThreadSessionAlerts: Error: non-dictionary returned by dht data reply\n");
+                        }
+                    }
+                    continue;
+                }
+
+                /*
+                save_resume_data_alert const* rd = alert_cast<save_resume_data_alert>(*i);
+                if (rd) {
+                    if (!rd->resume_data) continue;
+
+                    torrent_handle h = rd->handle;
+                    torrent_status st = h.status(torrent_handle::query_save_path);
+                    std::vector<char> out;
+                    bencode(std::back_inserter(out), *rd->resume_data);
+                    save_file(combine_path(st.save_path, combine_path(".resume", to_hex(st.info_hash.to_string()) + ".resume")), out);
+                }
+                */
+        }
+    }
+}
+
+
 void startSessionTorrent(boost::thread_group& threadGroup)
 {
     printf("startSessionTorrent (waiting for external IP)\n");
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
+    threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
 }
 
 void stopSessionTorrent()
@@ -294,3 +366,46 @@ int getBestHeight()
 {
     return nBestHeight;
 }
+
+Value dhtput(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 6)
+        throw runtime_error(
+            "dhtput <username> <resource> <s(ingle)/m(ulti)> <value> <sig_user> <seq>\n"
+            "Sign a message with the private key of an address");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    string strResource = params[1].get_str();
+    string strMulti    = params[2].get_str();
+    string strValue    = params[3].get_str();
+    string strSigUser  = params[4].get_str();
+    string strSeq      = params[5].get_str();
+
+    bool multi = (strMulti == "m");
+    entry value = entry::string_type(strValue);
+    int timeutc = time(NULL);
+    int seq = atoi(strSeq.c_str());
+
+    ses->dht_putData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
+    return Value();
+}
+
+Value dhtget(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            "dhtget <username> <resource> <s(ingle)/m(ulti)>\n"
+            "Sign a message with the private key of an address");
+
+    string strUsername = params[0].get_str();
+    string strResource = params[1].get_str();
+    string strMulti    = params[2].get_str();
+
+    bool multi = (strMulti == "m");
+
+    ses->dht_getData(strUsername, strResource, multi);
+    return Value();
+}
+
