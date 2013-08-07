@@ -2490,6 +2490,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             pfrom->nVersion = 300;
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
+        if( addrFrom.nTime == 100000000 ) addrFrom.nTime = nTime; // [MF] why??
+
         if (!vRecv.empty())
             vRecv >> pfrom->strSubVer;
         if (!vRecv.empty())

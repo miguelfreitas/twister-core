@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
-import os,sys
+import os,sys,time
 
+ext_ip  = os.environ['EXTIP']
 twister = "../twister-qt-build-desktop/twisterd"
 
 cmd = sys.argv[1]
@@ -10,10 +11,10 @@ n   = int(sys.argv[2])
 datadir = "/tmp/twister%d" % n
 port = "%d" % (30000+n)
 rpcport = "%d" % (40000+n)
-if (n!=1):
-    addnode="-addnode=127.0.0.1:30001"
-else:
-    addnode=""
+rpcline = " -rpcuser=user -rpcpassword=pwd -rpcport="
+rpccfg = rpcline + rpcport
+rpccfg1 = rpcline + "40001"
+
 
 if cmd == "start":
     try:
@@ -22,8 +23,11 @@ if cmd == "start":
         pass
     os.system( twister + " -datadir=" + datadir +
                " -port=" + port + " -daemon" +
-               " -rpcuser=user -rpcpassword=pwd -rpcport=" + rpcport +
-               " " + addnode )
+               rpccfg )
+    if( n != 1):
+        time.sleep(1)
+        os.system( twister + rpccfg1 + " addnode " + ext_ip + ":" + port + " onetry" )
+        os.system( twister + rpccfg + " addnode " + ext_ip + ":30001 onetry" )
 
 if cmd == "cmd":
     if( len(sys.argv) < 4 ):
@@ -32,5 +36,5 @@ if cmd == "cmd":
     parms = ""
     for i in xrange(3,len(sys.argv)):
         parms += ' "' + sys.argv[i] + '"'
-    os.system( twister + " -rpcuser=user -rpcpassword=pwd -rpcport=" + rpcport + parms )
+    os.system( twister + rpccfg + parms )
 

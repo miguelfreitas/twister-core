@@ -189,17 +189,27 @@ void ThreadMaintainDHTNodes()
         MilliSleep(15000);
 
         if( ses ) {
+            vector<CAddress> vAddr = addrman.GetAddr();
             session_status ss = ses->status();
-            if( ss.dht_nodes < (int)vNodes.size() ) {
+            if( ss.dht_nodes < (int)(vNodes.size() + vAddr.size()) / 2 ) {
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 LOCK(cs_vNodes);
                 BOOST_FOREACH(CNode* pnode, vNodes) {
-                    BOOST_FOREACH(CAddress const &knownAddr, pnode->setAddrKnown) {
-                        std::string addr = knownAddr.ToStringIP();
-                        int port = knownAddr.GetPort() + LIBTORRENT_PORT_OFFSET;
-                        printf("Adding dht node %s:%d\n", addr.c_str(), port);
+
+                    // if !fInbound we created this connection so ip is reachable
+                    if( !pnode->fInbound ) {
+                        std::string addr = pnode->addr.ToStringIP();
+                        int port = pnode->addr.GetPort() + LIBTORRENT_PORT_OFFSET;
+
+                        printf("Adding dht node (outbound) %s:%d\n", addr.c_str(), port);
                         ses->add_dht_node(std::pair<std::string, int>(addr, port));
                     }
+                }
+                BOOST_FOREACH(const CAddress &a, vAddr) {
+                    std::string addr = a.ToStringIP();
+                    int port = a.GetPort() + LIBTORRENT_PORT_OFFSET;
+                    printf("Adding dht node (addrman) %s:%d\n", addr.c_str(), port);
+                    ses->add_dht_node(std::pair<std::string, int>(addr, port));
                 }
             }
         }
