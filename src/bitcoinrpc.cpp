@@ -236,8 +236,8 @@ static const CRPCCommand vRPCCommands[] =
     { "sendnewusertransaction", &sendnewusertransaction, false,     false },
     { "verifychain",            &verifychain,            true,      false },
     // twister dht network
-    { "dhtput",                 &dhtput,                 false,     false },
-    { "dhtget",                 &dhtget,                 false,     false },
+    { "dhtput",                 &dhtput,                 false,     true },
+    { "dhtget",                 &dhtget,                 false,     true },
 };
 
 CRPCTable::CRPCTable()
