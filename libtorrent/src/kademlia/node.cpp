@@ -1332,9 +1332,11 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		m_table.find_node(target, n, 0);
 		write_nodes_entry(reply, n);
 
+		bool hasData = false;
 		dht_storage_table_t::iterator i = m_storage_table.find(target);
 		if (i != m_storage_table.end())
 		{
+			hasData = true;
 			reply["values"] = entry::list_type();
 			entry::list_type &values = reply["values"].list();
 
@@ -1348,6 +1350,26 @@ void node_impl::incoming_request(msg const& m, entry& e)
 				v["sig_user"] = j->sig_user;
 				values.push_back(v);
 			}
+		}
+
+		// check distance between target, nodes and our own id
+		// n is sorted from closer(begin) to more distant (end)
+		bool possiblyNeighbor = false;
+		if( n.size() < m_table.bucket_size() ) {
+			possiblyNeighbor = true;
+		} else {
+			node_id dFarther = distance(n.back().id, target);
+			node_id dOwn     = distance(nid(), target);
+			if( dOwn < dFarther )
+				possiblyNeighbor = true;
+		}
+
+		if (m_post_alert)
+		{
+			entry eTarget;
+			eTarget = *msg_keys[mk_target];
+			alert* a = new dht_get_data_alert(eTarget,possiblyNeighbor,hasData);
+			if (!m_post_alert->post_alert(a)) delete a;
 		}
 	}
 	else

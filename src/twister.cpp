@@ -170,6 +170,10 @@ void ThreadWaitExtIP()
                     , listen_port, listen_port+1, ec.message().c_str());
     }
 
+    dht_settings dhts;
+    dhts.restrict_routing_ips = false;
+    dhts.restrict_search_ips = false;
+    ses->set_dht_settings(dhts);
     ses->start_dht();
 
     //ses->set_settings(settings);
@@ -182,12 +186,12 @@ void ThreadMaintainDHTNodes()
     RenameThread("maintain-dht-nodes");
 
     while(1) {
-        MilliSleep(5000);
+        MilliSleep(15000);
 
         if( ses ) {
             session_status ss = ses->status();
-            if( ss.dht_nodes == 0 && vNodes.size() ) {
-                printf("ThreadMaintainDHTNodes: no dht_nodes, trying to add some...\n");
+            if( ss.dht_nodes < (int)vNodes.size() ) {
+                printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 LOCK(cs_vNodes);
                 BOOST_FOREACH(CNode* pnode, vNodes) {
                     BOOST_FOREACH(CAddress const &knownAddr, pnode->setAddrKnown) {
@@ -252,6 +256,19 @@ void ThreadSessionAlerts()
                     }
                     continue;
                 }
+
+                dht_get_data_alert const* gd = alert_cast<dht_get_data_alert>(*i);
+                if (gd)
+                {
+                    if( gd->m_possiblyNeighbor ) {
+                        printf("possiblyNeighbor of [%s,%s,%s]\n",
+                               gd->m_target.find_key("n")->string().c_str(),
+                               gd->m_target.find_key("r")->string().c_str(),
+                               gd->m_target.find_key("t")->string().c_str());
+                    }
+                    continue;
+                }
+
 
                 /*
                 save_resume_data_alert const* rd = alert_cast<save_resume_data_alert>(*i);

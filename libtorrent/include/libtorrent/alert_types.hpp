@@ -1163,6 +1163,23 @@ namespace libtorrent
 		entry::list_type const m_lst;
 	};
 
+	struct TORRENT_EXPORT dht_get_data_alert: alert
+	{
+		dht_get_data_alert(entry const& target, bool possiblyNeighbor, bool hasData)
+			: m_target(target), m_possiblyNeighbor(possiblyNeighbor), m_hasData(hasData)
+		{}
+
+		TORRENT_DEFINE_ALERT(dht_get_data_alert);
+
+		const static int static_category = alert::dht_notification;
+		virtual std::string message() const;
+
+		entry m_target;
+		bool  m_possiblyNeighbor;
+		bool  m_hasData;
+	};
+
+
 	struct TORRENT_EXPORT stats_alert: torrent_alert
 	{
 		stats_alert(torrent_handle const& h, int interval
