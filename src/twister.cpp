@@ -385,6 +385,30 @@ int getBestHeight()
     return nBestHeight;
 }
 
+Value entryToJson(const entry &e)
+{
+    Array lst;
+    Object o;
+    switch( e.type() ) {
+        case entry::int_t:
+            return e.integer();
+        case entry::string_t:
+            return e.string();
+        case entry::list_t:
+            for (entry::list_type::const_iterator i = e.list().begin(); i != e.list().end(); ++i) {
+                lst.push_back( entryToJson(*i) );
+            }
+            return lst;
+        case entry::dictionary_t:
+            for (entry::dictionary_type::const_iterator i = e.dict().begin(); i != e.dict().end(); ++i) {
+                o.push_back(Pair(i->first, entryToJson(i->second)));
+            }
+            return o;
+        default:
+            return string("<uninitialized>");
+    }
+}
+
 Value dhtput(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 5 || params.size() > 6)
@@ -422,6 +446,7 @@ Value dhtput(const Array& params, bool fHelp)
     int timeutc = time(NULL);
 
     ses->dht_putData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
+
     return Value();
 }
 
@@ -454,10 +479,7 @@ Value dhtget(const Array& params, bool fHelp)
         std::auto_ptr<alert> a(am.get());
 
         dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
-        entry const *p = rd->m_lst.begin()->find_key("p");
-
-        // FIXME: temporary. implement proper parsing/conversion
-        ret = rd->m_lst.begin()->find_key("sig_p")->string();
+        ret = entryToJson(rd->m_lst);
     }
 
     {
