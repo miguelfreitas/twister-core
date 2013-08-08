@@ -430,9 +430,10 @@ namespace libtorrent { namespace dht
 	}
 
 	void dht_tracker::getData(std::string const &username, std::string const &resource, bool multi,
-		     boost::function<void(entry::list_type const&)> f)
+				  boost::function<void(entry::list_type const&)> fdata,
+				  boost::function<void(bool, bool)> fdone)
 	{
-		m_dht.getData(username, resource, multi, f);
+		m_dht.getData(username, resource, multi, fdata, fdone);
 	}
 
 

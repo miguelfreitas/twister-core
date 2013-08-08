@@ -253,7 +253,8 @@ public:
 		     int timeutc, int seq);
 
 	void getData(std::string const &username, std::string const &resource, bool multi,
-		     boost::function<void(entry::list_type const&)> f);
+		     boost::function<void(entry::list_type const&)> fdata,
+		     boost::function<void(bool, bool)> fdone);
 
 	bool verify_token(std::string const& token, char const* info_hash
 		, udp::endpoint const& addr);

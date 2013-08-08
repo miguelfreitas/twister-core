@@ -358,6 +358,13 @@ namespace libtorrent {
 		return msg;
 	}
 
+	std::string  dht_reply_data_done_alert::message() const
+	{
+		char msg[200];
+		snprintf(msg, sizeof(msg), "reply of getData done");
+		return msg;
+	}
+
 	std::string dht_get_data_alert::message() const
 	{
 		char msg[200];

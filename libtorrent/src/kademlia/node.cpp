@@ -365,6 +365,14 @@ namespace
 			node.m_rpc.invoke(e, i->first.ep(), o);
 		}
 	}
+
+	void getDataDone_fun(std::vector<std::pair<node_entry, std::string> > const& node_results,
+			     bool got_data, node_impl& node,
+			     boost::function<void(bool, bool)> fdone)
+	{
+	    bool is_neighbor = false;
+	    fdone(is_neighbor, got_data);
+	}
 }
 
 void node_impl::add_router_node(udp::endpoint router)
@@ -431,15 +439,17 @@ void node_impl::putData(std::string const &username, std::string const &resource
 }
 
 void node_impl::getData(std::string const &username, std::string const &resource, bool multi,
-			boost::function<void(entry::list_type const&)> f)
+			boost::function<void(entry::list_type const&)> fdata,
+			boost::function<void(bool, bool)> fdone)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "getData [ username: " << info_hash << " res: " << resource << " ]" ;
 #endif
 	// search for nodes with ids close to id or with peers
 	// for info-hash id. callback is used to return data.
-	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi, f,
-		 boost::bind(&nop), false));
+	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+		 fdata,
+		 boost::bind(&getDataDone_fun, _1, _2, boost::ref(*this), fdone), false));
 	ta->start();
 }
 

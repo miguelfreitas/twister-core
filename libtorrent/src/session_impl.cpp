@@ -5748,9 +5748,22 @@ retry:
 	    }
 	}
 
+	void getDataDone_fun(aux::session_impl *si,
+			     std::string const &username, std::string const &resource, bool multi,
+			     bool is_neighbor, bool got_data)
+	{
+	    if( si->m_alerts.should_post<dht_reply_data_done_alert>() ) {
+		si->m_alerts.post_alert(
+		    dht_reply_data_done_alert(username, resource, multi,
+					      is_neighbor, got_data));
+	    }
+	}
+
 	void session_impl::dht_getData(std::string const &username, std::string const &resource, bool multi)
 	{
-	    if (m_dht) m_dht->getData(username, resource, multi, boost::bind( post_dht_getData, this, _1));
+	    if (m_dht) m_dht->getData(username, resource, multi,
+				      boost::bind( post_dht_getData, this, _1),
+				      boost::bind( getDataDone_fun, this, username, resource, multi, _1, _2));
 	}
 
 	void session_impl::on_dht_router_name_lookup(error_code const& e

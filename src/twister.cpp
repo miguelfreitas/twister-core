@@ -218,6 +218,8 @@ void ThreadMaintainDHTNodes()
 
 void ThreadSessionAlerts()
 {
+    static map<uint256, entry> neighborCheck;
+
     while(!ses) {
         MilliSleep(200);
     }
@@ -271,14 +273,53 @@ void ThreadSessionAlerts()
                 if (gd)
                 {
                     if( gd->m_possiblyNeighbor ) {
-                        printf("possiblyNeighbor of [%s,%s,%s]\n",
-                               gd->m_target.find_key("n")->string().c_str(),
-                               gd->m_target.find_key("r")->string().c_str(),
-                               gd->m_target.find_key("t")->string().c_str());
+                        entry const *n = gd->m_target.find_key("n");
+                        entry const *r = gd->m_target.find_key("r");
+                        entry const *t = gd->m_target.find_key("t");
+
+                        if( n && n->type() == entry::string_t &&
+                            r && r->type() == entry::string_t &&
+                            t && t->type() == entry::string_t) {
+
+                            // now we do our own search to make sure we are really close to this target
+                            uint256 th = dhtTargetHash(n->string(), r->string(), t->string());
+
+                            if( !neighborCheck.count(th) ) {
+                                printf("possiblyNeighbor of [%s,%s,%s]\n",
+                                       n->string().c_str(),
+                                       r->string().c_str(),
+                                       t->string().c_str());
+
+                                neighborCheck[th] = gd->m_target;
+                                ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                            }
+                        }
+
                     }
                     continue;
                 }
 
+                dht_reply_data_done_alert const* dd = alert_cast<dht_reply_data_done_alert>(*i);
+                if (dd)
+                {
+                    printf("get_data_gone [%s,%s,%s] is_neighbor=%d got_data=%d\n",
+                           dd->m_username.c_str(), dd->m_resource.c_str(), dd->m_multi ? "m" : "s",
+                           dd->m_is_neighbor, dd->m_got_data);
+
+                    uint256 th = dhtTargetHash(dd->m_username, dd->m_resource, dd->m_multi ? "m" : "s");
+
+                    {
+                        LOCK(cs_dhtgetMap);
+                        std::map<uint256, alert_manager*>::iterator mi = m_dhtgetMap.find(th);
+                        if( mi != m_dhtgetMap.end() && !dd->m_got_data ) {
+                            // post alert to return from wait_for_alert in dhtget()
+                            alert_manager *am = (*mi).second;
+                            am->post_alert(*dd);
+                        }
+                    }
+
+                    continue;
+                }
 
                 /*
                 save_resume_data_alert const* rd = alert_cast<save_resume_data_alert>(*i);
@@ -500,13 +541,17 @@ Value dhtget(const Array& params, bool fHelp)
 
     ses->dht_getData(strUsername, strResource, multi);
 
-    Value ret;
+    Value ret = Array();
 
-    if( am.wait_for_alert(seconds(10)) ) {
+    if( am.wait_for_alert(seconds(20)) ) {
         std::auto_ptr<alert> a(am.get());
 
         dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
-        ret = entryToJson(rd->m_lst);
+        if( rd ) {
+            ret = entryToJson(rd->m_lst);
+        } else {
+            // cast failed => dht_reply_data_done_alert => no data
+        }
     }
 
     {
