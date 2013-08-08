@@ -306,7 +306,7 @@ void ThreadSessionAlerts()
                 dht_reply_data_done_alert const* dd = alert_cast<dht_reply_data_done_alert>(*i);
                 if (dd)
                 {
-                    printf("get_data_gone [%s,%s,%s] is_neighbor=%d got_data=%d\n",
+                    printf("get_data_done [%s,%s,%s] is_neighbor=%d got_data=%d\n",
                            dd->m_username.c_str(), dd->m_resource.c_str(), dd->m_multi ? "m" : "s",
                            dd->m_is_neighbor, dd->m_got_data);
 

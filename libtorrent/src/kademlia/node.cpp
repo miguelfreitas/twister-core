@@ -1250,6 +1250,29 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
+		m_table.node_seen(id, m.addr, 0xffff);
+		//f->last_seen = time_now();
+
+		// check distance between target, nodes and our own id
+		// n is sorted from closer(begin) to more distant (end)
+		nodes_t n;
+		m_table.find_node(target, n, 0);
+		bool possiblyNeighbor = false;
+		if( n.size() < m_table.bucket_size() ) {
+			possiblyNeighbor = true;
+		} else {
+			node_id dFarther = distance(n.back().id, target);
+			node_id dOwn     = distance(nid(), target);
+			if( dOwn < dFarther )
+				possiblyNeighbor = true;
+		}
+		// possiblyNeighbor is authoritative for false, so we may
+		// trust it to NOT store this value. someone might be trying to
+		// attack this resource by storing value into non-final nodes.
+		if( !possiblyNeighbor ) {
+			printf("putData with possiblyNeighbor=false, ignoring request.\n");
+		}
+
 		dht_storage_item item(str_p, msg_keys[mk_sig_p], msg_keys[mk_sig_user]);
 		dht_storage_table_t::iterator i = m_storage_table.find(target);
 		if (i == m_storage_table.end()) {
@@ -1299,12 +1322,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 				// new entry
 				lsto.push_back(item);
 			}
-
 		}
-
-		m_table.node_seen(id, m.addr, 0xffff);
-
-		//f->last_seen = time_now();
 	}
 	else if (strcmp(query, "getData") == 0)
 	{
