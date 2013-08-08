@@ -367,10 +367,22 @@ namespace
 	}
 
 	void getDataDone_fun(std::vector<std::pair<node_entry, std::string> > const& node_results,
-			     bool got_data, node_impl& node,
+			     bool got_data, node_id target, node_impl& node,
 			     boost::function<void(bool, bool)> fdone)
 	{
 	    bool is_neighbor = false;
+
+	    // check distance between target, nodes and our own id
+	    // n is sorted from closer(begin) to more distant (back)
+	    if( node_results.size() < node.m_table.bucket_size() ) {
+		    is_neighbor = true;
+	    } else {
+		    node_id dFarther = distance(node_results.back().first.id, target);
+		    node_id dOwn     = distance(node.nid(), target);
+		    if( dOwn < dFarther )
+			    is_neighbor = true;
+	    }
+
 	    fdone(is_neighbor, got_data);
 	}
 }
@@ -449,7 +461,7 @@ void node_impl::getData(std::string const &username, std::string const &resource
 	// for info-hash id. callback is used to return data.
 	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
 		 fdata,
-		 boost::bind(&getDataDone_fun, _1, _2, boost::ref(*this), fdone), false));
+		 boost::bind(&getDataDone_fun, _1, _2, _3, boost::ref(*this), fdone), false));
 	ta->start();
 }
 

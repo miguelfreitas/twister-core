@@ -31,7 +31,7 @@ static session *ses = NULL;
 
 static CCriticalSection cs_dhtgetMap;
 static map<uint256, alert_manager*> m_dhtgetMap;
-
+static map<std::string, bool> m_specialResources;
 
 uint256 dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
@@ -281,17 +281,21 @@ void ThreadSessionAlerts()
                             r && r->type() == entry::string_t &&
                             t && t->type() == entry::string_t) {
 
-                            // now we do our own search to make sure we are really close to this target
-                            uint256 th = dhtTargetHash(n->string(), r->string(), t->string());
+                            // if this is a special resource then start another dhtget to make
+                            // sure we are really its neighbor. don't do it needless.
+                            if( m_specialResources.count(r->string()) ) {
+                                // now we do our own search to make sure we are really close to this target
+                                uint256 th = dhtTargetHash(n->string(), r->string(), t->string());
 
-                            if( !neighborCheck.count(th) ) {
-                                printf("possiblyNeighbor of [%s,%s,%s]\n",
-                                       n->string().c_str(),
-                                       r->string().c_str(),
-                                       t->string().c_str());
+                                if( !neighborCheck.count(th) ) {
+                                    printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
+                                           n->string().c_str(),
+                                           r->string().c_str(),
+                                           t->string().c_str());
 
-                                neighborCheck[th] = gd->m_target;
-                                ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                    neighborCheck[th] = gd->m_target;
+                                    ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                }
                             }
                         }
 
@@ -318,6 +322,10 @@ void ThreadSessionAlerts()
                         }
                     }
 
+                    if( dd->m_is_neighbor && m_specialResources.count(dd->m_resource) ) {
+                        // Do something!
+                        printf("Neighbor of special resource - do something!\n");
+                    }
                     continue;
                 }
 
@@ -341,6 +349,8 @@ void ThreadSessionAlerts()
 void startSessionTorrent(boost::thread_group& threadGroup)
 {
     printf("startSessionTorrent (waiting for external IP)\n");
+
+    m_specialResources["tracker"] = true;
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));

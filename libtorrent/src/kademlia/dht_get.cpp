@@ -269,7 +269,7 @@ void dht_get::done()
 		results.push_back(std::make_pair(node_entry(o->id(), o->target_ep()), j->second));
 		--num_results;
 	}
-	m_nodes_callback(results, m_got_data);
+	m_nodes_callback(results, m_got_data, target());
 
 	traversal_algorithm::done();
 }

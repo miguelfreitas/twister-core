@@ -64,7 +64,7 @@ public:
 	typedef boost::function<void(entry::list_type const&)> data_callback;
 
 	// callback to receive all write tokens
-	typedef boost::function<void(std::vector<std::pair<node_entry, std::string> > const&, bool)> nodes_callback;
+	typedef boost::function<void(std::vector<std::pair<node_entry, std::string> > const&, bool, node_id)> nodes_callback;
 
 	void got_data(entry::list_type const& values_list);
 	void got_write_token(node_id const& n, std::string const& write_token)
