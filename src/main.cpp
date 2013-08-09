@@ -3434,6 +3434,7 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
 
     // compute message hash and sign it
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << strMessageMagic;
     ss << txNew.message;
     uint256 hashMsg = ss.GetHash();
 
@@ -3448,7 +3449,7 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
           return false;
       }
 
-      if (!key.Sign(hashMsg, vchSig)) {
+      if (!key.SignCompact(hashMsg, vchSig)) {
           printf("CreateNewBlock: Failed to sign SpamMessage\n");
           return false;
       }
