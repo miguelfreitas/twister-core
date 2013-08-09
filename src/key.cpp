@@ -280,7 +280,7 @@ public:
      * $Revision: a51931d0f81f6abe29ca91470931d41a374508a7 $
      *
      */
-    bool Encrypt(std::vector<unsigned char> const &vchText, ecies_secure_t &cryptex)
+    bool Encrypt(std::string const &vchText, ecies_secure_t &cryptex)
     {
         size_t length = vchText.size();
         size_t envelope_length, block_length, key_length;
@@ -351,16 +351,16 @@ public:
         }
 
         // We use a conditional to pad the length if the input buffer is not evenly divisible by the block size.
-        cryptex.key = std::vector<unsigned char>(envelope_length);
-        cryptex.mac = std::vector<unsigned char>(EVP_MD_size(ECIES_HASHER));
+        cryptex.key.resize(envelope_length);
+        cryptex.mac.resize(EVP_MD_size(ECIES_HASHER));
         cryptex.orig = length;
-        cryptex.body = std::vector<unsigned char>(length + (length % block_length ? (block_length - (length % block_length)) : 0));
+        cryptex.body.resize(length + (length % block_length ? (block_length - (length % block_length)) : 0));
 
         // Store the public key portion of the ephemeral key.
         if (EC_POINT_point2oct(EC_KEY_get0_group(ephemeral),
                                EC_KEY_get0_public_key(ephemeral),
                                POINT_CONVERSION_COMPRESSED,
-                               cryptex.key.data(), envelope_length,
+                               reinterpret_cast<unsigned char*>(&cryptex.key[0]), envelope_length,
                                NULL) != envelope_length) {
 #ifdef DEBUG_ECIES
                 printf("An error occurred while trying to record the public portion of the envelope key.\n");
@@ -379,13 +379,13 @@ public:
         EVP_CIPHER_CTX cipher;
         EVP_CIPHER_CTX_init(&cipher);
 
-        unsigned char *body = cryptex.body.data();
+        unsigned char *body = reinterpret_cast<unsigned char *>(&cryptex.body[0]);
         int body_length = cryptex.body.size();
 
         // Initialize the cipher with the envelope key.
         if (EVP_EncryptInit_ex(&cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
             EVP_CIPHER_CTX_set_padding(&cipher, 0) != 1 ||
-                EVP_EncryptUpdate(&cipher, body, &body_length, vchText.data(), length - (length % block_length)) != 1) {
+                EVP_EncryptUpdate(&cipher, body, &body_length, reinterpret_cast<const unsigned char *>(&vchText[0]), length - (length % block_length)) != 1) {
 #ifdef DEBUG_ECIES
                 printf("An error occurred while trying to secure the data using the chosen symmetric cipher.\n");
 #endif
@@ -430,7 +430,7 @@ public:
         // Advance the pointer, then use pointer arithmetic to calculate how much of the body buffer has been used. The complex logic is needed so that we get
         // the correct status regardless of whether there was a partial data block.
         body += body_length;
-        if ((body_length = cryptex.body.size() - (body - cryptex.body.data())) < 0) {
+        if ((body_length = cryptex.body.size() - (body - reinterpret_cast<const unsigned char *>(cryptex.body.data()))) < 0) {
 #ifdef DEBUG_ECIES
                 printf("The symmetric cipher overflowed!\n");
 #endif
@@ -455,8 +455,8 @@ public:
 
         // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
         if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
-            HMAC_Update(&hmac, cryptex.body.data(), cryptex.body.size()) != 1 ||
-            HMAC_Final(&hmac, cryptex.mac.data(), &mac_length) != 1) {
+            HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
+            HMAC_Final(&hmac, reinterpret_cast<unsigned char *>(&cryptex.mac[0]), &mac_length) != 1) {
 #ifdef DEBUG_ECIES
                 printf("Unable to generate a data authentication code.\n");
 #endif
@@ -468,7 +468,7 @@ public:
         return true;
     }
 
-    bool Decrypt(ecies_secure_t const &cryptex, std::vector<unsigned char> &vchText )
+    bool Decrypt(ecies_secure_t const &cryptex, std::string &vchText )
     {
         size_t key_length;
         if ((key_length = EVP_CIPHER_key_length(ECIES_CIPHER)) * 2 > SHA512_DIGEST_LENGTH) {
@@ -512,7 +512,7 @@ public:
                     return false;
             }
 
-            if (EC_POINT_oct2point(group, point, cryptex.key.data(), cryptex.key.size(), NULL) != 1) {
+            if (EC_POINT_oct2point(group, point, reinterpret_cast<const unsigned char *>(cryptex.key.data()), cryptex.key.size(), NULL) != 1) {
 #ifdef DEBUG_ECIES
                     printf("EC_POINT_oct2point failed.\n");
 #endif
@@ -564,7 +564,7 @@ public:
 
         // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
         if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
-            HMAC_Update(&hmac, cryptex.body.data(), cryptex.body.size()) != 1 ||
+            HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
             HMAC_Final(&hmac, md, &mac_length) != 1) {
 #ifdef DEBUG_ECIES
                 printf("Unable to generate a data authentication code.\n");
@@ -587,7 +587,7 @@ public:
         int output_length = cryptex.body.size();
         vchText.resize(output_length+1);
         unsigned char *block, *output;
-        block = output = vchText.data();
+        block = output = reinterpret_cast<unsigned char *>(&vchText[0]);
 
         unsigned char iv[EVP_MAX_IV_LENGTH];
         // For now we use an empty initialization vector. We also clear out the result buffer just to be on the safe side.
@@ -601,7 +601,7 @@ public:
         // Decrypt the data using the chosen symmetric cipher.
         if (EVP_DecryptInit_ex(&cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
             EVP_CIPHER_CTX_set_padding(&cipher, 0) != 1 ||
-            EVP_DecryptUpdate(&cipher, block, &output_length, cryptex.body.data(), cryptex.body.size()) != 1) {
+            EVP_DecryptUpdate(&cipher, block, &output_length, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1) {
 #ifdef DEBUG_ECIES
                 printf("Unable to decrypt the data using the chosen symmetric cipher.\n");
 #endif
@@ -717,7 +717,7 @@ bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) 
     return true;
 }
 
-bool CKey::Decrypt(ecies_secure_t const &cryptex, std::vector<unsigned char> &vchText )
+bool CKey::Decrypt(ecies_secure_t const &cryptex, std::string &vchText )
 {
     if (!fValid)
         return false;
@@ -781,7 +781,7 @@ bool CPubKey::Decompress() {
     return true;
 }
 
-bool CPubKey::Encrypt(std::vector<unsigned char> const &vchText, ecies_secure_t &cryptex)
+bool CPubKey::Encrypt(std::string const &vchText, ecies_secure_t &cryptex)
 {
     if (!IsValid())
         return false;

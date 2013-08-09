@@ -351,20 +351,18 @@ void encryptDecryptTest()
     key1.MakeNewKey(true);
     key2.MakeNewKey(true);
 
-    string sTextIn("Encrypted with public key, decrypted with private key");
-    std::vector<unsigned char> textIn(sTextIn.begin(), sTextIn.end());
+    string textIn("Encrypted with public key, decrypted with private key");
     ecies_secure_t sec;
 
     bool encrypted = key1.GetPubKey().Encrypt(textIn, sec);
     printf("encrypted = %d [key %d, mac %d, orig %d, body %d]\n", encrypted,
            sec.key.size(), sec.mac.size(), sec.orig, sec.body.size());
 
-    std::vector<unsigned char> textOut;
+    std::string textOut;
     bool decrypt1 = key1.Decrypt(sec, textOut);
     printf("decrypt1 = %d\n", decrypt1);
     if( decrypt1 ) {
-        string s((char *)textOut.data(), textOut.size());
-        printf("textOut = '%s'\n", s.c_str());
+        printf("textOut = '%s'\n", textOut.c_str());
     }
 
     bool decrypt2 = key2.Decrypt(sec, textOut);

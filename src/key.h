@@ -165,7 +165,7 @@ public:
     bool Decompress();
 
     // Encrypt with public key
-    bool Encrypt(std::vector<unsigned char> const &vchText, ecies_secure_t &cryptex);
+    bool Encrypt(std::string const &vchText, ecies_secure_t &cryptex);
 };
 
 
@@ -257,7 +257,7 @@ public:
     //                  add 0x04 for compressed keys.
     bool SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) const;
 
-    bool Decrypt(ecies_secure_t const &cryptex, std::vector<unsigned char> &vchText );
+    bool Decrypt(ecies_secure_t const &cryptex, std::string &vchText );
 };
 
 /**
@@ -276,10 +276,10 @@ public:
 #define ECIES_HASHER EVP_sha512()
 
 struct ecies_secure_t {
-    std::vector<unsigned char> key;
-    std::vector<unsigned char> mac;
+    std::string key;
+    std::string mac;
     size_t                     orig;
-    std::vector<unsigned char> body;
+    std::string body;
 };
 
 #endif
