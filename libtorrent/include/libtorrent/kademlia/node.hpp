@@ -114,32 +114,6 @@ struct torrent_entry
 	std::set<peer_entry> peers;
 };
 
-struct dht_immutable_item
-{
-	dht_immutable_item() : value(0), num_announcers(0), size(0) {}
-	// malloced space for the actual value
-	char* value;
-	// this counts the number of IPs we have seen
-	// announcing this item, this is used to determine
-	// popularity if we reach the limit of items to store
-	bloom_filter<128> ips;
-	// the last time we heard about this
-	ptime last_seen;
-	// number of IPs in the bloom filter
-	int num_announcers;
-	// size of malloced space pointed to by value
-	int size;
-};
-
-struct rsa_key { char bytes[268]; };
-
-struct dht_mutable_item : dht_immutable_item
-{
-	char sig[256];
-	int seq;
-	rsa_key key;
-};
-
 struct dht_storage_item
 {
     // FIXME: optimize so bdecode is not needed all the time
@@ -153,13 +127,6 @@ struct dht_storage_item
         //ptime last_seen;
 };
 
-
-
-// internal
-inline bool operator<(rsa_key const& lhs, rsa_key const& rhs)
-{
-	return memcmp(lhs.bytes, rhs.bytes, sizeof(lhs.bytes)) < 0;
-}
 
 // internal
 inline bool operator<(peer_entry const& lhs, peer_entry const& rhs)
@@ -201,8 +168,6 @@ struct udp_socket_interface
 class TORRENT_EXTRA_EXPORT node_impl : boost::noncopyable
 {
 typedef std::map<node_id, torrent_entry> table_t;
-typedef std::map<node_id, dht_immutable_item> dht_immutable_table_t;
-typedef std::map<node_id, dht_mutable_item> dht_mutable_table_t;
 typedef std::list<dht_storage_item> dht_storage_list_t;
 typedef std::map<node_id, dht_storage_list_t> dht_storage_table_t;
 
@@ -321,8 +286,6 @@ public:
 
 private:
 	table_t m_map;
-	dht_immutable_table_t m_immutable_table;
-	dht_mutable_table_t m_mutable_table;
 	dht_storage_table_t m_storage_table;
 	
 	ptime m_last_tracker_tick;
