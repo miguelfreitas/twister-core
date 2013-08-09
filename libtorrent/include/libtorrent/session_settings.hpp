@@ -990,6 +990,7 @@ namespace libtorrent
 			, max_fail_count(20)
 			, max_torrents(2000)
 			, max_dht_items(700)
+			, max_entries_per_multi(50)
 			, max_torrent_search_reply(20)
 			, restrict_routing_ips(true)
 			, restrict_search_ips(true)
@@ -1026,6 +1027,9 @@ namespace libtorrent
 
 		// max number of items the DHT will store
 		int max_dht_items;
+
+		// max multi entries per DHT item
+		int max_entries_per_multi;
 
 		// the max number of torrents to return in a
 		// torrent search query to the DHT

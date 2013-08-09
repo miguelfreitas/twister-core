@@ -1290,9 +1290,10 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		} else {
 			dht_storage_list_t & lsto = i->second;
 
-			int j;
-			for( j = 0; j < lsto.size(); j++) {
-				dht_storage_item &olditem = lsto[j];
+			dht_storage_list_t::reverse_iterator j, rend(lsto.rend());
+			dht_storage_list_t::iterator insert_pos = lsto.end();
+			for( j = lsto.rbegin(); j != rend; ++j) {
+				dht_storage_item &olditem = *j;
 
 				lazy_entry p;
 				int pos;
@@ -1312,16 +1313,27 @@ void node_impl::incoming_request(msg const& m, entry& e)
 
 				    // compare contents before adding to the list
 				    std::pair<char const*, int> bufoldv = p.dict_find("v")->data_section();
-				    if( bufv.second == bufoldv.second &&
-					!memcmp(bufv.first, bufoldv.first,bufv.second)) {
+					if( bufv.second == bufoldv.second && !memcmp(bufv.first, bufoldv.first,bufv.second) ) {
+						// break so it wont be inserted
 					    break;
 				    }
+
+					// if new entry is newer than existing one, it will be inserted before
+					if( msg_keys[mk_height]->int_value() >= p.dict_find_int_value("height") ) {
+						insert_pos = j.base();
+						insert_pos--;
+					}
 				}
 			}
-			if(multi && j == lsto.size()) {
+			if(multi && j == rend) {
 				// new entry
-				lsto.push_back(item);
+				lsto.insert(insert_pos, item);
 			}
+
+			if(lsto.size() > m_settings.max_entries_per_multi) {
+				lsto.resize(m_settings.max_entries_per_multi);
+			}
+
 		}
 	}
 	else if (strcmp(query, "getData") == 0)

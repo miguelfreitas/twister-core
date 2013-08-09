@@ -203,7 +203,7 @@ class TORRENT_EXTRA_EXPORT node_impl : boost::noncopyable
 typedef std::map<node_id, torrent_entry> table_t;
 typedef std::map<node_id, dht_immutable_item> dht_immutable_table_t;
 typedef std::map<node_id, dht_mutable_item> dht_mutable_table_t;
-typedef std::vector<dht_storage_item> dht_storage_list_t;
+typedef std::list<dht_storage_item> dht_storage_list_t;
 typedef std::map<node_id, dht_storage_list_t> dht_storage_table_t;
 
 public:
