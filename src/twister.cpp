@@ -345,6 +345,31 @@ void ThreadSessionAlerts()
     }
 }
 
+void encryptDecryptTest()
+{
+    CKey key1, key2;
+    key1.MakeNewKey(true);
+    key2.MakeNewKey(true);
+
+    string sTextIn("Encrypted with public key, decrypted with private key");
+    std::vector<unsigned char> textIn(sTextIn.begin(), sTextIn.end());
+    ecies_secure_t sec;
+
+    bool encrypted = key1.GetPubKey().Encrypt(textIn, sec);
+    printf("encrypted = %d [key %d, mac %d, orig %d, body %d]\n", encrypted,
+           sec.key.size(), sec.mac.size(), sec.orig, sec.body.size());
+
+    std::vector<unsigned char> textOut;
+    bool decrypt1 = key1.Decrypt(sec, textOut);
+    printf("decrypt1 = %d\n", decrypt1);
+    if( decrypt1 ) {
+        string s((char *)textOut.data(), textOut.size());
+        printf("textOut = '%s'\n", s.c_str());
+    }
+
+    bool decrypt2 = key2.Decrypt(sec, textOut);
+    printf("decrypt2 = %d\n", decrypt2);
+}
 
 void startSessionTorrent(boost::thread_group& threadGroup)
 {
@@ -355,6 +380,8 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
     threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
+
+    encryptDecryptTest();
 }
 
 void stopSessionTorrent()

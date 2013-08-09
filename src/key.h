@@ -36,6 +36,8 @@ public:
     CScriptID(const uint160 &in) : uint160(in) { }
 };
 
+struct ecies_secure_t;
+
 /** An encapsulated public key. */
 class CPubKey {
 private:
@@ -161,6 +163,9 @@ public:
 
     // Turn this public key into an uncompressed public key.
     bool Decompress();
+
+    // Encrypt with public key
+    bool Encrypt(std::vector<unsigned char> const &vchText, ecies_secure_t &cryptex);
 };
 
 
@@ -251,6 +256,30 @@ public:
     //                  0x1D = second key with even y, 0x1E = second key with odd y,
     //                  add 0x04 for compressed keys.
     bool SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) const;
+
+    bool Decrypt(ecies_secure_t const &cryptex, std::vector<unsigned char> &vchText );
+};
+
+/**
+ * @file /cryptron/ecies.h
+ *
+ * @brief ECIES module functions.
+ *
+ * $Author: Ladar Levison $
+ * $Website: http://lavabit.com $
+ * $Date: 2010/08/06 06:02:03 $
+ * $Revision: a51931d0f81f6abe29ca91470931d41a374508a7 $
+ *
+ */
+
+#define ECIES_CIPHER EVP_aes_256_cbc()
+#define ECIES_HASHER EVP_sha512()
+
+struct ecies_secure_t {
+    std::vector<unsigned char> key;
+    std::vector<unsigned char> mac;
+    size_t                     orig;
+    std::vector<unsigned char> body;
 };
 
 #endif

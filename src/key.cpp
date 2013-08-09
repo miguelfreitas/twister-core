@@ -5,9 +5,15 @@
 #include <openssl/ecdsa.h>
 #include <openssl/rand.h>
 #include <openssl/obj_mac.h>
+#include <openssl/ecdh.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 #include "key.h"
 
+#ifdef DEBUG_ECIES
+#include "util.h"
+#endif
 
 // anonymous namespace with local implementation code (OpenSSL interaction)
 namespace {
@@ -121,6 +127,14 @@ err:
     if (O != NULL) EC_POINT_free(O);
     if (Q != NULL) EC_POINT_free(Q);
     return ret;
+}
+
+void * ecies_key_derivation(const void *input, size_t ilen, void *output, size_t *olen) {
+    if (*olen < SHA512_DIGEST_LENGTH) {
+            return NULL;
+    }
+    *olen = SHA512_DIGEST_LENGTH;
+    return SHA512(static_cast<const unsigned char*>(input), ilen, static_cast<unsigned char*>(output));
 }
 
 // RAII Wrapper around OpenSSL's EC_KEY
@@ -254,6 +268,369 @@ public:
         ECDSA_SIG_free(sig);
         return ret;
     }
+
+    /**
+     * @file /cryptron/ecies.c
+     *
+     * @brief ECIES encryption/decryption functions.
+     *
+     * $Author: Ladar Levison $
+     * $Website: http://lavabit.com $
+     * $Date: 2010/08/06 06:02:03 $
+     * $Revision: a51931d0f81f6abe29ca91470931d41a374508a7 $
+     *
+     */
+    bool Encrypt(std::vector<unsigned char> const &vchText, ecies_secure_t &cryptex)
+    {
+        size_t length = vchText.size();
+        size_t envelope_length, block_length, key_length;
+        if ((key_length = EVP_CIPHER_key_length(ECIES_CIPHER)) * 2 > SHA512_DIGEST_LENGTH) {
+#ifdef DEBUG_ECIES
+            printf("The key derivation method will not produce enough envelope key material for the chosen ciphers. {envelope = %i / required = %zu}\n",
+                   SHA512_DIGEST_LENGTH / 8, (key_length * 2) / 8);
+#endif
+            return false;
+        }
+
+        // Create the ephemeral key used specifically for this block of data.
+        EC_KEY *ephemeral;
+        if (!(ephemeral = EC_KEY_new())) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred while trying to generate the ephemeral key.\n");
+#endif
+                return false;
+        } else {
+            const EC_GROUP *group = NULL;
+            if( !(group = EC_KEY_get0_group(pkey))) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred in EC_KEY_get0_group.\n");
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+            }
+            if (EC_KEY_set_group(ephemeral, group) != 1) {
+#ifdef DEBUG_ECIES
+                    printf("EC_KEY_set_group failed.\n");
+#endif
+                    EC_KEY_free(ephemeral);
+                    return false;
+            }
+        }
+
+        if (EC_KEY_generate_key(ephemeral) != 1) {
+#ifdef DEBUG_ECIES
+                printf("EC_KEY_generate_key failed.\n");
+#endif
+                return false;
+        }
+
+        // Use the intersection of the provided keys to generate the envelope data used by the ciphers below. The ecies_key_derivation() function uses
+        // SHA 512 to ensure we have a sufficient amount of envelope key material and that the material created is sufficiently secure.
+        unsigned char envelope_key[SHA512_DIGEST_LENGTH];
+        if (ECDH_compute_key(envelope_key, SHA512_DIGEST_LENGTH,
+                             EC_KEY_get0_public_key(pkey),
+                             ephemeral,
+                             ecies_key_derivation) != SHA512_DIGEST_LENGTH) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred while trying to compute the envelope key.\n");
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+        }
+
+        // Determine the envelope and block lengths so we can allocate a buffer for the result.
+        if ((block_length = EVP_CIPHER_block_size(ECIES_CIPHER)) == 0 ||
+                 block_length > EVP_MAX_BLOCK_LENGTH ||
+                 (envelope_length = EC_POINT_point2oct(EC_KEY_get0_group(ephemeral), EC_KEY_get0_public_key(ephemeral),
+                                                       POINT_CONVERSION_COMPRESSED, NULL, 0, NULL)) == 0) {
+#ifdef DEBUG_ECIES
+                printf("Invalid block or envelope length. {block = %zu / envelope = %zu}\n", block_length, envelope_length);
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+        }
+
+        // We use a conditional to pad the length if the input buffer is not evenly divisible by the block size.
+        cryptex.key = std::vector<unsigned char>(envelope_length);
+        cryptex.mac = std::vector<unsigned char>(EVP_MD_size(ECIES_HASHER));
+        cryptex.orig = length;
+        cryptex.body = std::vector<unsigned char>(length + (length % block_length ? (block_length - (length % block_length)) : 0));
+
+        // Store the public key portion of the ephemeral key.
+        if (EC_POINT_point2oct(EC_KEY_get0_group(ephemeral),
+                               EC_KEY_get0_public_key(ephemeral),
+                               POINT_CONVERSION_COMPRESSED,
+                               cryptex.key.data(), envelope_length,
+                               NULL) != envelope_length) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred while trying to record the public portion of the envelope key.\n");
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+        }
+        // The envelope key has been stored so we no longer need to keep the keys around.
+        EC_KEY_free(ephemeral);
+
+        unsigned char iv[EVP_MAX_IV_LENGTH], block[EVP_MAX_BLOCK_LENGTH];
+        // For now we use an empty initialization vector.
+        memset(iv, 0, EVP_MAX_IV_LENGTH);
+
+        // Setup the cipher context, the body length, and store a pointer to the body buffer location.
+        EVP_CIPHER_CTX cipher;
+        EVP_CIPHER_CTX_init(&cipher);
+
+        unsigned char *body = cryptex.body.data();
+        int body_length = cryptex.body.size();
+
+        // Initialize the cipher with the envelope key.
+        if (EVP_EncryptInit_ex(&cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
+            EVP_CIPHER_CTX_set_padding(&cipher, 0) != 1 ||
+                EVP_EncryptUpdate(&cipher, body, &body_length, vchText.data(), length - (length % block_length)) != 1) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred while trying to secure the data using the chosen symmetric cipher.\n");
+#endif
+                EVP_CIPHER_CTX_cleanup(&cipher);
+                return false;
+        }
+        // Check whether all of the data was encrypted. If they don't match up, we either have a partial block remaining, or an error occurred.
+        if (body_length != (int)length) {
+                // Make sure all that remains is a partial block, and their wasn't an error.
+                if (length - body_length >= block_length) {
+#ifdef DEBUG_ECIES
+                        printf("Unable to secure the data using the chosen symmetric cipher.\n");
+#endif
+                        EVP_CIPHER_CTX_cleanup(&cipher);
+                        return false;
+                }
+
+                // Copy the remaining data into our partial block buffer. The memset() call ensures any extra bytes will be zero'ed out.
+                memset(block, 0, EVP_MAX_BLOCK_LENGTH);
+                memcpy(block, vchText.data() + body_length, length - body_length);
+
+                // Advance the body pointer to the location of the remaining space, and calculate just how much room is still available.
+                body += body_length;
+                if ((body_length = cryptex.body.size() - body_length) < 0) {
+#ifdef DEBUG_ECIES
+                        printf("The symmetric cipher overflowed!\n");
+#endif
+                        EVP_CIPHER_CTX_cleanup(&cipher);
+                        return false;
+                }
+
+                // Pass the final partially filled data block into the cipher as a complete block. The padding will be removed during the decryption process.
+                else if (EVP_EncryptUpdate(&cipher, body, &body_length, block, block_length) != 1) {
+#ifdef DEBUG_ECIES
+                        printf("Unable to secure the data using the chosen symmetric cipher\n");
+#endif
+                        EVP_CIPHER_CTX_cleanup(&cipher);
+                        return false;
+                }
+        }
+
+        // Advance the pointer, then use pointer arithmetic to calculate how much of the body buffer has been used. The complex logic is needed so that we get
+        // the correct status regardless of whether there was a partial data block.
+        body += body_length;
+        if ((body_length = cryptex.body.size() - (body - cryptex.body.data())) < 0) {
+#ifdef DEBUG_ECIES
+                printf("The symmetric cipher overflowed!\n");
+#endif
+                EVP_CIPHER_CTX_cleanup(&cipher);
+                return false;
+        }
+
+        else if (EVP_EncryptFinal_ex(&cipher, body, &body_length) != 1) {
+#ifdef DEBUG_ECIES
+                printf("Unable to secure the data using the chosen symmetric cipher.\n");
+#endif
+                EVP_CIPHER_CTX_cleanup(&cipher);
+                return false;
+        }
+
+        EVP_CIPHER_CTX_cleanup(&cipher);
+
+        // Generate an authenticated hash which can be used to validate the data during decryption.
+        HMAC_CTX hmac;
+        HMAC_CTX_init(&hmac);
+        unsigned int mac_length = cryptex.mac.size();
+
+        // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
+        if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
+            HMAC_Update(&hmac, cryptex.body.data(), cryptex.body.size()) != 1 ||
+            HMAC_Final(&hmac, cryptex.mac.data(), &mac_length) != 1) {
+#ifdef DEBUG_ECIES
+                printf("Unable to generate a data authentication code.\n");
+#endif
+                HMAC_CTX_cleanup(&hmac);
+                return false;
+        }
+
+        HMAC_CTX_cleanup(&hmac);
+        return true;
+    }
+
+    bool Decrypt(ecies_secure_t const &cryptex, std::vector<unsigned char> &vchText )
+    {
+        size_t key_length;
+        if ((key_length = EVP_CIPHER_key_length(ECIES_CIPHER)) * 2 > SHA512_DIGEST_LENGTH) {
+#ifdef DEBUG_ECIES
+            printf("The key derivation method will not produce enough envelope key material for the chosen ciphers. {envelope = %i / required = %zu}\n",
+                   SHA512_DIGEST_LENGTH / 8, (key_length * 2) / 8);
+#endif
+            return false;
+        }
+
+        // Create the ephemeral key used specifically for this block of data.
+        EC_KEY *ephemeral;
+        if (!(ephemeral = EC_KEY_new())) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred while trying to generate the ephemeral key.\n");
+#endif
+                return false;
+        } else {
+            const EC_GROUP *group = NULL;
+            if( !(group = EC_KEY_get0_group(pkey))) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred in EC_KEY_get0_group.\n");
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+            }
+            if (EC_KEY_set_group(ephemeral, group) != 1) {
+#ifdef DEBUG_ECIES
+                    printf("EC_KEY_set_group failed.\n");
+#endif
+                    EC_KEY_free(ephemeral);
+                    return false;
+            }
+
+            EC_POINT *point = NULL;
+            if (!(point = EC_POINT_new(group))) {
+#ifdef DEBUG_ECIES
+                    printf("EC_POINT_new failed.\n");
+#endif
+                    EC_KEY_free(ephemeral);
+                    return false;
+            }
+
+            if (EC_POINT_oct2point(group, point, cryptex.key.data(), cryptex.key.size(), NULL) != 1) {
+#ifdef DEBUG_ECIES
+                    printf("EC_POINT_oct2point failed.\n");
+#endif
+                    EC_KEY_free(ephemeral);
+                    return false;
+            }
+
+            if (EC_KEY_set_public_key(ephemeral, point) != 1) {
+#ifdef DEBUG_ECIES
+                    printf("EC_KEY_set_public_key failed.\n");
+#endif
+                    EC_POINT_free(point);
+                    EC_KEY_free(ephemeral);
+                    return false;
+            }
+            EC_POINT_free(point);
+        }
+
+        if (EC_KEY_check_key(ephemeral) != 1) {
+#ifdef DEBUG_ECIES
+                printf("EC_KEY_check_key ephemeral failed.\n");
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+        }
+
+        // Use the intersection of the provided keys to generate the envelope data used by the ciphers below. The ecies_key_derivation() function uses
+        // SHA 512 to ensure we have a sufficient amount of envelope key material and that the material created is sufficiently secure.
+        unsigned char envelope_key[SHA512_DIGEST_LENGTH];
+        if (ECDH_compute_key(envelope_key, SHA512_DIGEST_LENGTH,
+                             EC_KEY_get0_public_key(ephemeral),
+                             pkey,
+                             ecies_key_derivation) != SHA512_DIGEST_LENGTH) {
+#ifdef DEBUG_ECIES
+                printf("An error occurred while trying to compute the envelope key.\n");
+#endif
+                EC_KEY_free(ephemeral);
+                return false;
+        }
+
+        // The envelope key material has been extracted, so we no longer need the user and ephemeral keys.
+        EC_KEY_free(ephemeral);
+
+        // Use the authenticated hash of the ciphered data to ensure it was not modified after being encrypted.
+        HMAC_CTX hmac;
+        HMAC_CTX_init(&hmac);
+        unsigned int mac_length = EVP_MAX_MD_SIZE;
+        unsigned char md[EVP_MAX_MD_SIZE];
+
+        // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
+        if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
+            HMAC_Update(&hmac, cryptex.body.data(), cryptex.body.size()) != 1 ||
+            HMAC_Final(&hmac, md, &mac_length) != 1) {
+#ifdef DEBUG_ECIES
+                printf("Unable to generate a data authentication code.\n");
+#endif
+                HMAC_CTX_cleanup(&hmac);
+                return false;
+        }
+
+        HMAC_CTX_cleanup(&hmac);
+
+        // We can use the generated hash to ensure the encrypted data was not altered after being encrypted.
+        if (mac_length != cryptex.mac.size() || memcmp(md, cryptex.mac.data(), mac_length)) {
+#ifdef DEBUG_ECIES
+                printf("The authentication code was invalid! The ciphered data has been corrupted!\n");
+#endif
+                return NULL;
+        }
+
+        // Create a buffer to hold the result.
+        int output_length = cryptex.body.size();
+        vchText.resize(output_length+1);
+        unsigned char *block, *output;
+        block = output = vchText.data();
+
+        unsigned char iv[EVP_MAX_IV_LENGTH];
+        // For now we use an empty initialization vector. We also clear out the result buffer just to be on the safe side.
+        memset(iv, 0, EVP_MAX_IV_LENGTH);
+        memset(output, 0, output_length + 1);
+
+        // Setup the cipher context, the body length, and store a pointer to the body buffer location.
+        EVP_CIPHER_CTX cipher;
+        EVP_CIPHER_CTX_init(&cipher);
+
+        // Decrypt the data using the chosen symmetric cipher.
+        if (EVP_DecryptInit_ex(&cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
+            EVP_CIPHER_CTX_set_padding(&cipher, 0) != 1 ||
+            EVP_DecryptUpdate(&cipher, block, &output_length, cryptex.body.data(), cryptex.body.size()) != 1) {
+#ifdef DEBUG_ECIES
+                printf("Unable to decrypt the data using the chosen symmetric cipher.\n");
+#endif
+                EVP_CIPHER_CTX_cleanup(&cipher);
+                return false;
+        }
+
+        block += output_length;
+        if ((output_length = cryptex.body.size() - output_length) != 0) {
+#ifdef DEBUG_ECIES
+                printf("The symmetric cipher failed to properly decrypt the correct amount of data!\n");
+#endif
+                EVP_CIPHER_CTX_cleanup(&cipher);
+                return false;
+        }
+
+        if (EVP_DecryptFinal_ex(&cipher, block, &output_length) != 1) {
+#ifdef DEBUG_ECIES
+                printf("Unable to decrypt the data using the chosen symmetric cipher.\n");
+#endif
+                EVP_CIPHER_CTX_cleanup(&cipher);
+                return false;
+        }
+
+        EVP_CIPHER_CTX_cleanup(&cipher);
+
+        vchText.resize(cryptex.orig);
+        return true;
+    }
 };
 
 }; // end of anonymous namespace
@@ -340,6 +717,15 @@ bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) 
     return true;
 }
 
+bool CKey::Decrypt(ecies_secure_t const &cryptex, std::vector<unsigned char> &vchText )
+{
+    if (!fValid)
+        return false;
+    CECKey key;
+    key.SetSecretBytes(vch);
+    return key.Decrypt(cryptex, vchText);
+}
+
 bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {
     if (!IsValid())
         return false;
@@ -394,3 +780,14 @@ bool CPubKey::Decompress() {
     key.GetPubKey(*this, false);
     return true;
 }
+
+bool CPubKey::Encrypt(std::vector<unsigned char> const &vchText, ecies_secure_t &cryptex)
+{
+    if (!IsValid())
+        return false;
+    CECKey key;
+    if (!key.SetPubKey(*this))
+        return false;
+    return key.Encrypt(vchText, cryptex);
+}
+
