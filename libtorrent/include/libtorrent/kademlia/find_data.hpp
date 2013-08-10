@@ -69,7 +69,7 @@ public:
 	void got_write_token(node_id const& n, std::string const& write_token)
 	{ m_write_tokens[n] = write_token; }
 
-	find_data(node_impl& node, node_id target
+	find_data(node_impl& node, const std::string &trackerName, node_id target
 		, data_callback const& dcallback
 		, nodes_callback const& ncallback
 		, bool noseeds);
@@ -89,6 +89,7 @@ private:
 	data_callback m_data_callback;
 	nodes_callback m_nodes_callback;
 	std::map<node_id, std::string> m_write_tokens;
+	std::string m_trackerName;
 	node_id const m_target;
 	bool m_done:1;
 	bool m_got_peers:1;

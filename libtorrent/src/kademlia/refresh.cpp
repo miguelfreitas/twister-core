@@ -49,7 +49,7 @@ refresh::refresh(
 	node_impl& node
 	, node_id target
 	, done_callback const& callback)
-	: find_data(node, target, find_data::data_callback(), callback, false)
+	: find_data(node, std::string(), target, find_data::data_callback(), callback, false)
 {
 }
 

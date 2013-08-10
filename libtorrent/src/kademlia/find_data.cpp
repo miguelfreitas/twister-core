@@ -171,6 +171,7 @@ static void add_entry_fun(void* userdata, node_entry const& e)
 
 find_data::find_data(
 	node_impl& node
+	, std::string const& trackerName
 	, node_id target
 	, data_callback const& dcallback
 	, nodes_callback const& ncallback
@@ -178,6 +179,7 @@ find_data::find_data(
 	: traversal_algorithm(node, target)
 	, m_data_callback(dcallback)
 	, m_nodes_callback(ncallback)
+	, m_trackerName(trackerName)
 	, m_target(target)
 	, m_done(false)
 	, m_got_peers(false)
@@ -206,8 +208,12 @@ bool find_data::invoke(observer_ptr o)
 
 	entry e;
 	e["z"] = "q";
-	e["q"] = "getPeers";
+	e["q"] = "getData"; // "getPeers"
 	entry& a = e["x"];
+	entry& target = a["target"];
+	target["n"] = m_trackerName;
+	target["r"] = "tracker";
+	target["t"] = "m";
 	a["infoHash"] = m_target.to_string();
 	if (m_noseeds) a["noseed"] = 1;
 	return m_node.m_rpc.invoke(e, o->target_ep(), o);

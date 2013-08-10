@@ -2245,8 +2245,8 @@ namespace libtorrent
 #endif
 
 		boost::weak_ptr<torrent> self(shared_from_this());
-		m_ses.m_dht->announce(m_torrent_file->info_hash()
-			, port, is_seed()
+		m_ses.m_dht->announce(m_torrent_file->name(), m_torrent_file->info_hash()
+			, m_ses.external_address().external_address(address_v4()), port, is_seed(), true
 			, boost::bind(&torrent::on_dht_announce_response_disp, self, _1));
 	}
 

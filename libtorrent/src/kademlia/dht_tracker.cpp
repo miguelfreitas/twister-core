@@ -416,10 +416,11 @@ namespace libtorrent { namespace dht
 #endif
 	}
 
-	void dht_tracker::announce(sha1_hash const& ih, int listen_port, bool seed
+	void dht_tracker::announce(std::string const& trackerName, sha1_hash const& ih
+		, address addr, int listen_port, bool seed, bool myself
 		, boost::function<void(std::vector<tcp::endpoint> const&)> f)
 	{
-		m_dht.announce(ih, listen_port, seed, f);
+		m_dht.announce(trackerName, ih, addr, listen_port, seed, myself, f);
 	}
 
 	void dht_tracker::putData(std::string const &username, std::string const &resource, bool multi,

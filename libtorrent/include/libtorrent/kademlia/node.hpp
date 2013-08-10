@@ -210,7 +210,8 @@ public:
 	{ m_table.print_state(os); }
 #endif
 
-	void announce(sha1_hash const& info_hash, int listen_port, bool seed
+	void announce(std::string const& trackerName, sha1_hash const& info_hash
+		, address addr, int listen_port, bool seed, bool myself
 		, boost::function<void(std::vector<tcp::endpoint> const&)> f);
 
 	void putData(std::string const &username, std::string const &resource, bool multi,
@@ -263,8 +264,7 @@ protected:
 
 	void lookup_peers(sha1_hash const& info_hash, int prefix, entry& reply
 		, bool noseed, bool scrape) const;
-	bool lookup_torrents(sha1_hash const& target, entry& reply
-		, char* tags) const;
+	void add_peer(std::string const& name, sha1_hash const& info_hash, address addr, int port, bool seed);
 
 	dht_settings const& m_settings;
 	

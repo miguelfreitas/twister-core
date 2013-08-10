@@ -417,18 +417,23 @@ void node_impl::add_node(udp::endpoint node)
 	m_rpc.invoke(e, node, o);
 }
 
-void node_impl::announce(sha1_hash const& info_hash, int listen_port, bool seed
+void node_impl::announce(std::string const& trackerName, sha1_hash const& info_hash, address addr, int listen_port, bool seed, bool myself
 	, boost::function<void(std::vector<tcp::endpoint> const&)> f)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "announcing [ ih: " << info_hash << " p: " << listen_port << " ]" ;
 #endif
-	// search for nodes with ids close to id or with peers
-	// for info-hash id. then send announce_peer to them.
-	boost::intrusive_ptr<find_data> ta(new find_data(*this, info_hash, f
-		, boost::bind(&announce_fun, _1, boost::ref(*this)
-		, listen_port, info_hash, seed), seed));
-	ta->start();
+	add_peer( trackerName, info_hash, addr, listen_port, seed );
+
+	// do not announce other peers, just add them to our local m_map.
+	if( myself ) {
+		// search for nodes with ids close to id or with peers
+		// for info-hash id. then send announce_peer to them.
+		boost::intrusive_ptr<find_data> ta(new find_data(*this, trackerName, info_hash, f
+			, boost::bind(&announce_fun, _1, boost::ref(*this)
+			, listen_port, info_hash, seed), seed));
+		ta->start();
+	}
 }
 
 void node_impl::putData(std::string const &username, std::string const &resource, bool multi,
@@ -590,6 +595,27 @@ void node_impl::lookup_peers(sha1_hash const& info_hash, int prefix, entry& repl
 		}
 	}
 	return;
+}
+
+void node_impl::add_peer(std::string const &name, sha1_hash const& info_hash, address addr, int port, bool seed)
+{
+	torrent_entry& v = m_map[info_hash];
+
+	// the peer announces a torrent name, and we don't have a name
+	// for this torrent. Store it.
+	if (name.size() && v.name.empty())
+	{
+		v.name = name;
+		if (v.name.size() > 50) v.name.resize(50);
+	}
+
+	peer_entry peer;
+	peer.addr = tcp::endpoint(addr, port);
+	peer.added = time_now();
+	peer.seed = seed;
+	std::set<peer_entry>::iterator i = v.peers.find(peer);
+	if (i != v.peers.end()) v.peers.erase(i++);
+	v.peers.insert(i, peer);
 }
 
 namespace
@@ -774,6 +800,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		// we already have 't' and 'id' in the response
 		// no more left to add
 	}
+	/*
 	else if (strcmp(query, "getPeers") == 0)
 	{
 		key_desc_t msg_desc[] = {
@@ -813,7 +840,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			TORRENT_LOG(node) << " values: " << reply["values"].list().size();
 		}
 #endif
-	}
+	}*/
 	else if (strcmp(query, "findNode") == 0)
 	{
 		key_desc_t msg_desc[] = {
@@ -909,24 +936,10 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			}
 			m_map.erase(candidate);
 		}
-		torrent_entry& v = m_map[info_hash];
 
-		// the peer announces a torrent name, and we don't have a name
-		// for this torrent. Store it.
-		if (msg_keys[3] && v.name.empty())
-		{
-			std::string name = msg_keys[3]->string_value();
-			if (name.size() > 50) name.resize(50);
-			v.name = name;
-		}
+		add_peer( msg_keys[3] ? msg_keys[3]->string_value() : std::string(), info_hash,
+				  m.addr.address(), port, msg_keys[4] && msg_keys[4]->int_value());
 
-		peer_entry peer;
-		peer.addr = tcp::endpoint(m.addr.address(), port);
-		peer.added = time_now();
-		peer.seed = msg_keys[4] && msg_keys[4]->int_value();
-		std::set<peer_entry>::iterator i = v.peers.find(peer);
-		if (i != v.peers.end()) v.peers.erase(i++);
-		v.peers.insert(i, peer);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 		++g_announces;
 #endif
@@ -1135,6 +1148,12 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
+		if (msg_keys[mk_t]->string_value() != "s" &&
+			msg_keys[mk_t]->string_value() != "m") {
+			incoming_error(e, "invalid target.t value");
+			return;
+		}
+
 		// target id is hash of bencoded dict "target"
 		std::pair<char const*, int> targetbuf = msg_keys[mk_target]->data_section();
 		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
@@ -1159,22 +1178,27 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		write_nodes_entry(reply, n);
 
 		bool hasData = false;
-		dht_storage_table_t::iterator i = m_storage_table.find(target);
-		if (i != m_storage_table.end())
-		{
-			hasData = true;
-			reply["values"] = entry::list_type();
-			entry::list_type &values = reply["values"].list();
 
-			dht_storage_list_t const& lsto = i->second;
-			for (dht_storage_list_t::const_iterator j = lsto.begin()
-				  , end(lsto.end()); j != end && !justtoken; ++j)
+		if( msg_keys[mk_r]->string_value() == "tracker" ) {
+			lookup_peers(target, 20, reply, false, false);
+		} else {
+			dht_storage_table_t::iterator i = m_storage_table.find(target);
+			if (i != m_storage_table.end())
 			{
-				entry::dictionary_type v;
-				v["p"] = bdecode(j->p.begin(), j->p.end());
-				v["sig_p"] = j->sig_p;
-				v["sig_user"] = j->sig_user;
-				values.push_back(v);
+				hasData = true;
+				reply["values"] = entry::list_type();
+				entry::list_type &values = reply["values"].list();
+
+				dht_storage_list_t const& lsto = i->second;
+				for (dht_storage_list_t::const_iterator j = lsto.begin()
+					  , end(lsto.end()); j != end && !justtoken; ++j)
+				{
+					entry::dictionary_type v;
+					v["p"] = bdecode(j->p.begin(), j->p.end());
+					v["sig_p"] = j->sig_p;
+					v["sig_user"] = j->sig_user;
+					values.push_back(v);
+				}
 			}
 		}
 
