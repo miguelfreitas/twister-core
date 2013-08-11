@@ -337,7 +337,8 @@ void ThreadSessionAlerts()
                         }
                     }
 
-                    if( dd->m_is_neighbor && m_specialResources.count(dd->m_resource) ) {
+                    if( dd->m_is_neighbor && m_specialResources.count(dd->m_resource) &&
+                        neighborCheck.count(ih) ) {
                         // Do something!
                         printf("Neighbor of special resource - do something!\n");
                         if( dd->m_resource == "tracker" ) {
