@@ -139,11 +139,11 @@ namespace libtorrent
 			, LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
 			, int flags = start_default_features | add_default_plugins
 			, boost::uint32_t alert_mask = alert::error_notification
-			, char const* ext_ip = NULL
+			, char const* ext_ip = NULL, std::pair<int, int> listen_range = std::make_pair(0, 0)
 			TORRENT_LOGPATH_ARG_DEFAULT)
 		{
 			TORRENT_CFG();
-			init(std::make_pair(0, 0), "0.0.0.0", print, alert_mask, ext_ip);
+			init(listen_range, "0.0.0.0", print, alert_mask, ext_ip);
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 			set_log_path(logpath);
 #endif

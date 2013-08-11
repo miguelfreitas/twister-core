@@ -149,7 +149,8 @@ void ThreadWaitExtIP()
     ses = new session(fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
             , alert::dht_notification
-            , ipStr.size() ? ipStr.c_str() : NULL );
+            , ipStr.size() ? ipStr.c_str() : NULL
+            , std::make_pair(listen_port, listen_port));
 
     std::vector<char> in;
     boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
