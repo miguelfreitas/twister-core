@@ -32,6 +32,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/pch.hpp"
 
+#include "../../src/util.h"
+
 #include <ctime>
 #include <algorithm>
 #include <set>
@@ -740,7 +742,7 @@ namespace aux {
 	{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 		m_logger = create_log("main_session", listen_port(), false);
-		session_log("log created");
+		session_log("session_impl::start_session log created");
 #endif
 
 		error_code ec;
@@ -4942,7 +4944,9 @@ retry:
 		va_end(v);
 		char buf[450];
 		snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
-		(*m_logger) << buf;
+		// printf is the bitcoin/util.h logger
+		printf(buf);
+		//(*m_logger) << buf;
 	}
 #endif
 
@@ -5411,7 +5415,7 @@ retry:
 
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 		m_logger = create_log("main_session", listen_port(), false);
-		session_log("log created");
+		session_log("session_impl::listen_on log created");
 #endif
 	}
 
@@ -6495,7 +6499,9 @@ retry:
 			va_end(v);
 			char buf[1280];
 			snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
-			(*m_ses.m_logger) << buf;
+			// printf is the bitcoin/util.h logger
+			printf(buf);
+			//(*m_ses.m_logger) << buf;
 		}
 #endif
 }}
