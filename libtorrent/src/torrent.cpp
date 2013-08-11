@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include <boost/bind.hpp>
+#include <boost/foreach.hpp>
 
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -2272,9 +2273,26 @@ namespace libtorrent
 		if (torrent_file().priv() || (torrent_file().is_i2p()
 			&& !settings().allow_i2p_mixed)) return;
 
+#ifdef TORRENT_USE_OPENSSL
+		int port = is_ssl_torrent() ? m_ses.ssl_listen_port() : m_ses.listen_port();
+#else
+		int port = m_ses.listen_port();
+#endif
+
+		tcp::endpoint localpeer;
+		localpeer.address(m_ses.external_address().external_address(address_v4()));
+		localpeer.port(port);
+
+		BOOST_FOREACH(tcp::endpoint const& p, peers) {
+		    if( p != localpeer ) {
+			m_policy.add_peer(p, peer_id(0), peer_info::dht, 0);
+		    }
+		}
+		/*
 		std::for_each(peers.begin(), peers.end(), boost::bind(
 			&policy::add_peer, boost::ref(m_policy), _1, peer_id(0)
 			, peer_info::dht, 0));
+		*/
 
 		do_connect_boost();
 	}
