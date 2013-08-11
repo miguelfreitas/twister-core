@@ -30,17 +30,19 @@ using namespace libtorrent;
 static session *ses = NULL;
 
 static CCriticalSection cs_dhtgetMap;
-static map<uint256, alert_manager*> m_dhtgetMap;
+static map<sha1_hash, alert_manager*> m_dhtgetMap;
 static map<std::string, bool> m_specialResources;
 
-uint256 dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
+sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
-    CHashWriter ss(SER_GETHASH, 0);
-    ss << username;
-    ss << resource;
-    ss << type;
+    entry target;
+    target["n"] = username;
+    target["r"] = resource;
+    target["t"] = type;
 
-    return ss.GetHash();
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), target);
+    return hasher(buf.data(), buf.size()).final();
 }
 
 int load_file(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000)
@@ -171,12 +173,17 @@ void ThreadWaitExtIP()
     }
 
     dht_settings dhts;
+    // settings to test local connections
     dhts.restrict_routing_ips = false;
     dhts.restrict_search_ips = false;
     ses->set_dht_settings(dhts);
     ses->start_dht();
 
-    //ses->set_settings(settings);
+    session_settings settings;
+    // settings to test local connections
+    settings.allow_multiple_connections_per_ip = true;
+    settings.enable_outgoing_utp = false; // test (netstat display)
+    ses->set_settings(settings);
 
     printf("libtorrent + dht started\n");
 }
@@ -218,7 +225,7 @@ void ThreadMaintainDHTNodes()
 
 void ThreadSessionAlerts()
 {
-    static map<uint256, entry> neighborCheck;
+    static map<sha1_hash, entry> neighborCheck;
 
     while(!ses) {
         MilliSleep(200);
@@ -251,10 +258,10 @@ void ThreadSessionAlerts()
                                 if( n && n->type() == entry::string_t &&
                                     r && r->type() == entry::string_t &&
                                     t && t->type() == entry::string_t) {
-                                    uint256 th = dhtTargetHash(n->string(), r->string(), t->string());
+                                    sha1_hash ih = dhtTargetHash(n->string(), r->string(), t->string());
 
                                     LOCK(cs_dhtgetMap);
-                                    std::map<uint256, alert_manager*>::iterator mi = m_dhtgetMap.find(th);
+                                    std::map<sha1_hash, alert_manager*>::iterator mi = m_dhtgetMap.find(ih);
                                     if( mi != m_dhtgetMap.end() ) {
                                         alert_manager *am = (*mi).second;
                                         am->post_alert(*rd);
@@ -284,17 +291,25 @@ void ThreadSessionAlerts()
                             // if this is a special resource then start another dhtget to make
                             // sure we are really its neighbor. don't do it needless.
                             if( m_specialResources.count(r->string()) ) {
-                                // now we do our own search to make sure we are really close to this target
-                                uint256 th = dhtTargetHash(n->string(), r->string(), t->string());
+                                // check if user exists
+                                CTransaction txOut;
+                                uint256 hashBlock;
+                                uint256 userhash = SerializeHash(n->string());
+                                if( !GetTransaction(userhash, txOut, hashBlock) ) {
+                                    printf("Special Resource but username is unknown - ignoring\n");
+                                } else {
+                                        // now we do our own search to make sure we are really close to this target
+                                    sha1_hash ih = dhtTargetHash(n->string(), r->string(), t->string());
 
-                                if( !neighborCheck.count(th) ) {
-                                    printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
-                                           n->string().c_str(),
-                                           r->string().c_str(),
-                                           t->string().c_str());
+                                    if( !neighborCheck.count(ih) ) {
+                                        printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
+                                               n->string().c_str(),
+                                               r->string().c_str(),
+                                               t->string().c_str());
 
-                                    neighborCheck[th] = gd->m_target;
-                                    ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                        neighborCheck[ih] = gd->m_target;
+                                        ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                    }
                                 }
                             }
                         }
@@ -310,11 +325,11 @@ void ThreadSessionAlerts()
                            dd->m_username.c_str(), dd->m_resource.c_str(), dd->m_multi ? "m" : "s",
                            dd->m_is_neighbor, dd->m_got_data);
 
-                    uint256 th = dhtTargetHash(dd->m_username, dd->m_resource, dd->m_multi ? "m" : "s");
+                    sha1_hash ih = dhtTargetHash(dd->m_username, dd->m_resource, dd->m_multi ? "m" : "s");
 
                     {
                         LOCK(cs_dhtgetMap);
-                        std::map<uint256, alert_manager*>::iterator mi = m_dhtgetMap.find(th);
+                        std::map<sha1_hash, alert_manager*>::iterator mi = m_dhtgetMap.find(ih);
                         if( mi != m_dhtgetMap.end() && !dd->m_got_data ) {
                             // post alert to return from wait_for_alert in dhtget()
                             alert_manager *am = (*mi).second;
@@ -325,6 +340,17 @@ void ThreadSessionAlerts()
                     if( dd->m_is_neighbor && m_specialResources.count(dd->m_resource) ) {
                         // Do something!
                         printf("Neighbor of special resource - do something!\n");
+                        if( dd->m_resource == "tracker" ) {
+                            torrent_handle hnd  = ses->find_torrent(ih);
+                            if( !hnd.is_valid() ) {
+                                printf("adding torrent for [%s,tracker]\n", dd->m_username.c_str());
+                                add_torrent_params tparams;
+                                tparams.info_hash = ih;
+                                tparams.name = dd->m_username;
+                                tparams.save_path="/tmp/";
+                                ses->async_add_torrent(tparams);
+                            }
+                        }
                     }
                     continue;
                 }
@@ -567,11 +593,11 @@ Value dhtget(const Array& params, bool fHelp)
     bool multi = (strMulti == "m");
 
     alert_manager am(10, alert::dht_notification);
-    uint256 th = dhtTargetHash(strUsername,strResource,strMulti);
+    sha1_hash ih = dhtTargetHash(strUsername,strResource,strMulti);
 
     {
         LOCK(cs_dhtgetMap);
-        m_dhtgetMap[th] = &am;
+        m_dhtgetMap[ih] = &am;
     }
 
     ses->dht_getData(strUsername, strResource, multi);
@@ -591,7 +617,7 @@ Value dhtget(const Array& params, bool fHelp)
 
     {
         LOCK(cs_dhtgetMap);
-        m_dhtgetMap.erase(th);
+        m_dhtgetMap.erase(ih);
     }
 
     return ret;
