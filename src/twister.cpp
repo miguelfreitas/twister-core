@@ -184,6 +184,8 @@ void ThreadWaitExtIP()
     // settings to test local connections
     settings.allow_multiple_connections_per_ip = true;
     settings.enable_outgoing_utp = false; // test (netstat display)
+    //settings.dht_announce_interval = 60; // test
+    //settings.min_announce_interval = 60; // test
     ses->set_settings(settings);
 
     printf("libtorrent + dht started\n");

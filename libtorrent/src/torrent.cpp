@@ -88,6 +88,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif // BOOST_VERSION
 #endif // TORRENT_USE_OPENSSL
 
+#include "../../src/util.h"
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 #include "libtorrent/struct_debug.hpp"
 #endif
@@ -201,6 +202,8 @@ namespace
 
 		peer_id const& pid;
 	};
+
+	void nop() {}
 }
 
 namespace libtorrent
@@ -2239,6 +2242,22 @@ namespace libtorrent
 
 		TORRENT_ASSERT(m_allow_peers);
 
+		// [MF] use m_dht->announce with myself=false to update dht tracker with other peers
+		{
+		    policy::const_iterator i = get_policy().begin_peer();
+		    policy::const_iterator end = get_policy().end_peer();
+		    for (; i != end; ++i)
+		    {
+			policy::peer const* p = *i;
+
+			if( p->connectable && !p->banned ) {
+			    m_ses.m_dht->announce(*m_name, m_torrent_file->info_hash()
+						  , p->address(), p->port, p->seed, false
+						  , boost::bind(&nop));
+			}
+		    }
+		}
+
 #ifdef TORRENT_USE_OPENSSL
 		int port = is_ssl_torrent() ? m_ses.ssl_listen_port() : m_ses.listen_port();
 #else
@@ -2284,6 +2303,9 @@ namespace libtorrent
 		localpeer.port(port);
 
 		BOOST_FOREACH(tcp::endpoint const& p, peers) {
+#if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
+		    debug_log("on_dht_announce_response %s:%d (local=%d)", p.address().to_string().c_str(), p.port(), p==localpeer);
+#endif
 		    if( p != localpeer ) {
 			m_policy.add_peer(p, peer_id(0), peer_info::dht, 0);
 		    }
@@ -8982,7 +9004,9 @@ namespace libtorrent
 		char buf[1280];
 		snprintf(buf, sizeof(buf), "%s: %s: %s\n", time_now_string()
 			, to_hex(info_hash().to_string()).substr(0, 6).c_str(), usr);
-		(*m_ses.m_logger) << buf;
+		//(*m_ses.m_logger) << buf;
+		// [MF]
+		printf(buf);
 	}
 #endif
 
