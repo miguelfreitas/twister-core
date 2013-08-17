@@ -2303,7 +2303,7 @@ namespace libtorrent
 		piece_picker& picker = t->picker();
 		piece_manager& fs = t->filesystem();
 
-		std::vector<piece_block> finished_blocks;
+        //std::vector<piece_block> finished_blocks;
 		piece_block block_finished(p.piece, p.start / t->block_size());
 		TORRENT_ASSERT(verify_piece(p));
 

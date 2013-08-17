@@ -385,7 +385,9 @@ namespace libtorrent
 
 	default_storage::default_storage(file_storage const& fs, file_storage const* mapped, std::string const& path
 		, file_pool& fp, std::vector<boost::uint8_t> const& file_prio)
-		: m_files(fs)
+		// [MF] FIXME CLevelDB use path directly, cacheSize = 256K.
+		: CLevelDB(boost::filesystem::path(path), 256*1024, false, false)
+		, m_files(fs)
 		, m_file_priority(file_prio)
 		, m_pool(fp)
 		, m_page_size(page_size())
@@ -1488,7 +1490,7 @@ ret:
 		: m_info(info)
 		, m_files(m_info->files())
 		, m_storage(sc(m_info->orig_files(), &m_info->files() != &m_info->orig_files()
-			? &m_info->files() : 0, save_path, fp, file_prio))
+			? &m_info->files() : 0, save_path + to_hex(m_info->info_hash().to_string()), fp, file_prio))
 		, m_storage_mode(sm)
 		, m_save_path(complete(save_path))
 		, m_state(state_none)

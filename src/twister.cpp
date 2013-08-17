@@ -351,7 +351,8 @@ void ThreadSessionAlerts()
                                 add_torrent_params tparams;
                                 tparams.info_hash = ih;
                                 tparams.name = dd->m_username;
-                                tparams.save_path="/tmp/";
+                                boost::filesystem::path torrentPath = GetDataDir() / "swarm" / "";
+                                tparams.save_path= torrentPath.string();
                                 ses->async_add_torrent(tparams);
                             }
                         }

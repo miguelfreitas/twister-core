@@ -307,6 +307,7 @@ namespace libtorrent
 		size_type total_size() const { return m_files.total_size(); }
 		int piece_length() const { return m_files.piece_length(); }
 		int num_pieces() const { return m_files.num_pieces(); }
+        void increase_num_pieces(int n);
 		const sha1_hash& info_hash() const { return m_info_hash; }
 		const std::string& name() const { return m_files.name(); }
 

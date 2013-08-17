@@ -1941,7 +1941,7 @@ bool static LoadBlockIndexDB()
     bool readTxIndex;
     pblocktree->ReadFlag("txindex", readTxIndex);
     printf("LoadBlockIndexDB(): transaction index %s\n", readTxIndex ? "enabled" : "disabled");
-    assert( readTxIndex ); // always true in twister
+    //assert( readTxIndex ); // always true in twister
 
     // Load hashBestChain pointer to end of best chain
     pindexBest = pcoinsTip->GetBestBlock();

@@ -838,10 +838,25 @@ namespace libtorrent
 		, m_multifile(false)
 		, m_private(false)
 		, m_i2p(false)
-	{}
+	{
+	    // [MF] Fake it.
+	    m_files.set_piece_length(16*1024);
+	    m_files.set_num_pieces(1);
+	    file_entry e;
+	    e.size = 1;
+	    m_files.add_file(e);
+	}
 
 	torrent_info::~torrent_info()
 	{}
+
+    void torrent_info::increase_num_pieces(int n)
+    {
+        if( num_pieces() > n )
+            return;
+
+        m_files.set_num_pieces(n);
+    }
 
 	void torrent_info::copy_on_write()
 	{

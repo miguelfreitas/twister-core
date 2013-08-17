@@ -134,6 +134,45 @@ namespace libtorrent
 		TORRENT_ASSERT(m_blocks_in_last_piece <= m_blocks_per_piece);
 	}
 
+    void piece_picker::increase_num_pieces(int total_num_pieces)
+    {
+#ifdef TORRENT_PICKER_LOG
+        std::cerr << "piece_picker::increase_num_pieces(" << total_num_pieces << ")" << std::endl;
+#endif
+        int old_num_pieces = m_piece_map.size();
+
+        // allocate the piece_map to cover all pieces
+        // and make them invalid
+        m_piece_map.resize(total_num_pieces, piece_pos(0, 0));
+        m_reverse_cursor = int(m_piece_map.size());
+
+        //[MF] check this
+        //m_downloads.clear();
+        //m_block_info.clear();
+
+        m_dirty = true;
+        for (std::vector<piece_pos>::iterator i = m_piece_map.begin() + old_num_pieces
+            , end(m_piece_map.end()); i != end; ++i)
+        {
+            i->peer_count = 0;
+            i->downloading = 0;
+            i->index = 0;
+#ifdef TORRENT_DEBUG_REFCOUNTS
+            i->have_peers.clear();
+#endif
+        }
+
+        for (std::vector<piece_pos>::reverse_iterator i = m_piece_map.rend()
+            - m_reverse_cursor; m_reverse_cursor > 0 && (i->have() || i->filtered());
+            ++i, --m_reverse_cursor);
+
+        // the piece index is stored in 20 bits, which limits the allowed
+        // number of pieces somewhat
+        TORRENT_ASSERT(m_piece_map.size() < piece_pos::we_have_index);
+
+        update_pieces();
+    }
+
 	void piece_picker::piece_info(int index, piece_picker::downloading_piece& st) const
 	{
 #ifdef TORRENT_EXPENSIVE_INVARIANT_CHECKS
@@ -1831,9 +1870,10 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(index >= 0);
 		TORRENT_ASSERT(index < (int)m_piece_map.size() || m_piece_map.empty());
-		if (index+1 == (int)m_piece_map.size())
+        /* [MF]
+        if (index+1 == (int)m_piece_map.size())
 			return m_blocks_in_last_piece;
-		else
+        else */
 			return m_blocks_per_piece;
 	}
 

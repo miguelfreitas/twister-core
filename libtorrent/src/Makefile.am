@@ -119,7 +119,7 @@ libtorrent_rasterbar_la_LIBADD = @BOOST_SYSTEM_LIB@ @OPENSSL_LIBS@
 
 #AM_CXXFLAGS= -ftemplate-depth-100 -I$(top_srcdir)/include @DEBUGFLAGS@ @OPENSSL_INCLUDES@
 #AM_CPPFLAGS = -ftemplate-depth-100 -I$(top_srcdir)/include @DEBUGFLAGS@ @OPENSSL_INCLUDES@
-AM_CPPFLAGS = -ftemplate-depth-100 -I$(top_srcdir)/include @DEBUGFLAGS@ @OPENSSL_INCLUDES@
+AM_CPPFLAGS = -ftemplate-depth-100 -I$(top_srcdir)/include -I$(top_srcdir)/../src -I$(top_srcdir)/../src/leveldb/include @DEBUGFLAGS@ @OPENSSL_INCLUDES@
 
 #AM_CFLAGS= -I$(top_srcdir)/include @DEBUGFLAGS@
 #AM_LDFLAGS = $(LDFLAGS) @BOOST_SYSTEM_LIB@ @BOOST_FILESYSTEM_LIB@ @BOOST_THREAD_LIB@ @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@

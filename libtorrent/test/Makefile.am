@@ -131,7 +131,7 @@ test_web_seed_SOURCES = test_web_seed.cpp
 LDADD = $(top_builddir)/src/libtorrent-rasterbar.la libtest.la
 
 #AM_CXXFLAGS=-ftemplate-depth-50 -I$(top_srcdir)/include -I$(top_srcdir)/include/libtorrent @DEBUGFLAGS@ @PTHREAD_CFLAGS@
-AM_CPPFLAGS=-ftemplate-depth-50 -I$(top_srcdir)/include @DEBUGFLAGS@
+AM_CPPFLAGS=-ftemplate-depth-50 -I$(top_srcdir)/include  -I$(top_srcdir)/../src -I$(top_srcdir)/../src/leveldb/include @DEBUGFLAGS@
 
 #AM_LDFLAGS= @BOOST_SYSTEM_LIB@ @BOOST_FILESYSTEM_LIB@ @BOOST_THREAD_LIB@ @PTHREAD_LIBS@ @SSL_LDFLAGS@ @SSL_LIBS@
 

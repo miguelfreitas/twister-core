@@ -689,113 +689,6 @@ namespace libtorrent
 	void torrent::on_torrent_download(error_code const& ec
 		, http_parser const& parser, char const* data, int size)
 	{
-		if (m_abort) return;
-
-		if (ec && ec != asio::error::eof)
-		{
-			set_error(ec, m_url);
-			pause();
-			return;
-		}
-
-		if (parser.status_code() != 200)
-		{
-			// #error there should really be an error code category for HTTP
-			set_error(errors::http_error, parser.message());
-			pause();
-			return;
-		}
-
-		error_code e;
-		intrusive_ptr<torrent_info> tf(new torrent_info(data, size, e));
-		if (e)
-		{
-			set_error(e, m_url);
-			pause();
-			return;
-		}
-		
-		// update our torrent_info object and move the
-		// torrent from the old info-hash to the new one
-		// as we replace the torrent_info object
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
-		int num_torrents = m_ses.m_torrents.size();
-#endif
-
-		// we're about to erase the session's reference to this
-		// torrent, create another reference
-		boost::shared_ptr<torrent> me(shared_from_this());
-
-		m_ses.remove_torrent_impl(me, 0);
-
-		if (alerts().should_post<torrent_update_alert>())
-			alerts().post_alert(torrent_update_alert(get_handle(), info_hash(), tf->info_hash()));
-
-		m_torrent_file = tf;
-
-		// now, we might already have this torrent in the session.
-		session_impl::torrent_map::iterator i = m_ses.m_torrents.find(m_torrent_file->info_hash());
-		if (i != m_ses.m_torrents.end())
-		{
-			if (!m_uuid.empty() && i->second->uuid().empty())
-				i->second->set_uuid(m_uuid);
-			if (!m_url.empty() && i->second->url().empty())
-				i->second->set_url(m_url);
-			if (!m_source_feed_url.empty() && i->second->source_feed_url().empty())
-				i->second->set_source_feed_url(m_source_feed_url);
-
-			// insert this torrent in the uuid index
-			if (!m_uuid.empty() || !m_url.empty())
-			{
-				m_ses.m_uuids.insert(std::make_pair(m_uuid.empty()
-					? m_url : m_uuid, i->second));
-			}
-			set_error(error_code(errors::duplicate_torrent, get_libtorrent_category()), "");
-			abort();
-			return;
-		}
-
-		m_ses.m_torrents.insert(std::make_pair(m_torrent_file->info_hash(), me));
-		if (!m_uuid.empty()) m_ses.m_uuids.insert(std::make_pair(m_uuid, me));
-
-		TORRENT_ASSERT(num_torrents == m_ses.m_torrents.size());
-
-		// if the user added any trackers while downloading the
-		// .torrent file, serge them into the new tracker list
-		std::vector<announce_entry> new_trackers = m_torrent_file->trackers();
-		for (std::vector<announce_entry>::iterator i = m_trackers.begin()
-			, end(m_trackers.end()); i != end; ++i)
-		{
-			// if we already have this tracker, ignore it
-			if (std::find_if(new_trackers.begin(), new_trackers.end()
-				, boost::bind(&announce_entry::url, _1) == i->url) != new_trackers.end())
-				continue;
-
-			// insert the tracker ordered by tier
-			new_trackers.insert(std::find_if(new_trackers.begin(), new_trackers.end()
-				, boost::bind(&announce_entry::tier, _1) >= i->tier), *i);
-		}
-		m_trackers.swap(new_trackers);
-
-#ifndef TORRENT_DISABLE_ENCRYPTION
-		hasher h;
-		h.update("req2", 4);
-		h.update((char*)&m_torrent_file->info_hash()[0], 20);
-		m_obfuscated_hash = h.final();
-#endif
-
-		if (m_ses.m_alerts.should_post<metadata_received_alert>())
-		{
-			m_ses.m_alerts.post_alert(metadata_received_alert(
-				get_handle()));
-		}
-
-		state_updated();
-
-		set_state(torrent_status::downloading);
-
-		m_override_resume_data = true;
-		init();
 	}
 
 #endif
@@ -901,17 +794,6 @@ namespace libtorrent
 
 	void torrent::start_download_url()
 	{
-		TORRENT_ASSERT(!m_url.empty());
-		TORRENT_ASSERT(!m_torrent_file->is_valid());
-		boost::shared_ptr<http_connection> conn(
-			new http_connection(m_ses.m_io_service, m_ses.m_half_open			        
-				, boost::bind(&torrent::on_torrent_download, shared_from_this()
-					, _1, _2, _3, _4)
-				, true //bottled
-				, m_ses.settings().max_http_recv_buffer_size //bottled buffer size
-				));
-		conn->get(m_url, seconds(30), 0, 0, 5, m_ses.m_settings.user_agent);
-		set_state(torrent_status::downloading_metadata);
 	}
 
 	void torrent::set_apply_ip_filter(bool b)
@@ -1005,7 +887,7 @@ namespace libtorrent
 
 		TORRENT_ASSERT(piece >= 0 && piece < m_torrent_file->num_pieces());
 		int piece_size = m_torrent_file->piece_size(piece);
-		int blocks_in_piece = (piece_size + block_size() - 1) / block_size();
+        int blocks_in_piece = (piece_size + block_size() - 1) / block_size();
 
 		// if blocks_in_piece is 0, rp will leak
 		TORRENT_ASSERT(blocks_in_piece > 0);
@@ -1216,6 +1098,7 @@ namespace libtorrent
 		}
 	}
 
+    // [MF] test only?
 	void torrent::add_piece(int piece, char const* data, int flags)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
@@ -1710,37 +1593,13 @@ namespace libtorrent
 #endif
 
 		TORRENT_ASSERT(block_size() > 0);
-		int file = 0;
-		for (file_storage::iterator i = m_torrent_file->files().begin()
-			, end(m_torrent_file->files().end()); i != end; ++i, ++file)
-		{
-			if (!i->pad_file || i->size == 0) continue;
-			m_padding += i->size;
-			
-			peer_request pr = m_torrent_file->map_file(file, 0, m_torrent_file->file_at(file).size);
-			int off = pr.start & (block_size()-1);
-			if (off != 0) { pr.length -= block_size() - off; pr.start += block_size() - off; }
-			TORRENT_ASSERT((pr.start & (block_size()-1)) == 0);
+        //[MF]
+        for( int i = 0; i < m_torrent_file->num_pieces(); i++) {
+            piece_block pb(i, 0);
+            m_picker->mark_as_finished(pb, 0);
+        }
 
-			int block = block_size();
-			int blocks_per_piece = m_torrent_file->piece_length() / block;
-			piece_block pb(pr.piece, pr.start / block);
-			for (; pr.length >= block; pr.length -= block, ++pb.block_index)
-			{
-				if (int(pb.block_index) == blocks_per_piece) { pb.block_index = 0; ++pb.piece_index; }
-				m_picker->mark_as_finished(pb, 0);
-			}
-			// ugly edge case where padfiles are not used they way they're
-			// supposed to be. i.e. added back-to back or at the end
-			if (int(pb.block_index) == blocks_per_piece) { pb.block_index = 0; ++pb.piece_index; }
-			if (pr.length > 0 && ((boost::next(i) != end && boost::next(i)->pad_file)
-				|| boost::next(i) == end))
-			{
-				m_picker->mark_as_finished(pb, 0);
-			}
-		}
-
-		if (m_padding > 0)
+        if (m_padding > 0)
 		{
 			// if we marked an entire piece as finished, we actually
 			// need to consider it finished
@@ -3260,39 +3119,6 @@ namespace libtorrent
 		TORRENT_ASSERT(!have_piece(index));
 		TORRENT_ASSERT(!m_picker->have_piece(index));
 
-		const int piece_size = m_torrent_file->piece_length();
-		size_type off = size_type(index) * piece_size;
-		file_storage::iterator f = m_torrent_file->files().file_at_offset(off);
-		int size = m_torrent_file->piece_size(index);
-		int file_index = f - m_torrent_file->files().begin();
-		for (; size > 0; ++f, ++file_index)
-		{
-			size_type file_offset = off - f->offset;
-			TORRENT_ASSERT(f != m_torrent_file->files().end());
-			TORRENT_ASSERT(file_offset <= f->size);
-			int add = (std::min)(f->size - file_offset, (size_type)size);
-			m_file_progress[file_index] += add;
-
-			TORRENT_ASSERT(m_file_progress[file_index]
-				<= m_torrent_file->files().file_size(file_index));
-
-			if (m_file_progress[file_index] >= m_torrent_file->files().file_size(file_index))
-			{
-				if (!m_torrent_file->files().pad_file_at(file_index))
-				{
-					if (m_ses.m_alerts.should_post<file_completed_alert>())
-					{
-						// this file just completed, post alert
-						m_ses.m_alerts.post_alert(file_completed_alert(get_handle()
-							, file_index));
-					}
-				}
-			}
-			size -= add;
-			off += add;
-			TORRENT_ASSERT(size >= 0);
-		}
-
 		remove_time_critical_piece(index, true);
 
 		m_picker->we_have(index);
@@ -3747,14 +3573,6 @@ namespace libtorrent
 
 	void torrent::on_files_released(int ret, disk_io_job const& j)
 	{
-/*
-		TORRENT_ASSERT(m_ses.is_network_thread());
-
-		if (alerts().should_post<torrent_paused_alert>())
-		{
-			alerts().post_alert(torrent_paused_alert(get_handle()));
-		}
-*/
 	}
 
 	void torrent::on_save_resume_data(int ret, disk_io_job const& j)
@@ -4158,30 +3976,19 @@ namespace libtorrent
 		// initialize the piece priorities to 0, then only allow
 		// setting higher priorities
 		std::vector<int> pieces(m_torrent_file->num_pieces(), 0);
-		int index = 0;
-		for (file_storage::iterator i = m_torrent_file->files().begin()
-			, end(m_torrent_file->files().end()); i != end; ++i, ++index)
-		{
-			if (index >= m_torrent_file->num_files()) break;
-			size_type start = position;
-			size_type size = m_torrent_file->files().file_size(*i);
-			if (size == 0) continue;
-			position += size;
-			if (m_file_priority[index] == 0) continue;
 
-			// mark all pieces of the file with this file's priority
-			// but only if the priority is higher than the pieces
-			// already set (to avoid problems with overlapping pieces)
-			int start_piece = int(start / piece_length);
-			int last_piece = int((position - 1) / piece_length);
-			TORRENT_ASSERT(last_piece < int(pieces.size()));
-			// if one piece spans several files, we might
-			// come here several times with the same start_piece, end_piece
-			std::for_each(pieces.begin() + start_piece
-				, pieces.begin() + last_piece + 1
-				, boost::bind(&set_if_greater, _1, m_file_priority[index]));
-		}
-		prioritize_pieces(pieces);
+        // [MF] just one "file"
+        // mark all pieces of the file with this file's priority
+        // but only if the priority is higher than the pieces
+        // already set (to avoid problems with overlapping pieces)
+        int start_piece = 0;
+        int last_piece = m_torrent_file->num_pieces() - 1;
+        TORRENT_ASSERT(last_piece < int(pieces.size()));
+        std::for_each(pieces.begin() + start_piece
+            , pieces.begin() + last_piece + 1
+            , boost::bind(&set_if_greater, _1, m_file_priority[0]));
+
+        prioritize_pieces(pieces);
 	}
 
 	// this is called when piece priorities have been updated
@@ -4287,44 +4094,8 @@ namespace libtorrent
 
 	void torrent::filter_files(std::vector<bool> const& bitmask)
 	{
-		INVARIANT_CHECK;
-
-		// this call is only valid on torrents with metadata
-		if (!valid_metadata() || is_seed()) return;
-
-		// the bitmask need to have exactly one bit for every file
-		// in the torrent
-		TORRENT_ASSERT((int)bitmask.size() == m_torrent_file->num_files());
-
-		if (int(bitmask.size()) != m_torrent_file->num_files()) return;
-		
-		size_type position = 0;
-
-		if (m_torrent_file->num_pieces())
-		{
-			int piece_length = m_torrent_file->piece_length();
-			// mark all pieces as filtered, then clear the bits for files
-			// that should be downloaded
-			std::vector<bool> piece_filter(m_torrent_file->num_pieces(), true);
-			for (int i = 0; i < (int)bitmask.size(); ++i)
-			{
-				size_type start = position;
-				position += m_torrent_file->files().file_size(i);
-				// is the file selected for download?
-				if (!bitmask[i])
-				{           
-					// mark all pieces of the file as downloadable
-					int start_piece = int(start / piece_length);
-					int last_piece = int(position / piece_length);
-					// if one piece spans several files, we might
-					// come here several times with the same start_piece, end_piece
-					std::fill(piece_filter.begin() + start_piece, piece_filter.begin()
-						+ last_piece + 1, false);
-				}
-			}
-			filter_pieces(piece_filter);
-		}
-	}
+        // [MF] nop
+    }
 
 	void torrent::replace_trackers(std::vector<announce_entry> const& urls)
 	{
@@ -5145,8 +4916,25 @@ namespace libtorrent
 	}
 #endif
 
+    // [MF] num_pieces increases with new twister posts
+    void torrent::increase_num_pieces(int num_pieces)
+    {
+        if( m_torrent_file->num_pieces() > num_pieces )
+            return;
+
+        m_torrent_file->increase_num_pieces(num_pieces);
+
+        if(has_picker()) {
+            m_picker->increase_num_pieces(num_pieces);
+        }
+    }
+
 	void torrent::read_resume_data(lazy_entry const& rd)
 	{
+        // [MF]
+        int num_pieces = rd.dict_find_int_value("num_pieces");
+        increase_num_pieces(num_pieces);
+
 		m_total_uploaded = rd.dict_find_int_value("total_uploaded");
 		m_total_downloaded = rd.dict_find_int_value("total_downloaded");
 		m_active_time = rd.dict_find_int_value("active_time");
@@ -5181,23 +4969,6 @@ namespace libtorrent
 				? m_url : m_uuid, me));
 		}
 
-		// TODO: make this more generic to not just work if files have been
-		// renamed, but also if they have been merged into a single file for instance
-		// maybe use the same format as .torrent files and reuse some code from torrent_info
-		// The mapped_files needs to be read both in the network thread
-		// and in the disk thread, since they both have their own mapped files structures
-		// which are kept in sync
-		lazy_entry const* mapped_files = rd.dict_find_list("mapped_files");
-		if (mapped_files && mapped_files->list_size() == m_torrent_file->num_files())
-		{
-			for (int i = 0; i < m_torrent_file->num_files(); ++i)
-			{
-				std::string new_filename = mapped_files->list_string_value_at(i);
-				if (new_filename.empty()) continue;
-				m_torrent_file->rename_file(i, new_filename);
-			}
-		}
-		
 		m_added_time = rd.dict_find_int_value("added_time", m_added_time);
 		m_completed_time = rd.dict_find_int_value("completed_time", m_completed_time);
 		if (m_completed_time != 0 && m_completed_time < m_added_time)
@@ -5342,6 +5113,9 @@ namespace libtorrent
 		ret["file-format"] = "libtorrent resume file";
 		ret["file-version"] = 1;
 		ret["libtorrent-version"] = LIBTORRENT_VERSION;
+
+        // [MF]
+        ret["num_pieces"] = m_torrent_file->num_pieces();
 
 		ret["total_uploaded"] = m_total_uploaded;
 		ret["total_downloaded"] = m_total_downloaded;
@@ -5502,21 +5276,6 @@ namespace libtorrent
 			TORRENT_ASSERT(m_verified.size() == pieces.size());
 			for (int i = 0, end(pieces.size()); i < end; ++i)
 				pieces[i] |= m_verified[i] ? 2 : 0;
-		}
-
-		// write renamed files
-		// TODO: 0 make this more generic to not just work if files have been
-		// renamed, but also if they have been merged into a single file for instance.
-		// using file_base
-		if (&m_torrent_file->files() != &m_torrent_file->orig_files()
-			&& m_torrent_file->files().num_files() == m_torrent_file->orig_files().num_files())
-		{
-			entry::list_type& fl = ret["mapped_files"].list();
-			for (torrent_info::file_iterator i = m_torrent_file->begin_files()
-				, end(m_torrent_file->end_files()); i != end; ++i)
-			{
-				fl.push_back(m_torrent_file->files().file_path(*i));
-			}
 		}
 
 		// write local peers
@@ -6550,16 +6309,6 @@ namespace libtorrent
 
 	bool torrent::rename_file(int index, std::string const& name)
 	{
-		INVARIANT_CHECK;
-
-		TORRENT_ASSERT(index >= 0);
-		TORRENT_ASSERT(index < m_torrent_file->num_files());
-
-		if (!m_owning_storage.get()) return false;
-
-		m_owning_storage->async_rename_file(index, name
-			, boost::bind(&torrent::on_file_renamed, shared_from_this(), _1, _2));
-		return true;
 	}
 
 	void torrent::move_storage(std::string const& save_path, int flags)
@@ -8477,119 +8226,9 @@ namespace libtorrent
 
 		for (int i = 0; i < m_torrent_file->num_files(); ++i)
 		{
-			peer_request ret = m_torrent_file->files().map_file(i, 0, 0);
-			size_type size = m_torrent_file->files().file_size(i);
-
 // zero sized files are considered
 // 100% done all the time
-			if (size == 0)
-			{
-				fp[i] = 0;
-				continue;
-			}
-
-			size_type done = 0;
-			while (size > 0)
-			{
-				size_type bytes_step = (std::min)(size_type(m_torrent_file->piece_size(ret.piece)
-					- ret.start), size);
-				if (m_picker->have_piece(ret.piece)) done += bytes_step;
-				++ret.piece;
-				ret.start = 0;
-				size -= bytes_step;
-			}
-			TORRENT_ASSERT(size == 0);
-
-			fp[i] = done;
-		}
-
-		const std::vector<piece_picker::downloading_piece>& q
-			= m_picker->get_download_queue();
-
-		for (std::vector<piece_picker::downloading_piece>::const_iterator
-			i = q.begin(), end(q.end()); i != end; ++i)
-		{
-			size_type offset = size_type(i->index) * m_torrent_file->piece_length();
-			torrent_info::file_iterator file = m_torrent_file->file_at_offset(offset);
-			int file_index = file - m_torrent_file->begin_files();
-			int num_blocks = m_picker->blocks_in_piece(i->index);
-			piece_picker::block_info const* info = i->info;
-			for (int k = 0; k < num_blocks; ++k)
-			{
-				TORRENT_ASSERT(file != m_torrent_file->end_files());
-				TORRENT_ASSERT(offset == size_type(i->index) * m_torrent_file->piece_length()
-					+ k * block_size());
-				TORRENT_ASSERT(offset < m_torrent_file->total_size());
-				while (offset >= file->offset + file->size)
-				{
-					++file;
-					++file_index;
-				}
-				TORRENT_ASSERT(file != m_torrent_file->end_files());
-
-				size_type block = block_size();
-
-				if (info[k].state == piece_picker::block_info::state_none)
-				{
-					offset += block;
-					continue;
-				}
-
-				if (info[k].state == piece_picker::block_info::state_requested)
-				{
-					block = 0;
-					policy::peer* p = static_cast<policy::peer*>(info[k].peer);
-					if (p && p->connection)
-					{
-						boost::optional<piece_block_progress> pbp
-							= p->connection->downloading_piece_progress();
-						if (pbp && pbp->piece_index == i->index && pbp->block_index == k)
-							block = pbp->bytes_downloaded;
-						TORRENT_ASSERT(block <= block_size());
-					}
-
-					if (block == 0)
-					{
-						offset += block_size();
-						continue;
-					}
-				}
-
-				if (offset + block > file->offset + file->size)
-				{
-					int left_over = int(block_size() - block);
-					// split the block on multiple files
-					while (block > 0)
-					{
-						TORRENT_ASSERT(offset <= file->offset + file->size);
-						size_type slice = (std::min)(file->offset + file->size - offset
-							, block);
-						fp[file_index] += slice;
-						offset += slice;
-						block -= slice;
-						TORRENT_ASSERT(offset <= file->offset + file->size);
-						if (offset == file->offset + file->size)
-						{
-							++file;
-							++file_index;
-							if (file == m_torrent_file->end_files())
-							{
-								offset += block;
-								break;
-							}
-						}
-					}
-					offset += left_over;
-					TORRENT_ASSERT(offset == size_type(i->index) * m_torrent_file->piece_length()
-						+ (k+1) * block_size());
-				}
-				else
-				{
-					fp[file_index] += block;
-					offset += block_size();
-				}
-				TORRENT_ASSERT(file_index <= m_torrent_file->num_files());
-			}
+            fp[i] = 0;
 		}
 	}
 	

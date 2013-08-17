@@ -33,6 +33,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef TORRENT_STORAGE_HPP_INCLUDE
 #define TORRENT_STORAGE_HPP_INCLUDE
 
+#include "../../src/leveldb.h"
+
 #include <vector>
 #include <sys/types.h>
 
@@ -186,7 +188,7 @@ namespace libtorrent
 		session_settings* m_settings;
 	};
 
-	class TORRENT_EXPORT default_storage : public storage_interface, boost::noncopyable
+	class TORRENT_EXPORT default_storage : public storage_interface, boost::noncopyable, CLevelDB
 	{
 	public:
 		default_storage(file_storage const& fs, file_storage const* mapped, std::string const& path

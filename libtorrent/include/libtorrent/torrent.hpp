@@ -734,6 +734,8 @@ namespace libtorrent
 
 		torrent_handle get_handle();
 
+        void increase_num_pieces(int num_pieces);
+
 		void write_resume_data(entry& rd) const;
 		void read_resume_data(lazy_entry const& rd);
 

@@ -40,9 +40,14 @@ namespace libtorrent
 		int piece;
 		int start;
 		int length;
+        // [MF] don't compare length so we can ask for pieces without knowing size
+        /*
 		bool operator==(peer_request const& r) const
 		{ return piece == r.piece && start == r.start && length == r.length; }
-	};
+        */
+        bool operator==(peer_request const& r) const
+        { return piece == r.piece && start == r.start; }
+    };
 }
 
 #endif // TORRENT_PEER_REQUEST_HPP_INCLUDED

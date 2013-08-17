@@ -56,7 +56,8 @@ namespace libtorrent
 	int file_storage::piece_size(int index) const
 	{
 		TORRENT_ASSERT(index >= 0 && index < num_pieces());
-		if (index == num_pieces()-1)
+        /* [MF] always report the max (16KB)
+        if (index == num_pieces()-1)
 		{
 			size_type size_except_last = num_pieces() - 1;
 			size_except_last *= size_type(piece_length());
@@ -65,7 +66,7 @@ namespace libtorrent
 			TORRENT_ASSERT(size <= piece_length());
 			return int(size);
 		}
-		else
+        else */
 			return piece_length();
 	}
 
@@ -208,17 +209,8 @@ namespace libtorrent
 
 	file_storage::iterator file_storage::file_at_offset(size_type offset) const
 	{
-		// find the file iterator and file offset
-		internal_file_entry target;
-		target.offset = offset;
-		TORRENT_ASSERT(!compare_file_offset(target, m_files.front()));
-
-		std::vector<internal_file_entry>::const_iterator file_iter = std::upper_bound(
-			begin(), end(), target, compare_file_offset);
-
-		TORRENT_ASSERT(file_iter != begin());
-		--file_iter;
-		return file_iter;
+        //[MF] only one "file"
+        return begin();
 	}
 
 	std::vector<file_slice> file_storage::map_block(int piece, size_type offset
