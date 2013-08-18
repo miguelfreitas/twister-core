@@ -501,30 +501,6 @@ namespace libtorrent
 
 		storage_mode_t m_storage_mode;
 
-		// slots that haven't had any file storage allocated
-		std::vector<int> m_unallocated_slots;
-		// slots that have file storage, but isn't assigned to a piece
-		std::vector<int> m_free_slots;
-
-		enum
-		{
-			has_no_slot = -3 // the piece has no storage
-		};
-
-		// maps piece indices to slots. If a piece doesn't
-		// have any storage, it is set to 'has_no_slot'
-		std::vector<int> m_piece_to_slot;
-
-		enum
-		{
-			unallocated = -1, // the slot is unallocated
-			unassigned = -2   // the slot is allocated but not assigned to a piece
-		};
-
-		// maps slots to piece indices, if a slot doesn't have a piece
-		// it can either be 'unassigned' or 'unallocated'
-		std::vector<int> m_slot_to_piece;
-
 		std::string m_save_path;
 
 		mutable mutex m_mutex;

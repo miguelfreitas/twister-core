@@ -689,21 +689,7 @@ namespace libtorrent
 		
 		bool seed = false;
 		
-		lazy_entry const* slots = rd.dict_find_list("slots");
-		if (slots)
-		{
-			if (int(slots->list_size()) == m_files.num_pieces())
-			{
-				seed = true;
-				for (int i = 0; i < slots->list_size(); ++i)
-				{
-					if (slots->list_int_value_at(i, -1) >= 0) continue;
-					seed = false;
-					break;
-				}
-			}
-		}
-		else if (lazy_entry const* pieces = rd.dict_find_string("pieces"))
+        if (lazy_entry const* pieces = rd.dict_find_string("pieces"))
 		{
 			if (int(pieces->string_length()) == m_files.num_pieces())
 			{
@@ -722,10 +708,6 @@ namespace libtorrent
 			error = errors::missing_pieces;
 			return false;
 		}
-
-		bool full_allocation_mode = false;
-		if (rd.dict_find_string_value("allocation") != "compact")
-			full_allocation_mode = true;
 
 		if (seed)
 		{
@@ -749,8 +731,7 @@ namespace libtorrent
 				}
 			}
 		}
-		int flags = (full_allocation_mode ? 0 : compact_mode)
-			| (settings().ignore_resume_timestamps ? ignore_timestamps : 0);
+        int flags = (settings().ignore_resume_timestamps ? ignore_timestamps : 0);
 
 		return match_filesizes(files(), m_save_path, file_sizes, flags, error);
 
@@ -856,35 +837,6 @@ namespace libtorrent
 		return ret;
 	}
 
-#ifdef TORRENT_DEBUG
-/*
-	void default_storage::shuffle()
-	{
-		int num_pieces = files().num_pieces();
-
-		std::vector<int> pieces(num_pieces);
-		for (std::vector<int>::iterator i = pieces.begin();
-			i != pieces.end(); ++i)
-		{
-			*i = static_cast<int>(i - pieces.begin());
-		}
-		std::srand((unsigned int)std::time(0));
-		std::vector<int> targets(pieces);
-		std::random_shuffle(pieces.begin(), pieces.end());
-		std::random_shuffle(targets.begin(), targets.end());
-
-		for (int i = 0; i < (std::max)(num_pieces / 50, 1); ++i)
-		{
-			const int slot_index = targets[i];
-			const int piece_index = pieces[i];
-			const int slot_size =static_cast<int>(m_files.piece_size(slot_index));
-			std::vector<char> buf(slot_size);
-			read(&buf[0], piece_index, 0, slot_size);
-			write(&buf[0], slot_index, 0, slot_size);
-		}
-	}
-*/
-#endif
 
 #define TORRENT_ALLOCATE_BLOCKS(bufs, num_blocks, piece_size) \
 	int num_blocks = (piece_size + disk_pool()->block_size() - 1) / disk_pool()->block_size(); \
@@ -907,71 +859,18 @@ namespace libtorrent
 
 	bool default_storage::move_slot(int src_slot, int dst_slot)
 	{
-		bool r = true;
-		int piece_size = m_files.piece_size(dst_slot);
-
-		TORRENT_ALLOCATE_BLOCKS(bufs, num_blocks, piece_size);
-
-		readv(bufs, src_slot, 0, num_blocks); if (error()) goto ret;
-		writev(bufs, dst_slot, 0, num_blocks); if (error()) goto ret;
-
-		r = false;
-ret:
-		TORRENT_FREE_BLOCKS(bufs, num_blocks)
-		return r;
+        return false;
 	}
 
 	bool default_storage::swap_slots(int slot1, int slot2)
 	{
-		bool r = true;
 
-		// the size of the target slot is the size of the piece
-		int piece1_size = m_files.piece_size(slot2);
-		int piece2_size = m_files.piece_size(slot1);
-
-		TORRENT_ALLOCATE_BLOCKS(bufs1, num_blocks1, piece1_size);
-		TORRENT_ALLOCATE_BLOCKS(bufs2, num_blocks2, piece2_size);
-
-		readv(bufs1, slot1, 0, num_blocks1); if (error()) goto ret;
-		readv(bufs2, slot2, 0, num_blocks2); if (error()) goto ret;
-		writev(bufs1, slot2, 0, num_blocks1); if (error()) goto ret;
-		writev(bufs2, slot1, 0, num_blocks2); if (error()) goto ret;
-
-		r = false;
-ret:
-		TORRENT_FREE_BLOCKS(bufs1, num_blocks1)
-		TORRENT_FREE_BLOCKS(bufs2, num_blocks2)
-		return r;
+        return false;
 	}
 
 	bool default_storage::swap_slots3(int slot1, int slot2, int slot3)
 	{
-		bool r = true;
-
-		// the size of the target slot is the size of the piece
-		int piece_size = m_files.piece_length();
-		int piece1_size = m_files.piece_size(slot2);
-		int piece2_size = m_files.piece_size(slot3);
-		int piece3_size = m_files.piece_size(slot1);
-
-		TORRENT_ALLOCATE_BLOCKS(bufs1, num_blocks1, piece_size);
-		TORRENT_ALLOCATE_BLOCKS(bufs2, num_blocks2, piece_size);
-
-		int tmp1 = 0;
-		int tmp2 = 0;
-		TORRENT_SET_SIZE(bufs1, piece1_size, tmp1);
-		readv(bufs1, slot1, 0, tmp1); if (error()) goto ret;
-		TORRENT_SET_SIZE(bufs2, piece2_size, tmp2);
-		readv(bufs2, slot2, 0, tmp2); if (error()) goto ret;
-		writev(bufs1, slot2, 0, tmp1); if (error()) goto ret;
-		TORRENT_SET_SIZE(bufs1, piece3_size, tmp1);
-		readv(bufs1, slot3, 0, tmp1); if (error()) goto ret;
-		writev(bufs2, slot3, 0, tmp2); if (error()) goto ret;
-		writev(bufs1, slot1, 0, tmp1); if (error()) goto ret;
-ret:
-		TORRENT_FREE_BLOCKS(bufs1, num_blocks1)
-		TORRENT_FREE_BLOCKS(bufs2, num_blocks2)
-		return r;
+        return false;
 	}
 
 	int default_storage::writev(file::iovec_t const* bufs, int slot, int offset
@@ -1711,7 +1610,6 @@ ret:
 		}
 
 		int slot = slot_for(piece);
-		TORRENT_ASSERT(slot != has_no_slot);
 		int read = hash_for_slot(slot, ph, m_files.piece_size(piece));
 		if (readback) *readback = read;
 		if (m_storage->error()) return sha1_hash(0);
@@ -1737,44 +1635,13 @@ ret:
 
 		m_storage->write_resume_data(rd);
 
-		if (m_storage_mode == internal_storage_mode_compact_deprecated)
-		{
-			entry::list_type& slots = rd["slots"].list();
-			slots.clear();
-			std::vector<int>::const_reverse_iterator last; 
-			for (last = m_slot_to_piece.rbegin();
-				last != m_slot_to_piece.rend(); ++last)
-			{
-				if (*last != unallocated) break;
-			}
-
-			for (std::vector<int>::const_iterator i =
-				m_slot_to_piece.begin();
-				i != last.base(); ++i)
-			{
-				slots.push_back((*i >= 0) ? *i : unassigned);
-			}
-		}
-
-		rd["allocation"] = m_storage_mode == storage_mode_sparse?"sparse"
+        rd["allocation"] = m_storage_mode == storage_mode_sparse?"sparse"
 			:m_storage_mode == storage_mode_allocate?"full":"compact";
 	}
 
 	void piece_manager::mark_failed(int piece_index)
 	{
-		mutex::scoped_lock lock(m_mutex);
-
-		INVARIANT_CHECK;
-
-		if (m_storage_mode != internal_storage_mode_compact_deprecated) return;
-
-		TORRENT_ASSERT(piece_index >= 0 && piece_index < (int)m_piece_to_slot.size());
-		int slot_index = m_piece_to_slot[piece_index];
-		TORRENT_ASSERT(slot_index >= 0);
-
-		m_slot_to_piece[slot_index] = unassigned;
-		m_piece_to_slot[piece_index] = has_no_slot;
-		m_free_slots.push_back(slot_index);
+        return;
 	}
 
 	void piece_manager::hint_read_impl(int piece_index, int offset, int size)
@@ -1928,7 +1795,7 @@ ret:
 
 		// no piece matched the data in the slot
 		if (matching_pieces.empty())
-			return unassigned;
+            return -1;
 
 		// ------------------------------------------
 		// CHECK IF THE PIECE IS IN ITS CORRECT PLACE
@@ -1942,7 +1809,7 @@ ret:
 			// the current slot is among the matching pieces, so
 			// we will assume that the piece is in the right place
 			const int piece_index = current_slot;
-
+/*
 			int other_slot = m_piece_to_slot[piece_index];
 			if (other_slot >= 0)
 			{
@@ -1957,7 +1824,7 @@ ret:
 				{
 					if (m_piece_to_slot[*i] >= 0 || *i == piece_index) continue;
 					other_piece = *i;
-					break;
+                    break;
 				}
 				if (other_piece >= 0)
 				{
@@ -1982,10 +1849,10 @@ ret:
 			}
 			
 			TORRENT_ASSERT(m_piece_to_slot[piece_index] == has_no_slot);
-
+*/
 			return piece_index;
 		}
-
+/*
 		// find a matching piece that hasn't
 		// already been assigned
 		int free_piece = unassigned;
@@ -2007,7 +1874,9 @@ ret:
 			TORRENT_ASSERT(free_piece == unassigned);
 			return unassigned;
 		}
-	}
+        */
+        return -1;
+    }
 
 	int piece_manager::check_no_fastresume(error_code& error)
 	{
@@ -2021,33 +1890,10 @@ ret:
 			if (has_files)
 			{
 				m_state = state_full_check;
-				m_piece_to_slot.clear();
-				m_piece_to_slot.resize(m_files.num_pieces(), has_no_slot);
-				m_slot_to_piece.clear();
-				m_slot_to_piece.resize(m_files.num_pieces(), unallocated);
-				if (m_storage_mode == internal_storage_mode_compact_deprecated)
-				{
-					m_unallocated_slots.clear();
-					m_free_slots.clear();
-				}
-				TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
 				return need_full_check;
 			}
 		}
 
-		if (m_storage_mode == internal_storage_mode_compact_deprecated)
-		{
-			// in compact mode without checking, we need to
-			// populate the unallocated list
-			TORRENT_ASSERT(m_unallocated_slots.empty());
-			for (int i = 0, end(m_files.num_pieces()); i < end; ++i)
-				m_unallocated_slots.push_back(i);
-			m_piece_to_slot.clear();
-			m_piece_to_slot.resize(m_files.num_pieces(), has_no_slot);
-			m_slot_to_piece.clear();
-			m_slot_to_piece.resize(m_files.num_pieces(), unallocated);
-		}
-	
 		return check_init_storage(error);
 	}
 	
@@ -2063,16 +1909,6 @@ ret:
 		m_state = state_finished;
 		m_scratch_buffer.reset();
 		m_scratch_buffer2.reset();
-		if (m_storage_mode != internal_storage_mode_compact_deprecated)
-		{
-			// if no piece is out of place
-			// since we're in full allocation mode, we can
-			// forget the piece allocation tables
-			std::vector<int>().swap(m_piece_to_slot);
-			std::vector<int>().swap(m_slot_to_piece);
-			std::vector<int>().swap(m_free_slots);
-			std::vector<int>().swap(m_unallocated_slots);
-		}
 		return no_error;
 	}
 
@@ -2109,156 +1945,8 @@ ret:
 			return check_no_fastresume(error);
 		}
 
-		storage_mode_t storage_mode = internal_storage_mode_compact_deprecated;
-		if (rd.dict_find_string_value("allocation") != "compact")
-			storage_mode = storage_mode_sparse;
-
 		if (!m_storage->verify_resume_data(rd, error))
 			return check_no_fastresume(error);
-
-		// assume no piece is out of place (i.e. in a slot
-		// other than the one it should be in)
-		bool out_of_place = false;
-
-		// if we don't have a piece map, we need the slots
-		// if we're in compact mode, we also need the slots map
-		if (storage_mode == internal_storage_mode_compact_deprecated || rd.dict_find("pieces") == 0)
-		{
-			// read slots map
-			lazy_entry const* slots = rd.dict_find_list("slots");
-			if (slots == 0)
-			{
-				error = errors::missing_slots;
-				return check_no_fastresume(error);
-			}
-
-			if ((int)slots->list_size() > m_files.num_pieces())
-			{
-				error = errors::too_many_slots;
-				return check_no_fastresume(error);
-			}
-
-			if (m_storage_mode == internal_storage_mode_compact_deprecated)
-			{
-				int num_pieces = int(m_files.num_pieces());
-				m_slot_to_piece.resize(num_pieces, unallocated);
-				m_piece_to_slot.resize(num_pieces, has_no_slot);
-				for (int i = 0; i < slots->list_size(); ++i)
-				{
-					lazy_entry const* e = slots->list_at(i);
-					if (e->type() != lazy_entry::int_t)
-					{
-						error = errors::invalid_slot_list;
-						return check_no_fastresume(error);
-					}
-
-					int index = int(e->int_value());
-					if (index >= num_pieces || index < -2)
-					{
-						error = errors::invalid_piece_index;
-						return check_no_fastresume(error);
-					}
-					if (index >= 0)
-					{
-						m_slot_to_piece[i] = index;
-						m_piece_to_slot[index] = i;
-						if (i != index) out_of_place = true;
-					}
-					else if (index == unassigned)
-					{
-						if (m_storage_mode == internal_storage_mode_compact_deprecated)
-							m_free_slots.push_back(i);
-					}
-					else
-					{
-						TORRENT_ASSERT(index == unallocated);
-						if (m_storage_mode == internal_storage_mode_compact_deprecated)
-							m_unallocated_slots.push_back(i);
-					}
-				}
-			}
-			else
-			{
-				for (int i = 0; i < slots->list_size(); ++i)
-				{
-					lazy_entry const* e = slots->list_at(i);
-					if (e->type() != lazy_entry::int_t)
-					{
-						error = errors::invalid_slot_list;
-						return check_no_fastresume(error);
-					}
-
-					int index = int(e->int_value());
-					if (index != i && index >= 0)
-					{
-						error = errors::invalid_piece_index;
-						return check_no_fastresume(error);
-					}
-				}
-			}
-
-			// This will corrupt the storage
-			// use while debugging to find
-			// states that cannot be scanned
-			// by check_pieces.
-			//		m_storage->shuffle();
-
-			if (m_storage_mode == internal_storage_mode_compact_deprecated)
-			{
-				if (m_unallocated_slots.empty()) switch_to_full_mode();
-			}
-			else
-			{
-				TORRENT_ASSERT(m_free_slots.empty());
-				TORRENT_ASSERT(m_unallocated_slots.empty());
-
-				if (out_of_place)
-				{
-					// in this case we're in full allocation mode, but
-					// we're resuming a compact allocated storage
-					m_state = state_expand_pieces;
-					m_current_slot = 0;
-					error = errors::pieces_need_reorder;
-					TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
-					return need_full_check;
-				}
-			}
-
-		}
-		else if (m_storage_mode == internal_storage_mode_compact_deprecated)
-		{
-			// read piece map
-			lazy_entry const* pieces = rd.dict_find("pieces");
-			if (pieces == 0 || pieces->type() != lazy_entry::string_t)
-			{
-				error = errors::missing_pieces;
-				return check_no_fastresume(error);
-			}
-
-			if ((int)pieces->string_length() != m_files.num_pieces())
-			{
-				error = errors::too_many_slots;
-				return check_no_fastresume(error);
-			}
-
-			int num_pieces = int(m_files.num_pieces());
-			m_slot_to_piece.resize(num_pieces, unallocated);
-			m_piece_to_slot.resize(num_pieces, has_no_slot);
-			char const* have_pieces = pieces->string_ptr();
-			for (int i = 0; i < num_pieces; ++i)
-			{
-				if (have_pieces[i] & 1)
-				{
-					m_slot_to_piece[i] = i;
-					m_piece_to_slot[i] = i;
-				}
-				else
-				{
-					m_free_slots.push_back(i);
-				}
-			}
-			if (m_unallocated_slots.empty()) switch_to_full_mode();
-		}
 
 		return check_init_storage(error);
 	}
@@ -2290,7 +1978,7 @@ ret:
 	int piece_manager::check_files(int& current_slot, int& have_piece, error_code& error)
 	{
 		if (m_state == state_none) return check_no_fastresume(error);
-
+/*
 		if (m_piece_to_slot.empty())
 		{
 			m_piece_to_slot.clear();
@@ -2301,105 +1989,9 @@ ret:
 			m_slot_to_piece.clear();
 			m_slot_to_piece.resize(m_files.num_pieces(), unallocated);
 		}
-
+*/
 		current_slot = m_current_slot;
 		have_piece = -1;
-		if (m_state == state_expand_pieces)
-		{
-			INVARIANT_CHECK;
-
-			if (m_scratch_piece >= 0)
-			{
-				int piece = m_scratch_piece;
-				int other_piece = m_slot_to_piece[piece];
-				m_scratch_piece = -1;
-
-				if (other_piece >= 0)
-				{
-					if (!m_scratch_buffer2.get())
-						m_scratch_buffer2.reset(page_aligned_allocator::malloc(m_files.piece_length()));
-
-					int piece_size = m_files.piece_size(other_piece);
-					file::iovec_t b = {m_scratch_buffer2.get(), size_t(piece_size) };
-					if (m_storage->readv(&b, piece, 0, 1) != piece_size)
-					{
-						error = m_storage->error();
-						TORRENT_ASSERT(error);
-						return fatal_disk_error;
-					}
-					m_scratch_piece = other_piece;
-					m_piece_to_slot[other_piece] = unassigned;
-				}
-				
-				// the slot where this piece belongs is
-				// free. Just move the piece there.
-				int piece_size = m_files.piece_size(piece);
-				file::iovec_t b = {m_scratch_buffer.get(), size_t(piece_size) };
-				if (m_storage->writev(&b, piece, 0, 1) != piece_size)
-				{
-					error = m_storage->error();
-					TORRENT_ASSERT(error);
-					return fatal_disk_error;
-				}
-				m_piece_to_slot[piece] = piece;
-				m_slot_to_piece[piece] = piece;
-
-				if (other_piece >= 0) m_scratch_buffer.swap(m_scratch_buffer2);
-		
-				TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
-				return need_full_check;
-			}
-
-			while (m_current_slot < m_files.num_pieces()
-				&& (m_slot_to_piece[m_current_slot] == m_current_slot
-				|| m_slot_to_piece[m_current_slot] < 0))
-			{
-				++m_current_slot;
-			}
-
-			if (m_current_slot == m_files.num_pieces())
-			{
-				return check_init_storage(error);
-			}
-
-			TORRENT_ASSERT(m_current_slot < m_files.num_pieces());
-
-			int piece = m_slot_to_piece[m_current_slot];
-			TORRENT_ASSERT(piece >= 0);
-			int other_piece = m_slot_to_piece[piece];
-			if (other_piece >= 0)
-			{
-				// there is another piece in the slot
-				// where this one goes. Store it in the scratch
-				// buffer until next iteration.
-				if (!m_scratch_buffer.get())
-					m_scratch_buffer.reset(page_aligned_allocator::malloc(m_files.piece_length()));
-			
-				int piece_size = m_files.piece_size(other_piece);
-				file::iovec_t b = {m_scratch_buffer.get(), size_t(piece_size) };
-				if (m_storage->readv(&b, piece, 0, 1) != piece_size)
-				{
-					error = m_storage->error();
-					TORRENT_ASSERT(error);
-					return fatal_disk_error;
-				}
-				m_scratch_piece = other_piece;
-				m_piece_to_slot[other_piece] = unassigned;
-			}
-
-			// the slot where this piece belongs is
-			// free. Just move the piece there.
-			m_last_piece = piece;
-			m_storage->move_slot(m_current_slot, piece);
-			if (m_storage->error()) return -1;
-
-			m_piece_to_slot[piece] = piece;
-			m_slot_to_piece[m_current_slot] = unassigned;
-			m_slot_to_piece[piece] = piece;
-		
-			TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
-			return need_full_check;
-		}
 
 		TORRENT_ASSERT(m_state == state_full_check);
 		if (m_state == state_finished) return 0;
@@ -2422,15 +2014,6 @@ ret:
 			// piece overlapping with a sparse region. We should skip 'skip' number
 			// of pieces
 
-			if (m_storage_mode == internal_storage_mode_compact_deprecated)
-			{
-				for (int i = m_current_slot; i < m_current_slot + skip - 1; ++i)
-				{
-					TORRENT_ASSERT(m_slot_to_piece[i] == unallocated);
-					m_unallocated_slots.push_back(i);
-				}
-			}
-
 			// current slot will increase by one below
 			m_current_slot += skip - 1;
 			TORRENT_ASSERT(m_current_slot <= m_files.num_pieces());
@@ -2446,37 +2029,9 @@ ret:
 			// clear the memory we've been using
 			std::multimap<sha1_hash, int>().swap(m_hash_to_piece);
 
-			if (m_storage_mode != internal_storage_mode_compact_deprecated)
-			{
-				if (!m_out_of_place)
-				{
-					// if no piece is out of place
-					// since we're in full allocation mode, we can
-					// forget the piece allocation tables
-
-					std::vector<int>().swap(m_piece_to_slot);
-					std::vector<int>().swap(m_slot_to_piece);
-					return check_init_storage(error);
-				}
-				else
-				{
-					// in this case we're in full allocation mode, but
-					// we're resuming a compact allocated storage
-					m_state = state_expand_pieces;
-					m_current_slot = 0;
-					current_slot = m_current_slot;
-					TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
-					return need_full_check;
-				}
-			}
-			else if (m_unallocated_slots.empty())
-			{
-				switch_to_full_mode();
-			}
 			return check_init_storage(error);
 		}
 
-		TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
 		return need_full_check;
 	}
 
@@ -2506,8 +2061,6 @@ ret:
 		//    DO THE FULL CHECK
 		// ------------------------
 
-		TORRENT_ASSERT(int(m_piece_to_slot.size()) == m_files.num_pieces());
-		TORRENT_ASSERT(int(m_slot_to_piece.size()) == m_files.num_pieces());
 		TORRENT_ASSERT(have_piece == -1);
 
 		// initialization for the full check
@@ -2557,221 +2110,7 @@ ret:
 		sha1_hash large_hash = ph.h.final();
 		int piece_index = identify_data(large_hash, small_hash, m_current_slot);
 
-		if (piece_index >= 0) have_piece = piece_index;
-
-		if (piece_index != m_current_slot
-			&& piece_index >= 0)
-			m_out_of_place = true;
-
-		TORRENT_ASSERT(piece_index == unassigned || piece_index >= 0);
-
-		const bool this_should_move = piece_index >= 0 && m_slot_to_piece[piece_index] != unallocated;
-		const bool other_should_move = m_piece_to_slot[m_current_slot] != has_no_slot;
-
-		// check if this piece should be swapped with any other slot
-		// this section will ensure that the storage is correctly sorted
-		// libtorrent will never leave the storage in a state that
-		// requires this sorting, but other clients may.
-
-		// example of worst case:
-		//                          | m_current_slot = 5
-		//                          V
-		//  +---+- - - +---+- - - +---+- -
-		//  | x |      | 5 |      | 3 |     <- piece data in slots
-		//  +---+- - - +---+- - - +---+- -
-		//    3          y          5       <- slot index
-
-		// in this example, the data in the m_current_slot (5)
-		// is piece 3. It has to be moved into slot 3. The data
-		// in slot y (piece 5) should be moved into the m_current_slot.
-		// and the data in slot 3 (piece x) should be moved to slot y.
-
-		// there are three possible cases.
-		// 1. There's another piece that should be placed into this slot
-		// 2. This piece should be placed into another slot.
-		// 3. There's another piece that should be placed into this slot
-		//    and this piece should be placed into another slot
-
-		// swap piece_index with this slot
-
-		// case 1
-		if (this_should_move && !other_should_move)
-		{
-			TORRENT_ASSERT(piece_index != m_current_slot);
-
-			const int other_slot = piece_index;
-			TORRENT_ASSERT(other_slot >= 0);
-			int other_piece = m_slot_to_piece[other_slot];
-
-			m_slot_to_piece[other_slot] = piece_index;
-			m_slot_to_piece[m_current_slot] = other_piece;
-			m_piece_to_slot[piece_index] = piece_index;
-			if (other_piece >= 0) m_piece_to_slot[other_piece] = m_current_slot;
-
-			if (other_piece == unassigned)
-			{
-				std::vector<int>::iterator i =
-					std::find(m_free_slots.begin(), m_free_slots.end(), other_slot);
-				TORRENT_ASSERT(i != m_free_slots.end());
-				if (m_storage_mode == internal_storage_mode_compact_deprecated)
-				{
-					m_free_slots.erase(i);
-					m_free_slots.push_back(m_current_slot);
-				}
-			}
-
-			bool ret = false;
-			m_last_piece = piece_index;
-			if (other_piece >= 0)
-				ret |= m_storage->swap_slots(other_slot, m_current_slot);
-			else
-				ret |= m_storage->move_slot(m_current_slot, other_slot);
-
-			if (ret) return skip_file();
-
-			TORRENT_ASSERT(m_slot_to_piece[m_current_slot] == unassigned
-				|| m_piece_to_slot[m_slot_to_piece[m_current_slot]] == m_current_slot);
-		}
-		// case 2
-		else if (!this_should_move && other_should_move)
-		{
-			TORRENT_ASSERT(piece_index != m_current_slot);
-
-			const int other_piece = m_current_slot;
-			const int other_slot = m_piece_to_slot[other_piece];
-			TORRENT_ASSERT(other_slot >= 0);
-
-			m_slot_to_piece[m_current_slot] = other_piece;
-			m_slot_to_piece[other_slot] = piece_index;
-			m_piece_to_slot[other_piece] = m_current_slot;
-
-			if (piece_index == unassigned
-				&& m_storage_mode == internal_storage_mode_compact_deprecated)
-				m_free_slots.push_back(other_slot);
-
-			bool ret = false;
-			if (piece_index >= 0)
-			{
-				m_piece_to_slot[piece_index] = other_slot;
-				ret |= m_storage->swap_slots(other_slot, m_current_slot);
-			}
-			else
-			{
-				ret |= m_storage->move_slot(other_slot, m_current_slot);
-
-			}
-			m_last_piece = other_piece;
-			if (ret) return skip_file();
-
-			TORRENT_ASSERT(m_slot_to_piece[m_current_slot] == unassigned
-				|| m_piece_to_slot[m_slot_to_piece[m_current_slot]] == m_current_slot);
-		}
-		else if (this_should_move && other_should_move)
-		{
-			TORRENT_ASSERT(piece_index != m_current_slot);
-			TORRENT_ASSERT(piece_index >= 0);
-
-			const int piece1 = m_slot_to_piece[piece_index];
-			const int piece2 = m_current_slot;
-			const int slot1 = piece_index;
-			const int slot2 = m_piece_to_slot[piece2];
-
-			TORRENT_ASSERT(slot1 >= 0);
-			TORRENT_ASSERT(slot2 >= 0);
-			TORRENT_ASSERT(piece2 >= 0);
-
-			if (slot1 == slot2)
-			{
-				// this means there are only two pieces involved in the swap
-				TORRENT_ASSERT(piece1 >= 0);
-
-				// movement diagram:
-				// +-------------------------------+
-				// |                               |
-				// +--> slot1 --> m_current_slot --+
-
-				m_slot_to_piece[slot1] = piece_index;
-				m_slot_to_piece[m_current_slot] = piece1;
-
-				m_piece_to_slot[piece_index] = slot1;
-				m_piece_to_slot[piece1] = m_current_slot;
-
-				TORRENT_ASSERT(piece1 == m_current_slot);
-				TORRENT_ASSERT(piece_index == slot1);
-
-				m_last_piece = piece_index;
-				m_storage->swap_slots(m_current_slot, slot1);
-
-				TORRENT_ASSERT(m_slot_to_piece[m_current_slot] == unassigned
-					|| m_piece_to_slot[m_slot_to_piece[m_current_slot]] == m_current_slot);
-			}
-			else
-			{
-				TORRENT_ASSERT(slot1 != slot2);
-				TORRENT_ASSERT(piece1 != piece2);
-
-				// movement diagram:
-				// +-----------------------------------------+
-				// |                                         |
-				// +--> slot1 --> slot2 --> m_current_slot --+
-
-				m_slot_to_piece[slot1] = piece_index;
-				m_slot_to_piece[slot2] = piece1;
-				m_slot_to_piece[m_current_slot] = piece2;
-
-				m_piece_to_slot[piece_index] = slot1;
-				m_piece_to_slot[m_current_slot] = piece2;
-
-				if (piece1 == unassigned)
-				{
-					std::vector<int>::iterator i =
-						std::find(m_free_slots.begin(), m_free_slots.end(), slot1);
-					TORRENT_ASSERT(i != m_free_slots.end());
-					if (m_storage_mode == internal_storage_mode_compact_deprecated)
-					{
-						m_free_slots.erase(i);
-						m_free_slots.push_back(slot2);
-					}
-				}
-
-				bool ret = false;
-				if (piece1 >= 0)
-				{
-					m_piece_to_slot[piece1] = slot2;
-					ret |= m_storage->swap_slots3(m_current_slot, slot1, slot2);
-				}
-				else
-				{
-					ret |= m_storage->move_slot(m_current_slot, slot1);
-					ret |= m_storage->move_slot(slot2, m_current_slot);
-				}
-
-				m_last_piece = piece_index;
-				if (ret) return skip_file();
-
-				TORRENT_ASSERT(m_slot_to_piece[m_current_slot] == unassigned
-					|| m_piece_to_slot[m_slot_to_piece[m_current_slot]] == m_current_slot);
-			}
-		}
-		else
-		{
-			TORRENT_ASSERT(m_piece_to_slot[m_current_slot] == has_no_slot || piece_index != m_current_slot);
-			TORRENT_ASSERT(m_slot_to_piece[m_current_slot] == unallocated);
-			TORRENT_ASSERT(piece_index == unassigned || m_piece_to_slot[piece_index] == has_no_slot);
-
-			// the slot was identified as piece 'piece_index'
-			if (piece_index != unassigned)
-				m_piece_to_slot[piece_index] = m_current_slot;
-			else if (m_storage_mode == internal_storage_mode_compact_deprecated)
-				m_free_slots.push_back(m_current_slot);
-
-			m_slot_to_piece[m_current_slot] = piece_index;
-
-			TORRENT_ASSERT(m_slot_to_piece[m_current_slot] == unassigned
-				|| m_piece_to_slot[m_slot_to_piece[m_current_slot]] == m_current_slot);
-		}
-
-		if (piece_index == unassigned)
+        if (piece_index < 0)
 		{
 			// the data did not match any piece. Maybe we're reading
 			// from a sparse region, see if we are and skip
@@ -2786,306 +2125,35 @@ ret:
 
 	void piece_manager::switch_to_full_mode()
 	{
-		TORRENT_ASSERT(m_storage_mode == internal_storage_mode_compact_deprecated);	
-		TORRENT_ASSERT(m_unallocated_slots.empty());	
-		// we have allocated all slots, switch to
-		// full allocation mode in order to free
-		// some unnecessary memory.
 		m_storage_mode = storage_mode_sparse;
-		std::vector<int>().swap(m_unallocated_slots);
-		std::vector<int>().swap(m_free_slots);
-		std::vector<int>().swap(m_piece_to_slot);
-		std::vector<int>().swap(m_slot_to_piece);
 	}
 
 	int piece_manager::allocate_slot_for_piece(int piece_index)
 	{
-		mutex::scoped_lock lock(m_mutex);
-
-		if (m_storage_mode != internal_storage_mode_compact_deprecated) return piece_index;
-
-#ifdef TORRENT_EXPENSIVE_INVARIANT_CHECKS
-		INVARIANT_CHECK;
-#endif
-
-		TORRENT_ASSERT(piece_index >= 0);
-		TORRENT_ASSERT(piece_index < (int)m_piece_to_slot.size());
-		TORRENT_ASSERT(m_piece_to_slot.size() == m_slot_to_piece.size());
-
-		int slot_index = m_piece_to_slot[piece_index];
-
-		if (slot_index != has_no_slot)
-		{
-			TORRENT_ASSERT(slot_index >= 0);
-			TORRENT_ASSERT(slot_index < (int)m_slot_to_piece.size());
-			return slot_index;
-		}
-
-		if (m_free_slots.empty())
-		{
-			allocate_slots_impl(1, lock);
-			TORRENT_ASSERT(!m_free_slots.empty());
-		}
-
-		std::vector<int>::iterator iter(
-			std::find(
-				m_free_slots.begin()
-				, m_free_slots.end()
-				, piece_index));
-
-		if (iter == m_free_slots.end())
-		{
-			TORRENT_ASSERT(m_slot_to_piece[piece_index] != unassigned);
-			TORRENT_ASSERT(!m_free_slots.empty());
-			iter = m_free_slots.end() - 1;
-
-			// special case to make sure we don't use the last slot
-			// when we shouldn't, since it's smaller than ordinary slots
-			if (*iter == m_files.num_pieces() - 1 && piece_index != *iter)
-			{
-				if (m_free_slots.size() == 1)
-					allocate_slots_impl(1, lock);
-				TORRENT_ASSERT(m_free_slots.size() > 1);
-				// assumes that all allocated slots
-				// are put at the end of the free_slots vector
-				iter = m_free_slots.end() - 1;
-			}
-		}
-
-		slot_index = *iter;
-		m_free_slots.erase(iter);
-
-		TORRENT_ASSERT(m_slot_to_piece[slot_index] == unassigned);
-
-		m_slot_to_piece[slot_index] = piece_index;
-		m_piece_to_slot[piece_index] = slot_index;
-
-		// there is another piece already assigned to
-		// the slot we are interested in, swap positions
-		if (slot_index != piece_index
-			&& m_slot_to_piece[piece_index] >= 0)
-		{
-			int piece_at_our_slot = m_slot_to_piece[piece_index];
-			TORRENT_ASSERT(m_piece_to_slot[piece_at_our_slot] == piece_index);
-
-			std::swap(
-				m_slot_to_piece[piece_index]
-				, m_slot_to_piece[slot_index]);
-
-			std::swap(
-				m_piece_to_slot[piece_index]
-				, m_piece_to_slot[piece_at_our_slot]);
-
-			m_last_piece = piece_index;
-			m_storage->move_slot(piece_index, slot_index);
-
-			TORRENT_ASSERT(m_slot_to_piece[piece_index] == piece_index);
-			TORRENT_ASSERT(m_piece_to_slot[piece_index] == piece_index);
-
-			slot_index = piece_index;
-
-#if defined TORRENT_DEBUG && defined TORRENT_STORAGE_DEBUG
-			debug_log();
-#endif
-		}
-		TORRENT_ASSERT(slot_index >= 0);
-		TORRENT_ASSERT(slot_index < (int)m_slot_to_piece.size());
-
-		if (m_free_slots.empty() && m_unallocated_slots.empty())
-			switch_to_full_mode();
-		
-		return slot_index;
+        return piece_index;
 	}
 
 	bool piece_manager::allocate_slots_impl(int num_slots, mutex::scoped_lock& l
 		, bool abort_on_disk)
 	{
-		TORRENT_ASSERT(num_slots > 0);
-
-#ifdef TORRENT_EXPENSIVE_INVARIANT_CHECKS
-		INVARIANT_CHECK;
-#endif
-
-		TORRENT_ASSERT(!m_unallocated_slots.empty());
-		TORRENT_ASSERT(m_storage_mode == internal_storage_mode_compact_deprecated);
-
-		bool written = false;
-
-		for (int i = 0; i < num_slots && !m_unallocated_slots.empty(); ++i)
-		{
-			int pos = m_unallocated_slots.front();
-			TORRENT_ASSERT(m_slot_to_piece[pos] == unallocated);
-			TORRENT_ASSERT(m_piece_to_slot[pos] != pos);
-
-			int new_free_slot = pos;
-			if (m_piece_to_slot[pos] != has_no_slot)
-			{
-				m_last_piece = pos;
-				new_free_slot = m_piece_to_slot[pos];
-				m_storage->move_slot(new_free_slot, pos);
-				m_slot_to_piece[pos] = pos;
-				m_piece_to_slot[pos] = pos;
-				written = true;
-			}
-			m_unallocated_slots.erase(m_unallocated_slots.begin());
-			m_slot_to_piece[new_free_slot] = unassigned;
-			m_free_slots.push_back(new_free_slot);
-			if (abort_on_disk && written) break;
-		}
-
-		TORRENT_ASSERT(m_free_slots.size() > 0);
-		return written;
+        TORRENT_ASSERT(false);
+        return 0;
 	}
 
 	int piece_manager::slot_for(int piece) const
 	{
-		if (m_storage_mode != internal_storage_mode_compact_deprecated) return piece;
-		TORRENT_ASSERT(piece < int(m_piece_to_slot.size()));
-		TORRENT_ASSERT(piece >= 0);
-		return m_piece_to_slot[piece];
+        return piece;
 	}
 
 	int piece_manager::piece_for(int slot) const
 	{
-		if (m_storage_mode != internal_storage_mode_compact_deprecated) return slot;
-		TORRENT_ASSERT(slot < int(m_slot_to_piece.size()));
-		TORRENT_ASSERT(slot >= 0);
-		return m_slot_to_piece[slot];
+        return slot;
 	}
 		
 #if defined TORRENT_DEBUG && !defined TORRENT_DISABLE_INVARIANT_CHECKS
 	void piece_manager::check_invariant() const
 	{
 		TORRENT_ASSERT(m_current_slot <= m_files.num_pieces());
-		
-		if (m_unallocated_slots.empty()
-			&& m_free_slots.empty()
-			&& m_state == state_finished)
-		{
-			TORRENT_ASSERT(m_storage_mode != internal_storage_mode_compact_deprecated
-				|| m_files.num_pieces() == 0);
-		}
-		
-		if (m_storage_mode != internal_storage_mode_compact_deprecated)
-		{
-			TORRENT_ASSERT(m_unallocated_slots.empty());
-			TORRENT_ASSERT(m_free_slots.empty());
-		}
-		
-		if (m_storage_mode != internal_storage_mode_compact_deprecated
-			&& m_state != state_expand_pieces
-			&& m_state != state_full_check)
-		{
-			TORRENT_ASSERT(m_piece_to_slot.empty());
-			TORRENT_ASSERT(m_slot_to_piece.empty());
-		}
-		else
-		{
-			if (m_piece_to_slot.empty()) return;
-
-			TORRENT_ASSERT((int)m_piece_to_slot.size() == m_files.num_pieces());
-			TORRENT_ASSERT((int)m_slot_to_piece.size() == m_files.num_pieces());
-
-			for (std::vector<int>::const_iterator i = m_free_slots.begin();
-					i != m_free_slots.end(); ++i)
-			{
-				TORRENT_ASSERT(*i < (int)m_slot_to_piece.size());
-				TORRENT_ASSERT(*i >= 0);
-				TORRENT_ASSERT(m_slot_to_piece[*i] == unassigned);
-				TORRENT_ASSERT(std::find(i+1, m_free_slots.end(), *i)
-						== m_free_slots.end());
-			}
-
-			for (std::vector<int>::const_iterator i = m_unallocated_slots.begin();
-					i != m_unallocated_slots.end(); ++i)
-			{
-				TORRENT_ASSERT(*i < (int)m_slot_to_piece.size());
-				TORRENT_ASSERT(*i >= 0);
-				TORRENT_ASSERT(m_slot_to_piece[*i] == unallocated);
-				TORRENT_ASSERT(std::find(i+1, m_unallocated_slots.end(), *i)
-						== m_unallocated_slots.end());
-			}
-
-			for (int i = 0; i < m_files.num_pieces(); ++i)
-			{
-				// Check domain of piece_to_slot's elements
-				if (m_piece_to_slot[i] != has_no_slot)
-				{
-					TORRENT_ASSERT(m_piece_to_slot[i] >= 0);
-					TORRENT_ASSERT(m_piece_to_slot[i] < (int)m_slot_to_piece.size());
-				}
-
-				// Check domain of slot_to_piece's elements
-				if (m_slot_to_piece[i] != unallocated
-						&& m_slot_to_piece[i] != unassigned)
-				{
-					TORRENT_ASSERT(m_slot_to_piece[i] >= 0);
-					TORRENT_ASSERT(m_slot_to_piece[i] < (int)m_piece_to_slot.size());
-				}
-
-				// do more detailed checks on piece_to_slot
-				if (m_piece_to_slot[i] >= 0)
-				{
-					TORRENT_ASSERT(m_slot_to_piece[m_piece_to_slot[i]] == i);
-					if (m_piece_to_slot[i] != i)
-					{
-						TORRENT_ASSERT(m_slot_to_piece[i] == unallocated);
-					}
-				}
-				else
-				{
-					TORRENT_ASSERT(m_piece_to_slot[i] == has_no_slot);
-				}
-
-				// do more detailed checks on slot_to_piece
-
-				if (m_slot_to_piece[i] >= 0)
-				{
-					TORRENT_ASSERT(m_slot_to_piece[i] < (int)m_piece_to_slot.size());
-					TORRENT_ASSERT(m_piece_to_slot[m_slot_to_piece[i]] == i);
-#ifdef TORRENT_STORAGE_DEBUG
-					TORRENT_ASSERT(
-							std::find(
-								m_unallocated_slots.begin()
-								, m_unallocated_slots.end()
-								, i) == m_unallocated_slots.end()
-							);
-					TORRENT_ASSERT(
-							std::find(
-								m_free_slots.begin()
-								, m_free_slots.end()
-								, i) == m_free_slots.end()
-							);
-#endif
-				}
-				else if (m_slot_to_piece[i] == unallocated)
-				{
-#ifdef TORRENT_STORAGE_DEBUG
-					TORRENT_ASSERT(m_unallocated_slots.empty()
-							|| (std::find(
-									m_unallocated_slots.begin()
-									, m_unallocated_slots.end()
-									, i) != m_unallocated_slots.end())
-							);
-#endif
-				}
-				else if (m_slot_to_piece[i] == unassigned)
-				{
-#ifdef TORRENT_STORAGE_DEBUG
-					TORRENT_ASSERT(
-							std::find(
-								m_free_slots.begin()
-								, m_free_slots.end()
-								, i) != m_free_slots.end()
-							);
-#endif
-				}
-				else
-				{
-					TORRENT_ASSERT(false && "m_slot_to_piece[i] is invalid");
-				}
-			}
-		}
 	}
 
 #endif
