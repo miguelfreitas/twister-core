@@ -47,6 +47,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/time.hpp"
 
+#include "../../src/twister.h"
+
 #if TORRENT_USE_MLOCK && !defined TORRENT_WINDOWS
 #include <sys/mman.h>
 #endif
@@ -821,7 +823,7 @@ namespace libtorrent
 				return -1;
 			}
 
-			if (ret != buffer_size)
+            if (ret < 0)
 			{
 				// this means the file wasn't big enough for this read
 				p.storage->get_storage_impl()->set_error(""
@@ -829,7 +831,8 @@ namespace libtorrent
 				free_piece(p, l);
 				return -1;
 			}
-		
+            p.piece_size = ret;
+
 			int offset = 0;
 			for (int i = 0; i < iov_counter; ++i)
 			{
@@ -852,7 +855,7 @@ namespace libtorrent
 				return -1;
 			}
 
-			if (ret != buffer_size)
+            if (ret < 0)
 			{
 				// this means the file wasn't big enough for this read
 				p.storage->get_storage_impl()->set_error(""
@@ -860,9 +863,10 @@ namespace libtorrent
 				free_piece(p, l);
 				return -1;
 			}
+            p.piece_size = ret;
 		}
 
-		TORRENT_ASSERT(ret == buffer_size);
+        TORRENT_ASSERT(ret <= buffer_size);
 		return ret;
 	}
 
@@ -1049,7 +1053,7 @@ namespace libtorrent
 	}
 
 	// cache the entire piece and hash it
-	int disk_io_thread::read_piece_from_cache_and_hash(disk_io_job const& j, sha1_hash& h)
+    int disk_io_thread::read_piece_from_cache_and_hash(disk_io_job & j, bool *hash_ok)
 	{
 		TORRENT_ASSERT(j.buffer);
 
@@ -1069,21 +1073,33 @@ namespace libtorrent
 		bool hit;
 		int ret = cache_piece(j, p, hit, ignore_cache_size, l);
 		if (ret < 0) return ret;
+        piece_size = p->piece_size;
 
 		if (!m_settings.disable_hash_checks)
-		{
-			hasher ctx;
+        {
+            *hash_ok = false;
 
-			for (int i = 0; i < blocks_in_piece; ++i)
-			{
-				TORRENT_ASSERT(p->blocks[i].buf);
-				ctx.update((char const*)p->blocks[i].buf, (std::min)(piece_size, m_block_size));
-				piece_size -= m_block_size;
-			}
-			h = ctx.final();
+            lazy_entry v;
+            int pos;
+            error_code ec;
+            if (lazy_bdecode((char const*)p->blocks[0].buf, (char const*)p->blocks[0].buf
+                + piece_size, v, ec, &pos) == 0) {
+
+                if( v.type() == lazy_entry::dict_t ) {
+                    lazy_entry const* post = v.dict_find("userpost");
+                    std::string sig = v.dict_find_string_value("sig_userpost");
+                    std::string username = j.storage->info()->name();
+                    if( post && sig.size() ) {
+                        std::pair<char const*, int> postbuf = post->data_section();
+                        *hash_ok = verifySignature(
+                                    std::string(postbuf.first,postbuf.second),
+                                    username, sig);
+                    }
+                }
+            }
 		}
 
-		ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);
+        ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);
 		TORRENT_ASSERT(ret > 0);
 		if (ret < 0) return ret;
 		cache_piece_index_t& idx = m_read_pieces.get<0>();
@@ -1146,7 +1162,7 @@ namespace libtorrent
 	}
 
 	int disk_io_thread::copy_from_piece(cached_piece_entry& p, bool& hit
-		, disk_io_job const& j, mutex::scoped_lock& l)
+        , disk_io_job & j, mutex::scoped_lock& l)
 	{
 		TORRENT_ASSERT(j.buffer);
 
@@ -1196,9 +1212,17 @@ namespace libtorrent
 			int ret = read_into_piece(p, block, 0, blocks_to_read, l);
 			hit = false;
 			if (ret < 0) return ret;
-			if (ret < size + block_offset) return -2;
+            //[MF]
+            TORRENT_ASSERT(ret == p.piece_size);
+            piece_size = ret;
+            //if (ret < size + block_offset) return -2;
 			TORRENT_ASSERT(p.blocks[block].buf);
 		}
+
+        //[MF]
+        TORRENT_ASSERT(j.buffer_size >= piece_size);
+        j.buffer_size = piece_size;
+        size = piece_size;
 
 		// build a vector of all the buffers we need to free
 		// and free them all in one go
@@ -1233,10 +1257,10 @@ namespace libtorrent
 			++block;
 		}
 		if (!buffers.empty()) free_multiple_buffers(&buffers[0], buffers.size());
-		return j.buffer_size;
-	}
+        return j.buffer_size;
+    }
 
-	int disk_io_thread::try_read_from_cache(disk_io_job const& j, bool& hit, int flags)
+    int disk_io_thread::try_read_from_cache(disk_io_job & j, bool& hit, int flags)
 	{
 		TORRENT_ASSERT(j.buffer);
 		TORRENT_ASSERT(j.cache_min_time >= 0);
@@ -1276,7 +1300,7 @@ namespace libtorrent
 
 		TORRENT_ASSERT(p != idx.end());
 
-		ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);
+        ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);
 		if (ret < 0) return ret;
 		if (p->num_blocks == 0) idx.erase(p);
 		else idx.modify(p, update_last_use(j.cache_min_time));
@@ -1937,8 +1961,8 @@ namespace libtorrent
 					// since we need to check the hash, this function
 					// will ignore the cache size limit (at least for
 					// reading and hashing, not for keeping it around)
-					sha1_hash h;
-					ret = read_piece_from_cache_and_hash(j, h);
+                    bool hash_ok;
+                    ret = read_piece_from_cache_and_hash(j, &hash_ok);
 
 					// -2 means there's no space in the read cache
 					// or that the read cache is disabled
@@ -1948,7 +1972,7 @@ namespace libtorrent
 						break;
 					}
 					if (!m_settings.disable_hash_checks)
-						ret = (j.storage->info()->hash_for_piece(j.piece) == h)?ret:-3;
+                        ret = (hash_ok)?ret:-3;
 					if (ret == -3)
 					{
 						j.storage->mark_failed(j.piece);
@@ -2026,7 +2050,9 @@ namespace libtorrent
 							test_error(j);
 							break;
 						}
-						if (ret != j.buffer_size)
+                        //[MF] size is unknown beforehand
+                        j.buffer_size = ret;
+                        if (ret == 0)
 						{
 							// this means the file wasn't big enough for this read
 							j.buffer = 0;
@@ -2035,7 +2061,8 @@ namespace libtorrent
 							j.str.clear();
 							ret = -1;
 							break;
-						}
+                        }
+
 						++m_cache_stats.blocks_read;
 						hit = false;
 					}

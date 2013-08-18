@@ -5115,7 +5115,7 @@ retry:
 			if (lazy_bdecode(&params.resume_data[0], &params.resume_data[0]
 					+ params.resume_data.size(), tmp, ec, &pos) == 0
 				&& tmp.type() == lazy_entry::dict_t
-				&& (info = tmp.dict_find_dict("info")))
+                /* && (info = tmp.dict_find_dict("info")) */)
 			{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
 				session_log("found metadata in resume data");
@@ -5123,8 +5123,12 @@ retry:
 				// verify the info-hash of the metadata stored in the resume file matches
 				// the torrent we're loading
 
+                /* [MF]
 				std::pair<char const*, int> buf = info->data_section();
 				sha1_hash resume_ih = hasher(buf.first, buf.second).final();
+                */
+                std::string info_hash = tmp.dict_find_string_value("info-hash");
+                sha1_hash resume_ih = sha1_hash(info_hash);
 
 				// if url is set, the info_hash is not actually the info-hash of the
 				// torrent, but the hash of the URL, until we have the full torrent
@@ -5136,8 +5140,8 @@ retry:
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
 					session_log("info-hash matched");
 #endif
-					params.ti = new torrent_info(resume_ih);
-
+                    params.ti = new torrent_info(resume_ih, params.name);
+ /*
 					if (params.ti->parse_info_section(*info, ec, 0))
 					{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
@@ -5154,6 +5158,7 @@ retry:
 								, ec.message().c_str());
 #endif
 					}
+   */
 				}
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 				else

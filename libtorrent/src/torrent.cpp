@@ -458,7 +458,7 @@ namespace libtorrent
 		}
 
 		if (!m_torrent_file)
-			m_torrent_file = (p.ti ? p.ti : new torrent_info(info_hash));
+            m_torrent_file = (p.ti ? p.ti : new torrent_info(info_hash, p.name));
 
 		m_trackers = m_torrent_file->trackers();
 		if (m_torrent_file->is_valid())
@@ -5148,12 +5148,13 @@ namespace libtorrent
 		const sha1_hash& info_hash = torrent_file().info_hash();
 		ret["info-hash"] = std::string((char*)info_hash.begin(), (char*)info_hash.end());
 
+        /* [MF] don't save metadata
 		if (valid_metadata())
 		{
 			if (m_magnet_link || (m_save_resume_flags & torrent_handle::save_info_dict))
 				ret["info"] = bdecode(&torrent_file().metadata()[0]
 					, &torrent_file().metadata()[0] + torrent_file().metadata_size());
-		}
+        } */
 
 		// blocks per piece
 		int num_blocks_per_piece =

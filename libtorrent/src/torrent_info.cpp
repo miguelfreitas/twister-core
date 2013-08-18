@@ -829,7 +829,7 @@ namespace libtorrent
 	// will not contain any hashes, comments, creation date
 	// just the necessary to use it with piece manager
 	// used for torrents with no metadata
-	torrent_info::torrent_info(sha1_hash const& info_hash, int flags)
+    torrent_info::torrent_info(sha1_hash const& info_hash, std::string const name, int flags)
 		: m_merkle_first_leaf(0)
 		, m_piece_hashes(0)
 		, m_creation_date(time(0))
@@ -845,6 +845,7 @@ namespace libtorrent
 	    file_entry e;
 	    e.size = 1;
 	    m_files.add_file(e);
+        m_files.set_name(name);
 	}
 
 	torrent_info::~torrent_info()

@@ -253,7 +253,7 @@ namespace libtorrent
 #endif
 
 		torrent_info(torrent_info const& t, int flags = 0);
-		torrent_info(sha1_hash const& info_hash, int flags = 0);
+        torrent_info(sha1_hash const& info_hash, std::string const name, int flags = 0);
 		torrent_info(lazy_entry const& torrent_file, error_code& ec, int flags = 0);
 		torrent_info(char const* buffer, int size, error_code& ec, int flags = 0);
 		torrent_info(std::string const& filename, error_code& ec, int flags = 0);

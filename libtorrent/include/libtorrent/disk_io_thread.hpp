@@ -322,6 +322,8 @@ namespace libtorrent
 		struct cached_piece_entry
 		{
 			int piece;
+            // read size
+            int piece_size;
 			// storage this piece belongs to
 			boost::intrusive_ptr<piece_manager> storage;
 			// the pointers to the block data
@@ -373,7 +375,7 @@ namespace libtorrent
 		bool is_cache_hit(cached_piece_entry& p
 			, disk_io_job const& j, mutex::scoped_lock& l);
 		int copy_from_piece(cached_piece_entry& p, bool& hit
-			, disk_io_job const& j, mutex::scoped_lock& l);
+            , disk_io_job & j, mutex::scoped_lock& l);
 
 		struct ignore_t
 		{
@@ -409,8 +411,8 @@ namespace libtorrent
 		enum cache_flags_t {
 			cache_only = 1
 		};
-		int try_read_from_cache(disk_io_job const& j, bool& hit, int flags = 0);
-		int read_piece_from_cache_and_hash(disk_io_job const& j, sha1_hash& h);
+        int try_read_from_cache(disk_io_job & j, bool& hit, int flags = 0);
+        int read_piece_from_cache_and_hash(disk_io_job & j, bool *hash_ok);
 		int cache_piece(disk_io_job const& j, cache_piece_index_t::iterator& p
 			, bool& hit, int options, mutex::scoped_lock& l);
 

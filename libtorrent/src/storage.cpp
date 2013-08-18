@@ -2511,11 +2511,13 @@ ret:
 		TORRENT_ASSERT(have_piece == -1);
 
 		// initialization for the full check
+        /* [MF]
 		if (m_hash_to_piece.empty())
 		{
 			for (int i = 0; i < m_files.num_pieces(); ++i)
 				m_hash_to_piece.insert(std::pair<const sha1_hash, int>(m_info->hash_for_piece(i), i));
 		}
+        */
 
 		partial_hash ph;
 		int num_read = 0;
