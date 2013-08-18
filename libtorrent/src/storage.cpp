@@ -97,34 +97,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace libtorrent
 {
-	std::vector<std::pair<size_type, std::time_t> > get_filesizes(
-		file_storage const& storage, std::string const& p)
-	{
-		std::string save_path = complete(p);
-		std::vector<std::pair<size_type, std::time_t> > sizes;
-		for (file_storage::iterator i = storage.begin()
-			, end(storage.end()); i != end; ++i)
-		{
-			size_type size = 0;
-			std::time_t time = 0;
-
-			if (!i->pad_file)
-			{
-				file_status s;
-				error_code ec;
-				stat_file(storage.file_path(*i, save_path), &s, ec);
-
-				if (!ec)
-				{
-					size = s.file_size;
-					time = s.mtime;
-				}
-			}
-			sizes.push_back(std::make_pair(size, time));
-		}
-		return sizes;
-	}
-
 	// matches the sizes and timestamps of the files passed in
 	// in non-compact mode, actual file sizes and timestamps
 	// are allowed to be bigger and more recent than the fast
@@ -136,64 +108,6 @@ namespace libtorrent
 		compact_mode = 1,
 		ignore_timestamps = 2
 	};
-
-	bool match_filesizes(
-		file_storage const& fs
-		, std::string p
-		, std::vector<std::pair<size_type, std::time_t> > const& sizes
-		, int flags
-		, error_code& error)
-	{
-		if ((int)sizes.size() != fs.num_files())
-		{
-			error = errors::mismatching_number_of_files;
-			return false;
-		}
-		p = complete(p);
-
-		std::vector<std::pair<size_type, std::time_t> >::const_iterator size_iter
-			= sizes.begin();
-		for (file_storage::iterator i = fs.begin()
-			, end(fs.end());i != end; ++i, ++size_iter)
-		{
-			size_type size = 0;
-			std::time_t time = 0;
-			if (i->pad_file) continue;
-
-			file_status s;
-			error_code ec;
-			stat_file(fs.file_path(*i, p), &s, ec);
-
-			if (!ec)
-			{
-				size = s.file_size;
-				time = s.mtime;
-			}
-
-			if (((flags & compact_mode) && size != size_iter->first)
-				|| (!(flags & compact_mode) && size < size_iter->first))
-			{
-				error = errors::mismatching_file_size;
-				return false;
-			}
-
-			if (flags & ignore_timestamps) continue;
-
-			// if there is no timestamp in the resume data, ignore it
-			if (size_iter->second == 0) continue;
-
-			// allow one second 'slack', because of FAT volumes
-			// in sparse mode, allow the files to be more recent
-			// than the resume data, but only by 5 minutes
-			if (((flags & compact_mode) && (time > size_iter->second + 1 || time < size_iter->second - 1)) ||
-				(!(flags & compact_mode) && (time > size_iter->second + 5 * 60 || time < size_iter->second - 1)))
-			{
-				error = errors::mismatching_file_timestamp;
-				return false;
-			}
-		}
-		return true;
-	}
 
 	void storage_interface::set_error(std::string const& file, error_code const& ec) const
 	{
@@ -390,64 +304,6 @@ namespace libtorrent
 	{
 		m_allocate_files = allocate_files;
 		error_code ec;
-		// first, create all missing directories
-		std::string last_path;
-		for (file_storage::iterator file_iter = files().begin(),
-			end_iter = files().end(); file_iter != end_iter; ++file_iter)
-		{
-			int file_index = files().file_index(*file_iter);
-
-			// ignore files that have priority 0
-			if (int(m_file_priority.size()) > file_index
-				&& m_file_priority[file_index] == 0) continue;
-
-			// ignore pad files
-			if (file_iter->pad_file) continue;
-
-			std::string file_path = files().file_path(*file_iter, m_save_path);
-
-			file_status s;
-			stat_file(file_path, &s, ec);
-			if (ec && ec != boost::system::errc::no_such_file_or_directory
-				&& ec != boost::system::errc::not_a_directory)
-			{
-				set_error(file_path, ec);
-				break;
-			}
-
-			// ec is either ENOENT or the file existed and s is valid
-			// allocate file only if it is not exist and (allocate_files == true)
-			// if the file already exists, but is larger than what
-			// it's supposed to be, also truncate it
-			// if the file is empty, just create it either way.
-			if ((ec && allocate_files) || (!ec && s.file_size > file_iter->size) || file_iter->size == 0)
-			{
-				std::string dir = parent_path(file_path);
-
-				if (dir != last_path)
-				{
-					last_path = dir;
-
-					create_directories(last_path, ec);
-					if (ec)
-					{
-						set_error(dir, ec);
-						break;
-					}
-				}
-				ec.clear();
-
-				boost::intrusive_ptr<file> f = open_file(file_iter, file::read_write | file::random_access, ec);
-				if (ec) set_error(file_path, ec);
-				else if (f)
-				{
-					f->set_size(file_iter->size, ec);
-					if (ec) set_error(file_path, ec);
-				}
-				if (ec) break;
-			}
-			ec.clear();
-		}
 
 		std::vector<boost::uint8_t>().swap(m_file_priority);
 		// close files that were opened in write mode
@@ -462,59 +318,11 @@ namespace libtorrent
 
 	bool default_storage::has_any_file()
 	{
-		file_storage::iterator i = files().begin();
-		file_storage::iterator end = files().end();
-
-		for (; i != end; ++i)
-		{
-			error_code ec;
-			file_status s;
-			stat_file(files().file_path(*i, m_save_path), &s, ec);
-			if (ec) continue;
-			if (s.mode & file_status::regular_file && i->size > 0)
-				return true;
-		}
-		return false;
+        return true;
 	}
 
 	bool default_storage::rename_file(int index, std::string const& new_filename)
 	{
-		if (index < 0 || index >= files().num_files()) return true;
-		std::string old_name = files().file_path(index, m_save_path);
-		m_pool.release(this, index);
-
-		error_code ec;
-		std::string new_path;
-		if (is_complete(new_filename)) new_path = new_filename;
-		else new_path = combine_path(m_save_path, new_filename);
-		std::string new_dir = parent_path(new_path);
-
-		// create any missing directories that the new filename
-		// lands in
-		create_directories(new_dir, ec);
-		if (ec)
-		{
-			set_error(new_dir, ec);
-			return true;
-		}
-
-		rename(old_name, new_path, ec);
-		
-		// if old_name doesn't exist, that's not an error
-		// here. Once we start writing to the file, it will
-		// be written to the new filename
-		if (ec && ec != boost::system::errc::no_such_file_or_directory)
-		{
-			set_error(old_name, ec);
-			return true;
-		}
-
-		// if old path doesn't exist, just rename the file
-		// in our file_storage, so that when it is created
-		// it will get the new name
-		if (!m_mapped_files)
-		{ m_mapped_files.reset(new file_storage(m_files)); }
-		m_mapped_files->rename_file(index, new_filename);
 		return false;
 	}
 
@@ -558,13 +366,12 @@ namespace libtorrent
 					bp = parent_path(bp);
 				}
 			}
-			delete_one_file(p);
 		}
 
 		// remove the directories. Reverse order to delete
 		// subdirectories first
 
-		for (std::set<std::string>::reverse_iterator i = directories.rbegin()
+        for (std::set<std::string>::reverse_iterator i = directories.rbegin()
 			, end(directories.rend()); i != end; ++i)
 		{
 			delete_one_file(*i);
@@ -577,20 +384,6 @@ namespace libtorrent
 	bool default_storage::write_resume_data(entry& rd) const
 	{
 		TORRENT_ASSERT(rd.type() == entry::dictionary_t);
-
-		std::vector<std::pair<size_type, std::time_t> > file_sizes
-			= get_filesizes(files(), m_save_path);
-
-		entry::list_type& fl = rd["file sizes"].list();
-		for (std::vector<std::pair<size_type, std::time_t> >::iterator i
-			= file_sizes.begin(), end(file_sizes.end()); i != end; ++i)
-		{
-			entry::list_type p;
-			p.push_back(entry(i->first));
-			p.push_back(entry(i->second));
-			fl.push_back(entry(p));
-		}
-		
 		return false;
 	}
 
@@ -599,44 +392,11 @@ namespace libtorrent
 		TORRENT_ASSERT(slot >= 0);
 		TORRENT_ASSERT(slot < m_files.num_pieces());
 
-		size_type file_offset = (size_type)slot * m_files.piece_length();
-		file_storage::iterator file_iter;
-
-		for (file_iter = files().begin();;)
-		{
-			if (file_offset < file_iter->size)
-				break;
-
-			file_offset -= file_iter->size;
-			++file_iter;
-			TORRENT_ASSERT(file_iter != files().end());
-		}
-	
-		error_code ec;
-		boost::intrusive_ptr<file> file_handle = open_file(file_iter, file::read_only, ec);
-		if (!file_handle || ec) return slot;
-
-		size_type data_start = file_handle->sparse_end(file_offset);
-		return int((data_start + m_files.piece_length() - 1) / m_files.piece_length());
+        return slot;
 	}
 
 	bool default_storage::verify_resume_data(lazy_entry const& rd, error_code& error)
 	{
-		// TODO: make this more generic to not just work if files have been
-		// renamed, but also if they have been merged into a single file for instance
-		// maybe use the same format as .torrent files and reuse some code from torrent_info
-		lazy_entry const* mapped_files = rd.dict_find_list("mapped_files");
-		if (mapped_files && mapped_files->list_size() == m_files.num_files())
-		{
-			m_mapped_files.reset(new file_storage(m_files));
-			for (int i = 0; i < m_files.num_files(); ++i)
-			{
-				std::string new_filename = mapped_files->list_string_value_at(i);
-				if (new_filename.empty()) continue;
-				m_mapped_files->rename_file(i, new_filename);
-			}
-		}
-		
 		lazy_entry const* file_priority = rd.dict_find_list("file_priority");
 		if (file_priority && file_priority->list_size()
 			== files().num_files())
@@ -646,32 +406,7 @@ namespace libtorrent
 				m_file_priority[i] = boost::uint8_t(file_priority->list_int_value_at(i, 1));
 		}
 
-		std::vector<std::pair<size_type, std::time_t> > file_sizes;
-		lazy_entry const* file_sizes_ent = rd.dict_find_list("file sizes");
-		if (file_sizes_ent == 0)
-		{
-			error = errors::missing_file_sizes;
-			return false;
-		}
-		
-		for (int i = 0; i < file_sizes_ent->list_size(); ++i)
-		{
-			lazy_entry const* e = file_sizes_ent->list_at(i);
-			if (e->type() != lazy_entry::list_t
-				|| e->list_size() != 2
-				|| e->list_at(0)->type() != lazy_entry::int_t
-				|| e->list_at(1)->type() != lazy_entry::int_t)
-				continue;
-			file_sizes.push_back(std::pair<size_type, std::time_t>(
-				e->list_int_value_at(0), std::time_t(e->list_int_value_at(1))));
-		}
 
-		if (file_sizes.empty())
-		{
-			error = errors::no_files_in_resume_data;
-			return false;
-		}
-		
 		bool seed = false;
 		
         if (lazy_entry const* pieces = rd.dict_find_string("pieces"))
@@ -694,31 +429,9 @@ namespace libtorrent
 			return false;
 		}
 
-		if (seed)
-		{
-			if (files().num_files() != (int)file_sizes.size())
-			{
-				error = errors::mismatching_number_of_files;
-				return false;
-			}
-
-			std::vector<std::pair<size_type, std::time_t> >::iterator
-				fs = file_sizes.begin();
-			// the resume data says we have the entire torrent
-			// make sure the file sizes are the right ones
-			for (file_storage::iterator i = files().begin()
-				, end(files().end()); i != end; ++i, ++fs)
-			{
-				if (!i->pad_file && i->size != fs->first)
-				{
-					error = errors::mismatching_file_size;
-					return false;
-				}
-			}
-		}
         int flags = (settings().ignore_resume_timestamps ? ignore_timestamps : 0);
 
-		return match_filesizes(files(), m_save_path, file_sizes, flags, error);
+        return true;
 
 	}
 
@@ -849,7 +562,6 @@ namespace libtorrent
 
 	bool default_storage::swap_slots(int slot1, int slot2)
 	{
-
         return false;
 	}
 
@@ -890,83 +602,13 @@ namespace libtorrent
 		TORRENT_ASSERT(slot < m_files.num_pieces());
 		TORRENT_ASSERT(offset >= 0);
 
-		// find the file and file
-		size_type tor_off = size_type(slot)
-			* files().piece_length() + offset;
-		file_storage::iterator file_iter = files().file_at_offset(tor_off);
-		while (file_iter->pad_file)
-		{
-			++file_iter;
-			if (file_iter == files().end())
-				return size_type(slot) * files().piece_length() + offset;
-			// update offset as well, since we're moving it up ahead
-			tor_off = file_iter->offset;
-		}
-		TORRENT_ASSERT(!file_iter->pad_file);
-
-		size_type file_offset = tor_off - file_iter->offset;
-		TORRENT_ASSERT(file_offset >= 0);
-
-		// open the file read only to avoid re-opening
-		// it in case it's already opened in read-only mode
-		error_code ec;
-		boost::intrusive_ptr<file> f = open_file(file_iter, file::read_only | file::random_access, ec);
-
-		size_type ret = 0;
-		if (f && !ec) ret = f->phys_offset(file_offset);
-
-		if (ret == 0)
-		{
-			// this means we don't support true physical offset
-			// just make something up
-			return size_type(slot) * files().piece_length() + offset;
-		}
-		return ret;
+        // this means we don't support true physical offset
+        // just make something up
+        return size_type(slot) * files().piece_length() + offset;
 	}
 
 	void default_storage::hint_read(int slot, int offset, int size)
 	{
-		size_type start = slot * (size_type)m_files.piece_length() + offset;
-		TORRENT_ASSERT(start + size <= m_files.total_size());
-
-		file_storage::iterator file_iter = files().file_at_offset(start);
-		TORRENT_ASSERT(file_iter != files().end());
-		TORRENT_ASSERT(start >= files().file_offset(*file_iter));
-		TORRENT_ASSERT(start < files().file_offset(*file_iter) + files().file_size(*file_iter));
-		size_type file_offset = start - files().file_offset(*file_iter);
-
-		boost::intrusive_ptr<file> file_handle;
-		int bytes_left = size;
-		int slot_size = static_cast<int>(m_files.piece_size(slot));
-
-		if (offset + bytes_left > slot_size)
-			bytes_left = slot_size - offset;
-
-		TORRENT_ASSERT(bytes_left >= 0);
-
-		int file_bytes_left;
-		for (;bytes_left > 0; ++file_iter, bytes_left -= file_bytes_left)
-		{
-			TORRENT_ASSERT(file_iter != files().end());
-
-			file_bytes_left = bytes_left;
-			if (file_offset + file_bytes_left > file_iter->size)
-				file_bytes_left = (std::max)(static_cast<int>(file_iter->size - file_offset), 0);
-
-			if (file_bytes_left == 0) continue;
-
-			if (file_iter->pad_file) continue;
-
-			error_code ec;
-			file_handle = open_file(file_iter, file::read_only | file::random_access, ec);
-
-			// failing to hint that we want to read is not a big deal
-			// just swollow the error and keep going
-			if (!file_handle || ec) continue;
-
-			file_handle->hint_read(file_offset, file_bytes_left);
-			file_offset = 0;
-		}
 	}
 
 	int default_storage::readv(file::iovec_t const* bufs, int slot, int offset
@@ -1684,114 +1326,6 @@ namespace libtorrent
 		return m_storage->physical_offset(slot, offset);
 	}
 
-	int piece_manager::identify_data(
-		sha1_hash const& large_hash
-		, sha1_hash const& small_hash
-		, int current_slot)
-	{
-//		INVARIANT_CHECK;
-		typedef std::multimap<sha1_hash, int>::const_iterator map_iter;
-		map_iter begin1;
-		map_iter end1;
-		map_iter begin2;
-		map_iter end2;
-
-		// makes the lookups for the small digest and the large digest
-		boost::tie(begin1, end1) = m_hash_to_piece.equal_range(small_hash);
-		boost::tie(begin2, end2) = m_hash_to_piece.equal_range(large_hash);
-
-		// copy all potential piece indices into this vector
-		std::vector<int> matching_pieces;
-		for (map_iter i = begin1; i != end1; ++i)
-			matching_pieces.push_back(i->second);
-		for (map_iter i = begin2; i != end2; ++i)
-			matching_pieces.push_back(i->second);
-
-		// no piece matched the data in the slot
-		if (matching_pieces.empty())
-            return -1;
-
-		// ------------------------------------------
-		// CHECK IF THE PIECE IS IN ITS CORRECT PLACE
-		// ------------------------------------------
-
-		if (std::find(
-			matching_pieces.begin()
-			, matching_pieces.end()
-			, current_slot) != matching_pieces.end())
-		{
-			// the current slot is among the matching pieces, so
-			// we will assume that the piece is in the right place
-			const int piece_index = current_slot;
-/*
-			int other_slot = m_piece_to_slot[piece_index];
-			if (other_slot >= 0)
-			{
-				// we have already found a piece with
-				// this index.
-
-				// take one of the other matching pieces
-				// that hasn't already been assigned
-				int other_piece = -1;
-				for (std::vector<int>::iterator i = matching_pieces.begin();
-					i != matching_pieces.end(); ++i)
-				{
-					if (m_piece_to_slot[*i] >= 0 || *i == piece_index) continue;
-					other_piece = *i;
-                    break;
-				}
-				if (other_piece >= 0)
-				{
-					// replace the old slot with 'other_piece'
-					m_slot_to_piece[other_slot] = other_piece;
-					m_piece_to_slot[other_piece] = other_slot;
-				}
-				else
-				{
-					// this index is the only piece with this
-					// hash. The previous slot we found with
-					// this hash must be the same piece. Mark
-					// that piece as unassigned, since this slot
-					// is the correct place for the piece.
-					m_slot_to_piece[other_slot] = unassigned;
-					if (m_storage_mode == internal_storage_mode_compact_deprecated)
-						m_free_slots.push_back(other_slot);
-				}
-				TORRENT_ASSERT(m_piece_to_slot[piece_index] != current_slot);
-				TORRENT_ASSERT(m_piece_to_slot[piece_index] >= 0);
-				m_piece_to_slot[piece_index] = has_no_slot;
-			}
-			
-			TORRENT_ASSERT(m_piece_to_slot[piece_index] == has_no_slot);
-*/
-			return piece_index;
-		}
-/*
-		// find a matching piece that hasn't
-		// already been assigned
-		int free_piece = unassigned;
-		for (std::vector<int>::iterator i = matching_pieces.begin();
-			i != matching_pieces.end(); ++i)
-		{
-			if (m_piece_to_slot[*i] >= 0) continue;
-			free_piece = *i;
-			break;
-		}
-
-		if (free_piece >= 0)
-		{
-			TORRENT_ASSERT(m_piece_to_slot[free_piece] == has_no_slot);
-			return free_piece;
-		}
-		else
-		{
-			TORRENT_ASSERT(free_piece == unassigned);
-			return unassigned;
-		}
-        */
-        return -1;
-    }
-
 	int piece_manager::check_no_fastresume(error_code& error)
 	{
 		bool has_files = false;
@@ -1933,25 +1467,6 @@ namespace libtorrent
 		}
 
 		return need_full_check;
-	}
-
-	int piece_manager::skip_file() const
-	{
-		size_type file_offset = 0;
-		size_type current_offset = size_type(m_current_slot) * m_files.piece_length();
-		for (file_storage::iterator i = m_files.begin()
-			, end(m_files.end()); i != end; ++i)
-		{
-			file_offset += i->size;
-			if (file_offset > current_offset) break;
-		}
-
-		TORRENT_ASSERT(file_offset > current_offset);
-		int ret = static_cast<int>(
-			(file_offset - current_offset + m_files.piece_length() - 1)
-			/ m_files.piece_length());
-		TORRENT_ASSERT(ret >= 1);
-		return ret;
 	}
 
 	// -1 = error, 0 = ok, >0 = skip this many pieces

@@ -73,16 +73,6 @@ namespace libtorrent
 	struct disk_buffer_pool;
 	struct session_settings;
 
-	TORRENT_EXTRA_EXPORT std::vector<std::pair<size_type, std::time_t> > get_filesizes(
-		file_storage const& t
-		, std::string const& p);
-
-	TORRENT_EXTRA_EXPORT bool match_filesizes(
-		file_storage const& t
-		, std::string const& p
-		, std::vector<std::pair<size_type, std::time_t> > const& sizes
-		, bool compact_mode
-		, std::string* error = 0);
 /*
 	struct TORRENT_EXTRA_EXPORT file_allocation_failed: std::exception
 	{
@@ -463,15 +453,8 @@ namespace libtorrent
 
 		size_type physical_offset(int piece_index, int offset);
 
-		// returns the number of pieces left in the
-		// file currently being checked
-		int skip_file() const;
 		// -1=error 0=ok >0=skip this many pieces
 		int check_one_piece(int& have_piece);
-		int identify_data(
-			sha1_hash const& large_hash
-			, sha1_hash const& small_hash
-			, int current_slot);
 
 		void switch_to_full_mode();
         bool hash_for_piece_impl(int piece, int* readback = 0);
