@@ -26,6 +26,8 @@ twister::twister()
 #define TORRENT_DISABLE_GEO_IP
 #include "libtorrent/aux_/session_impl.hpp"
 
+#define DEBUG_ACCEPT_POST 1
+
 using namespace libtorrent;
 static session *ses = NULL;
 
@@ -512,6 +514,59 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
         return false;
 
     return (pubkeyRec.GetID() == pubkey.GetID());
+}
+
+bool acceptSignedPost(char const *data, int data_size, std::string username, int seq)
+{
+    bool ret = false;
+
+    lazy_entry v;
+    int pos;
+    error_code ec;
+    if (lazy_bdecode(data, data + data_size, v, ec, &pos) == 0) {
+
+        if( v.type() == lazy_entry::dict_t ) {
+            lazy_entry const* post = v.dict_find_dict("userpost");
+            std::string sig = v.dict_find_string_value("sig_userpost");
+
+            if( !post || !sig.size() ) {
+#ifdef DEBUG_ACCEPT_POST
+                printf("acceptSignedPost: missing post or signature\n");
+#endif
+            } else {
+                std::string n = post->dict_find_string_value("n");
+                int k = post->dict_find_int_value("k",-1);
+
+                if( n != username ) {
+#ifdef DEBUG_ACCEPT_POST
+                    printf("acceptSignedPost: expected username '%s' got '%s'\n",
+                           username.c_str(), n.c_str());
+#endif
+                } else if( k != seq ) {
+#ifdef DEBUG_ACCEPT_POST
+                    printf("acceptSignedPost: expected piece '%d' got '%d'\n",
+                           slot, k);
+#endif
+                } else if( k < 0 || k > nBestHeight * 2 + 10 ) {
+#ifdef DEBUG_ACCEPT_POST
+                    printf("acceptSignedPost: too much posts from user '%s' rejecting post %d\n",
+                           username.c_str(), k);
+#endif
+                } else {
+                    std::pair<char const*, int> postbuf = post->data_section();
+                    ret = verifySignature(
+                            std::string(postbuf.first,postbuf.second),
+                            username, sig);
+#ifdef DEBUG_ACCEPT_POST
+                    if( !ret ) {
+                        printf("acceptSignedPost: bad signature\n");
+                    }
+#endif
+                }
+            }
+        }
+    }
+    return ret;
 }
 
 int getBestHeight()

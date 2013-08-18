@@ -1077,51 +1077,8 @@ namespace libtorrent
 
 		if (!m_settings.disable_hash_checks)
         {
-            *hash_ok = false;
-
-            lazy_entry v;
-            int pos;
-            error_code ec;
-            if (lazy_bdecode((char const*)p->blocks[0].buf, (char const*)p->blocks[0].buf
-                + piece_size, v, ec, &pos) == 0) {
-
-                if( v.type() == lazy_entry::dict_t ) {
-                    lazy_entry const* post = v.dict_find_dict("userpost");
-                    std::string sig = v.dict_find_string_value("sig_userpost");
-                    std::string username = j.storage->info()->name();
-
-                    if( !post || !sig.size() ) {
-#ifdef TORRENT_DEBUG
-                        printf("r_p_f_c_a_h: missing post or signature\n");
-#endif
-                    } else {
-                        std::string n = post->dict_find_string_value("n");
-                        int k = post->dict_find_int_value("k",-1);
-
-                        if( n != username ) {
-#ifdef TORRENT_DEBUG
-                            printf("r_p_f_c_a_h: expected username '%s' got '%s'\n",
-                                   username.c_str(), n.c_str());
-#endif
-                        } else if( k != j.piece ) {
-#ifdef TORRENT_DEBUG
-                            printf("r_p_f_c_a_h: expected piece '%d' got '%d'\n",
-                                   j.piece, k);
-#endif
-                        } else {
-                            std::pair<char const*, int> postbuf = post->data_section();
-                            *hash_ok = verifySignature(
-                                    std::string(postbuf.first,postbuf.second),
-                                    username, sig);
-#ifdef TORRENT_DEBUG
-                            if( !(*hash_ok) ) {
-                                printf("r_p_f_c_a_h: bad signature\n");
-                            }
-#endif
-                        }
-                    }
-                }
-            }
+            *hash_ok = acceptSignedPost((char const*)p->blocks[0].buf, piece_size,
+                                        j.storage->info()->name(), j.piece);
 		}
 
         ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);

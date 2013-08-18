@@ -230,51 +230,8 @@ namespace libtorrent
 
         if (ret > 0)
         {
-            *hash_ok = false;
-
-            lazy_entry v;
-            int pos;
-            error_code ec;
-            if (lazy_bdecode((char const*)buf.iov_base, (char const*)buf.iov_base
-                + ret, v, ec, &pos) == 0) {
-
-                if( v.type() == lazy_entry::dict_t ) {
-                    lazy_entry const* post = v.dict_find_dict("userpost");
-                    std::string sig = v.dict_find_string_value("sig_userpost");
-                    std::string username = m_info->name();
-
-                    if( !post || !sig.size() ) {
-#ifdef TORRENT_DEBUG
-                        printf("h_f_s: missing post or signature\n");
-#endif
-                    } else {
-                        std::string n = post->dict_find_string_value("n");
-                        int k = post->dict_find_int_value("k",-1);
-
-                        if( n != username ) {
-#ifdef TORRENT_DEBUG
-                            printf("h_f_s: expected username '%s' got '%s'\n",
-                                   username.c_str(), n.c_str());
-#endif
-                        } else if( k != slot ) {
-#ifdef TORRENT_DEBUG
-                            printf("h_f_s: expected piece '%d' got '%d'\n",
-                                   slot, k);
-#endif
-                        } else {
-                            std::pair<char const*, int> postbuf = post->data_section();
-                            *hash_ok = verifySignature(
-                                    std::string(postbuf.first,postbuf.second),
-                                    username, sig);
-#ifdef TORRENT_DEBUG
-                            if( !(*hash_ok) ) {
-                                printf("h_f_s: bad signature\n");
-                            }
-#endif
-                        }
-                    }
-                }
-            }
+            *hash_ok = acceptSignedPost((char const*)buf.iov_base, ret,
+                                        m_info->name(), slot);
         }
 
         if (error()) return 0;
