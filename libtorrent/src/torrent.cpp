@@ -432,7 +432,9 @@ namespace libtorrent
 		, m_is_active_download(false)
 		, m_is_active_finished(false)
 	{
-		// if there is resume data already, we don't need to trigger the initial save
+        if (!p.name.empty()) m_name.reset(new std::string(p.name));
+
+        // if there is resume data already, we don't need to trigger the initial save
 		// resume data
 		if (!p.resume_data.empty() && (p.flags & add_torrent_params::flag_override_resume_data) == 0)
 			m_need_save_resume_data = false;
@@ -466,10 +468,6 @@ namespace libtorrent
 			m_seed_mode = p.flags & add_torrent_params::flag_seed_mode;
 			m_connections_initialized = true;
 			m_block_size_shift = root2((std::min)(block_size, m_torrent_file->piece_length()));
-		}
-		else
-		{
-			if (!p.name.empty()) m_name.reset(new std::string(p.name));
 		}
 
 		if (!m_url.empty() && m_uuid.empty()) m_uuid = m_url;
@@ -2097,6 +2095,7 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 		if (!m_ses.m_dht) return;
+        if (!m_name) return;
 		if (!should_announce_dht()) return;
 
 		TORRENT_ASSERT(m_allow_peers);
@@ -2110,7 +2109,7 @@ namespace libtorrent
 			policy::peer const* p = *i;
 
 			if( p->connectable && !p->banned ) {
-			    m_ses.m_dht->announce(*m_name, m_torrent_file->info_hash()
+                m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false
 						  , boost::bind(&nop));
 			}
@@ -2124,7 +2123,7 @@ namespace libtorrent
 #endif
 
 		boost::weak_ptr<torrent> self(shared_from_this());
-		m_ses.m_dht->announce(*m_name, m_torrent_file->info_hash()
+        m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 			, m_ses.external_address().external_address(address_v4()), port, is_seed(), true
 			, boost::bind(&torrent::on_dht_announce_response_disp, self, _1));
 	}
