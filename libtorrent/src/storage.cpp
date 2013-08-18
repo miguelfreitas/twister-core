@@ -579,7 +579,7 @@ namespace libtorrent
         TORRENT_ASSERT(num_bufs == 1);
         TORRENT_ASSERT(offset == 0);
 
-        std::string postStr(bufs[0].iov_base, bufs[0].iov_len);
+        std::string postStr(static_cast<char *>(bufs[0].iov_base), bufs[0].iov_len);
 
         if( Write(std::make_pair('p', slot), postStr) ) {
             return postStr.size();
