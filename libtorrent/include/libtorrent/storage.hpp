@@ -445,11 +445,7 @@ namespace libtorrent
 
 		bool allocate_slots_impl(int num_slots, mutex::scoped_lock& l, bool abort_on_disk = false);
 
-		// updates the ph.h hasher object with the data at the given slot
-		// and optionally a 'small hash' as well, the hash for
-		// the partial slot. Returns the number of bytes read
-		int hash_for_slot(int slot, partial_hash& h, int piece_size
-			, int small_piece_size = 0, sha1_hash* small_hash = 0);
+        int hash_for_slot(int slot, bool *hash_ok, int piece_size);
 
 		void hint_read_impl(int piece_index, int offset, int size);
 
@@ -478,7 +474,7 @@ namespace libtorrent
 			, int current_slot);
 
 		void switch_to_full_mode();
-		sha1_hash hash_for_piece_impl(int piece, int* readback = 0);
+        bool hash_for_piece_impl(int piece, int* readback = 0);
 
 		int release_files_impl() { return m_storage->release_files(); }
 		int delete_files_impl() { return m_storage->delete_files(); }
@@ -540,11 +536,6 @@ namespace libtorrent
 		// isn't needed)
 		std::multimap<sha1_hash, int> m_hash_to_piece;
 	
-		// this map contains partial hashes for downloading
-		// pieces. This is only accessed from within the
-		// disk-io thread.
-		std::map<int, partial_hash> m_piece_hasher;
-
 		disk_io_thread& m_io_thread;
 
 		// the reason for this to be a void pointer

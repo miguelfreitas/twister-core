@@ -2268,7 +2268,7 @@ namespace libtorrent
 					ptime hash_start = time_now_hires();
 
 					int readback = 0;
-					sha1_hash h = j.storage->hash_for_piece_impl(j.piece, &readback);
+                    bool hash_ok = j.storage->hash_for_piece_impl(j.piece, &readback);
 					if (test_error(j))
 					{
 						ret = -1;
@@ -2278,7 +2278,7 @@ namespace libtorrent
 
 					m_cache_stats.total_read_back += readback / m_block_size;
 
-					ret = (j.storage->info()->hash_for_piece(j.piece) == h)?0:-2;
+                    ret = (hash_ok)?0:-2;
 					if (ret == -2) j.storage->mark_failed(j.piece);
 
 					ptime done = time_now_hires();

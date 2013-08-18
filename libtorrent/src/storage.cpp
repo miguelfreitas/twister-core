@@ -67,6 +67,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/alloca.hpp"
 #include "libtorrent/allocator.hpp" // page_size
 
+#include "../../src/twister.h"
+
 #include <cstdio>
 
 //#define TORRENT_PARTIAL_HASH_LOG
@@ -294,93 +296,76 @@ namespace libtorrent
 	}
 #endif
 
-	int piece_manager::hash_for_slot(int slot, partial_hash& ph, int piece_size
-		, int small_piece_size, sha1_hash* small_hash)
+    int piece_manager::hash_for_slot(int slot, bool *hash_ok, int piece_size)
 	{
 		TORRENT_ASSERT_VAL(!error(), error());
+        *hash_ok = false;
+
 		int num_read = 0;
-		int slot_size = piece_size - ph.offset;
-		if (slot_size > 0)
-		{
-			int block_size = 16 * 1024;
-			if (m_storage->disk_pool()) block_size = m_storage->disk_pool()->block_size();
-			int size = slot_size;
-			int num_blocks = (size + block_size - 1) / block_size;
+        int slot_size = piece_size;
 
-			// when we optimize for speed we allocate all the buffers we
-			// need for the rest of the piece, and read it all in one call
-			// and then hash it. When optimizing for memory usage, we read
-			// one block at a time and hash it. This ends up only using a
-			// single buffer
-			if (m_storage->settings().optimize_hashing_for_speed)
-			{
-				file::iovec_t* bufs = TORRENT_ALLOCA(file::iovec_t, num_blocks);
-				for (int i = 0; i < num_blocks; ++i)
-				{
-					bufs[i].iov_base = m_storage->disk_pool()->allocate_buffer("hash temp");
-					bufs[i].iov_len = (std::min)(block_size, size);
-					size -= bufs[i].iov_len;
-				}
-				// deliberately pass in 0 as flags, to disable random_access
-				num_read = m_storage->readv(bufs, slot, ph.offset, num_blocks, 0);
-				// TODO: if the read fails, set error and exit immediately
+        file::iovec_t buf;
+        disk_buffer_holder holder(*m_storage->disk_pool()
+                                  , m_storage->disk_pool()->allocate_buffer("hash temp"));
+        buf.iov_base = holder.get();
+        buf.iov_len = slot_size;
+        // deliberately pass in 0 as flags, to disable random_access
+        int ret = m_storage->readv(&buf, slot, 0, 1, 0);
+        if (ret > 0) num_read += ret;
+        // TODO: if the read fails, set error and exit immediately
 
-				for (int i = 0; i < num_blocks; ++i)
-				{
-					if (small_hash && small_piece_size <= block_size)
-					{
-						ph.h.update((char const*)bufs[i].iov_base, small_piece_size);
-						*small_hash = hasher(ph.h).final();
-						small_hash = 0; // avoid this case again
-						if (int(bufs[i].iov_len) > small_piece_size)
-							ph.h.update((char const*)bufs[i].iov_base + small_piece_size
-								, bufs[i].iov_len - small_piece_size);
-					}
-					else
-					{
-						ph.h.update((char const*)bufs[i].iov_base, bufs[i].iov_len);
-						small_piece_size -= bufs[i].iov_len;
-					}
-					ph.offset += bufs[i].iov_len;
-					m_storage->disk_pool()->free_buffer((char*)bufs[i].iov_base);
-				}
-			}
-			else
-			{
-				file::iovec_t buf;
-				disk_buffer_holder holder(*m_storage->disk_pool()
-					, m_storage->disk_pool()->allocate_buffer("hash temp"));
-				buf.iov_base = holder.get();
-				for (int i = 0; i < num_blocks; ++i)
-				{
-					buf.iov_len = (std::min)(block_size, size);
-					// deliberately pass in 0 as flags, to disable random_access
-					int ret = m_storage->readv(&buf, slot, ph.offset, 1, 0);
-					if (ret > 0) num_read += ret;
-					// TODO: if the read fails, set error and exit immediately
+        if (ret > 0)
+        {
+            *hash_ok = false;
 
-					if (small_hash && small_piece_size <= block_size)
-					{
-						if (small_piece_size > 0) ph.h.update((char const*)buf.iov_base, small_piece_size);
-						*small_hash = hasher(ph.h).final();
-						small_hash = 0; // avoid this case again
-						if (int(buf.iov_len) > small_piece_size)
-							ph.h.update((char const*)buf.iov_base + small_piece_size
-								, buf.iov_len - small_piece_size);
-					}
-					else
-					{
-						ph.h.update((char const*)buf.iov_base, buf.iov_len);
-						small_piece_size -= buf.iov_len;
-					}
+            lazy_entry v;
+            int pos;
+            error_code ec;
+            if (lazy_bdecode((char const*)buf.iov_base, (char const*)buf.iov_base
+                + ret, v, ec, &pos) == 0) {
 
-					ph.offset += buf.iov_len;
-					size -= buf.iov_len;
-				}
-			}
-			if (error()) return 0;
-		}
-		return num_read;
+                if( v.type() == lazy_entry::dict_t ) {
+                    lazy_entry const* post = v.dict_find_dict("userpost");
+                    std::string sig = v.dict_find_string_value("sig_userpost");
+                    std::string username = m_info->name();
+
+                    if( !post || !sig.size() ) {
+#ifdef TORRENT_DEBUG
+                        printf("h_f_s: missing post or signature\n");
+#endif
+                    } else {
+                        std::string n = post->dict_find_string_value("n");
+                        int k = post->dict_find_int_value("k",-1);
+
+                        if( n != username ) {
+#ifdef TORRENT_DEBUG
+                            printf("h_f_s: expected username '%s' got '%s'\n",
+                                   username.c_str(), n.c_str());
+#endif
+                        } else if( k != slot ) {
+#ifdef TORRENT_DEBUG
+                            printf("h_f_s: expected piece '%d' got '%d'\n",
+                                   slot, k);
+#endif
+                        } else {
+                            std::pair<char const*, int> postbuf = post->data_section();
+                            *hash_ok = verifySignature(
+                                    std::string(postbuf.first,postbuf.second),
+                                    username, sig);
+#ifdef TORRENT_DEBUG
+                            if( !(*hash_ok) ) {
+                                printf("h_f_s: bad signature\n");
+                            }
+#endif
+                        }
+                    }
+                }
+            }
+        }
+
+        if (error()) return 0;
+
+        return num_read;
 	}
 
 	default_storage::default_storage(file_storage const& fs, file_storage const* mapped, std::string const& path
@@ -1596,24 +1581,17 @@ namespace libtorrent
 		return m_save_path;
 	}
 
-	sha1_hash piece_manager::hash_for_piece_impl(int piece, int* readback)
+    bool piece_manager::hash_for_piece_impl(int piece, int* readback)
 	{
 		TORRENT_ASSERT(!m_storage->error());
 
-		partial_hash ph;
-
-		std::map<int, partial_hash>::iterator i = m_piece_hasher.find(piece);
-		if (i != m_piece_hasher.end())
-		{
-			ph = i->second;
-			m_piece_hasher.erase(i);
-		}
+        bool hash_ok = false;
 
 		int slot = slot_for(piece);
-		int read = hash_for_slot(slot, ph, m_files.piece_size(piece));
+        int read = hash_for_slot(slot, &hash_ok, m_files.piece_size(piece));
 		if (readback) *readback = read;
-		if (m_storage->error()) return sha1_hash(0);
-		return ph.h.final();
+        if (m_storage->error()) return false;
+        return hash_ok;
 	}
 
 	int piece_manager::move_storage_impl(std::string const& save_path, int flags)
@@ -1688,70 +1666,6 @@ namespace libtorrent
 		if (ret != size) return ret;
 
 		if (m_storage->settings().disable_hash_checks) return ret;
-
-		if (offset == 0)
-		{
-			partial_hash& ph = m_piece_hasher[piece_index];
-			TORRENT_ASSERT(ph.offset == 0);
-			ph.offset = size;
-
-			for (file::iovec_t* i = iov, *end(iov + num_bufs); i < end; ++i)
-				ph.h.update((char const*)i->iov_base, i->iov_len);
-
-		}
-		else
-		{
-			std::map<int, partial_hash>::iterator i = m_piece_hasher.find(piece_index);
-			if (i != m_piece_hasher.end())
-			{
-#ifdef TORRENT_DEBUG
-				TORRENT_ASSERT(i->second.offset > 0);
-				int hash_offset = i->second.offset;
-				TORRENT_ASSERT(offset >= hash_offset);
-#endif
-				if (offset == i->second.offset)
-				{
-#ifdef TORRENT_PARTIAL_HASH_LOG
-					out << time_now_string() << " UPDATING ["
-						" s: " << this
-						<< " p: " << piece_index
-						<< " off: " << offset
-						<< " size: " << size
-						<< " entries: " << m_piece_hasher.size()
-						<< " ]" << std::endl;
-#endif
-					for (file::iovec_t* b = iov, *end(iov + num_bufs); b < end; ++b)
-					{
-						i->second.h.update((char const*)b->iov_base, b->iov_len);
-						i->second.offset += b->iov_len;
-					}
-				}
-#ifdef TORRENT_PARTIAL_HASH_LOG
-				else
-				{
-					out << time_now_string() << " SKIPPING (out of order) ["
-						" s: " << this
-						<< " p: " << piece_index
-						<< " off: " << offset
-						<< " size: " << size
-						<< " entries: " << m_piece_hasher.size()
-						<< " ]" << std::endl;
-				}
-#endif
-			}
-#ifdef TORRENT_PARTIAL_HASH_LOG
-			else
-			{
-				out << time_now_string() << " SKIPPING (no entry) ["
-					" s: " << this
-					<< " p: " << piece_index
-					<< " off: " << offset
-					<< " size: " << size
-					<< " entries: " << m_piece_hasher.size()
-					<< " ]" << std::endl;
-			}
-#endif
-		}
 		
 		return ret;
 	}
@@ -1978,18 +1892,7 @@ namespace libtorrent
 	int piece_manager::check_files(int& current_slot, int& have_piece, error_code& error)
 	{
 		if (m_state == state_none) return check_no_fastresume(error);
-/*
-		if (m_piece_to_slot.empty())
-		{
-			m_piece_to_slot.clear();
-			m_piece_to_slot.resize(m_files.num_pieces(), has_no_slot);
-		}
-		if (m_slot_to_piece.empty())
-		{
-			m_slot_to_piece.clear();
-			m_slot_to_piece.resize(m_files.num_pieces(), unallocated);
-		}
-*/
+
 		current_slot = m_current_slot;
 		have_piece = -1;
 
@@ -2026,9 +1929,6 @@ namespace libtorrent
 		{
 			TORRENT_ASSERT(m_current_slot == m_files.num_pieces());
 
-			// clear the memory we've been using
-			std::multimap<sha1_hash, int>().swap(m_hash_to_piece);
-
 			return check_init_storage(error);
 		}
 
@@ -2064,59 +1964,21 @@ namespace libtorrent
 		TORRENT_ASSERT(have_piece == -1);
 
 		// initialization for the full check
-        /* [MF]
-		if (m_hash_to_piece.empty())
-		{
-			for (int i = 0; i < m_files.num_pieces(); ++i)
-				m_hash_to_piece.insert(std::pair<const sha1_hash, int>(m_info->hash_for_piece(i), i));
-		}
-        */
 
-		partial_hash ph;
+        bool hash_ok = false;
 		int num_read = 0;
 		int piece_size = m_files.piece_size(m_current_slot);
-		int small_piece_size = m_files.piece_size(m_files.num_pieces() - 1);
-		bool read_short = true;
-		sha1_hash small_hash;
-		if (piece_size == small_piece_size)
-		{
-			num_read = hash_for_slot(m_current_slot, ph, piece_size, 0, 0);
-		}
-		else
-		{
-			num_read = hash_for_slot(m_current_slot, ph, piece_size
-				, small_piece_size, &small_hash);
-		}
-		read_short = num_read != piece_size;
 
-		if (read_short)
-		{
-			if (m_storage->error()
-#ifdef TORRENT_WINDOWS
-				&& m_storage->error() != error_code(ERROR_PATH_NOT_FOUND, get_system_category())
-				&& m_storage->error() != error_code(ERROR_FILE_NOT_FOUND, get_system_category())
-				&& m_storage->error() != error_code(ERROR_HANDLE_EOF, get_system_category())
-				&& m_storage->error() != error_code(ERROR_INVALID_HANDLE, get_system_category()))
-#else
-				&& m_storage->error() != error_code(ENOENT, get_posix_category()))
-#endif
-			{
-				return -1;
-			}
-			// if the file is incomplete, skip the rest of it
-			return skip_file();
-		}
+        num_read = hash_for_slot(m_current_slot, &hash_ok, piece_size);
 
-		sha1_hash large_hash = ph.h.final();
-		int piece_index = identify_data(large_hash, small_hash, m_current_slot);
-
-        if (piece_index < 0)
+        if (!hash_ok)
 		{
 			// the data did not match any piece. Maybe we're reading
 			// from a sparse region, see if we are and skip
 			if (m_current_slot == m_files.num_pieces() -1) return 0;
 
-			int next_slot = m_storage->sparse_end(m_current_slot + 1);
+            //int next_slot = m_storage->sparse_end(m_current_slot + 1);
+            int next_slot = m_current_slot + 1;
 			if (next_slot > m_current_slot + 1) return next_slot - m_current_slot;
 		}
 
