@@ -536,6 +536,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
             } else {
                 std::string n = post->dict_find_string_value("n");
                 int k = post->dict_find_int_value("k",-1);
+                int height = post->dict_find_int_value("height",-1);
 
                 if( n != username ) {
 #ifdef DEBUG_ACCEPT_POST
@@ -545,12 +546,17 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 } else if( k != seq ) {
 #ifdef DEBUG_ACCEPT_POST
                     printf("acceptSignedPost: expected piece '%d' got '%d'\n",
-                           slot, k);
+                           seq, k);
 #endif
-                } else if( k < 0 || k > nBestHeight * 2 + 10 ) {
+                } else if( !validatePostNumberForUser(username, k) ) {
 #ifdef DEBUG_ACCEPT_POST
                     printf("acceptSignedPost: too much posts from user '%s' rejecting post %d\n",
                            username.c_str(), k);
+#endif
+                } else if( height < 0 || height > getBestHeight() ) {
+#ifdef DEBUG_ACCEPT_POST
+                    printf("acceptSignedPost: post from future not accepted %d > %d\n",
+                           height, getBestHeight());
 #endif
                 } else {
                     std::pair<char const*, int> postbuf = post->data_section();
@@ -567,6 +573,66 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
         }
     }
     return ret;
+}
+
+bool validatePostNumberForUser(std::string const &username, int k)
+{
+    CTransaction txOut;
+    uint256 hashBlock;
+    uint256 userhash = SerializeHash(username);
+    if( !GetTransaction(userhash, txOut, hashBlock) ) {
+        printf("validatePostNumberForUser: username is unknown\n");
+        return false;
+    }
+
+    CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
+
+    if( k < 0 || k > 2*(getBestHeight() - pblockindex->nHeight) + 10)
+        return false;
+
+    return true;
+}
+
+/*
+"userpost" :
+{
+        "n" : username,
+        "k" : seq number,
+        "t" : "post" / "dm" / "rt"
+        "msg" : message (post/rt)
+        "time" : unix utc
+        "height" : best height at user
+        "dm" : encrypted message (dm) -opt
+        "rt" : original userpost - opt
+        "sig_rt" : sig of rt - opt
+        "reply" : - opt
+        {
+                "n" : reference username
+                "k" : reference k
+        }
+}
+"sig_userpost" : signature by userpost.n
+*/
+
+bool createSignedUserpost(entry &v, std::string const &username, int k)
+{
+    entry &userpost = v["userpost"];
+
+    //
+    userpost["n"] = username;
+    userpost["k"] = k;
+    userpost["height"] = getBestHeight() - 1; // be conservative
+    //
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), userpost);
+    std::string sig = createSignature(std::string(buf.data(),buf.size()), username);
+    if( sig.size() ) {
+        v["sig_userpost"] = sig;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 int getBestHeight()

@@ -19,6 +19,7 @@ std::string createSignature(std::string const &strMessage, std::string const &st
 bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign);
 
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq);
+bool validatePostNumberForUser(std::string const &username, int k);
 
 int getBestHeight();
 
