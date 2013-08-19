@@ -309,7 +309,7 @@ namespace
 			 node_impl& node,
 			 std::string const &username, std::string const &resource, bool multi,
 			 entry const &value, std::string const &sig_user,
-			 int timeutc, int seq)
+             boost::int64_t timeutc, int seq)
 	{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 		TORRENT_LOG(node) << "sending putData [ username: " << username
@@ -440,7 +440,7 @@ void node_impl::announce(std::string const& trackerName, sha1_hash const& info_h
 
 void node_impl::putData(std::string const &username, std::string const &resource, bool multi,
                         entry const &value, std::string const &sig_user,
-                        int timeutc, int seq)
+                        boost::int64_t timeutc, int seq)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "putData [ username: " << info_hash << " res: " << resource << " ]" ;

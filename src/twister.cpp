@@ -468,10 +468,8 @@ std::string createSignature(std::string const &strMessage, std::string const &st
     return std::string((const char *)&vchSig[0], vchSig.size());
 }
 
-
-bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign)
+bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey)
 {
-    CPubKey pubkey;
     {
       CKeyID keyID;
       if( pwalletMain->GetKeyIdFromUsername(strUsername, keyID) ) {
@@ -486,20 +484,31 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
       uint256 hashBlock;
       uint256 userhash = SerializeHash(strUsername);
       if( !GetTransaction(userhash, txOut, hashBlock) ) {
-          //printf("verifySignature: user unknown '%s'\n", strUsername.c_str());
+          //printf("getUserPubKey: user unknown '%s'\n", strUsername.c_str());
           return false;
       }
 
       std::vector< std::vector<unsigned char> > vData;
       if( !txOut.pubKey.ExtractPushData(vData) || vData.size() < 1 ) {
-          printf("verifySignature: broken pubkey for user '%s'\n", strUsername.c_str());
+          printf("getUserPubKey: broken pubkey for user '%s'\n", strUsername.c_str());
           return false;
       }
       pubkey = CPubKey(vData[0]);
       if( !pubkey.IsValid() ) {
-          printf("verifySignature: invalid pubkey for user '%s'\n", strUsername.c_str());
+          printf("getUserPubKey: invalid pubkey for user '%s'\n", strUsername.c_str());
           return false;
       }
+    }
+    return true;
+}
+
+
+bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign)
+{
+    CPubKey pubkey;
+    if( !getUserPubKey(strUsername, pubkey) ) {
+      printf("verifySignature: no pubkey for user '%s'\n", strUsername.c_str());
+      return false;
     }
 
     vector<unsigned char> vchSig((const unsigned char*)strSign.data(),
@@ -614,14 +623,41 @@ bool validatePostNumberForUser(std::string const &username, int k)
 "sig_userpost" : signature by userpost.n
 */
 
-bool createSignedUserpost(entry &v, std::string const &username, int k)
+bool createSignedUserpost(entry &v, std::string const &username, int k,
+                          std::string const &msg,               // either msg.size() or
+                          entry const *rt, entry const *sig_rt, // rt != NULL or
+                          entry const *dm,                      // dm != NULL.
+                          std::string const &reply_n, int reply_k
+                          )
 {
     entry &userpost = v["userpost"];
 
     //
     userpost["n"] = username;
     userpost["k"] = k;
+    userpost["time"] = GetAdjustedTime();
     userpost["height"] = getBestHeight() - 1; // be conservative
+
+    if( msg.size() ) {
+        //userpost["t"] = "post";
+        userpost["msg"] = msg;
+    } else if ( rt != NULL && sig_rt != NULL ) {
+        //userpost["t"] = "rt";
+        userpost["rt"] = *rt;
+        userpost["sig_rt"] = *sig_rt;
+    } else if ( dm != NULL ) {
+        //userpost["t"] = "dm";
+        userpost["dm"] = *dm;
+    } else {
+        printf("createSignedUserpost: unknown type\n");
+        return false;
+    }
+
+    if( reply_n.size() ) {
+        entry &reply = userpost["reply"];
+        reply["n"]=reply_n;
+        reply["k"]=reply_k;
+    }
     //
 
     std::vector<char> buf;
@@ -633,6 +669,27 @@ bool createSignedUserpost(entry &v, std::string const &username, int k)
     } else {
         return false;
     }
+}
+
+bool createDirectMessage(entry &dm, std::string const &to, std::string const &msg)
+{
+    CPubKey pubkey;
+    if( !getUserPubKey(to, pubkey) ) {
+      printf("createDirectMessage: no pubkey for user '%s'\n", to.c_str());
+      return false;
+    }
+
+    ecies_secure_t sec;
+    bool encrypted = pubkey.Encrypt(msg, sec);
+
+    if( encrypted ) {
+        dm["key"] = sec.key;
+        dm["mac"] = sec.mac;
+        dm["orig"] = sec.orig;
+        dm["body"] = sec.body;
+    }
+
+    return encrypted;
 }
 
 int getBestHeight()
@@ -698,7 +755,7 @@ Value dhtput(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Username must be the same as sig_user for single");
 
     entry value = entry::string_type(strValue);
-    int timeutc = time(NULL);
+    boost::int64_t timeutc = GetAdjustedTime();
 
     ses->dht_putData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
 

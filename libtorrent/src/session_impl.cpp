@@ -5745,7 +5745,7 @@ retry:
 
 	void session_impl::dht_putData(std::string const &username, std::string const &resource, bool multi,
 		     entry const &value, std::string const &sig_user,
-		     int timeutc, int seq)
+             boost::int64_t timeutc, int seq)
 	{
 	    if (m_dht) m_dht->putData(username, resource, multi, value, sig_user, timeutc, seq);
 	}
