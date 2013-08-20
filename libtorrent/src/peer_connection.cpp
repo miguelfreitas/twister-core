@@ -58,6 +58,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/bt_peer_connection.hpp"
 #include "libtorrent/error.hpp"
 
+#include "../../src/twister.h"
+
 #ifdef TORRENT_DEBUG
 #include <set>
 #endif
@@ -536,7 +538,8 @@ namespace libtorrent
 		va_end(v);
 		char buf[450];
 		snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
-		(*m_logger) << buf;
+        //(*m_logger) << buf;
+        printf(buf);
 	}
 #endif
 
@@ -649,7 +652,7 @@ namespace libtorrent
 		}
 	}
 
-	void peer_connection::on_metadata_impl()
+    void peer_connection::on_metadata_impl()
 	{
 		boost::shared_ptr<torrent> t = associated_torrent().lock();
 		m_have_piece.resize(t->torrent_file().num_pieces(), m_have_all);
@@ -1580,6 +1583,7 @@ namespace libtorrent
 
 		if (is_disconnecting()) return;
 
+        /* [MF]
 		if (!t->valid_metadata() && index >= int(m_have_piece.size()))
 		{
 			if (index < 131072)
@@ -1604,6 +1608,15 @@ namespace libtorrent
 			disconnect(errors::invalid_have, 2);
 			return;
 		}
+        */
+
+        // [MF]
+        if(validatePostNumberForUser(t->name(), index)) {
+            t->increase_num_pieces(index+2);
+        } else {
+            disconnect(errors::invalid_have, 2);
+            return;
+        }
 
 		if (t->super_seeding() && !m_ses.settings().strict_super_seeding)
 		{
@@ -2063,7 +2076,7 @@ namespace libtorrent
 	{
 		m_last_piece = time_now();
 		TORRENT_ASSERT(m_outstanding_bytes >= bytes);
-		m_outstanding_bytes -= bytes;
+        m_outstanding_bytes -= bytes;
 		if (m_outstanding_bytes < 0) m_outstanding_bytes = 0;
 		boost::shared_ptr<torrent> t = associated_torrent().lock();
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
@@ -4529,7 +4542,7 @@ namespace libtorrent
 			return;
 		}
 		
-		if (ret != r.length)
+        if (ret <= 0)
 		{
 			if (ret == -3)
 			{
@@ -4547,6 +4560,8 @@ namespace libtorrent
 			}
 			return;
 		}
+        //[MF]
+        r.length = j.buffer_size;
 
 		if (t)
 		{
@@ -4568,8 +4583,10 @@ namespace libtorrent
 	void peer_connection::assign_bandwidth(int channel, int amount)
 	{
 #ifdef TORRENT_VERBOSE_LOGGING
+        /*
 		peer_log("%s ASSIGN BANDWIDHT [ bytes: %d ]"
 			, channel == upload_channel ? ">>>" : "<<<", amount);
+        */
 #endif
 
 		TORRENT_ASSERT(amount > 0);
@@ -4639,6 +4656,7 @@ namespace libtorrent
 
 		// peers that we are not interested in are non-prioritized
 #ifdef TORRENT_VERBOSE_LOGGING
+        /*
 		peer_log(">>> REQUEST_BANDWIDTH [ upload: %d prio: %d "
 			"channels: %p %p %p %p limits: %d %d %d %d ignore: %d ]"
 			, int(m_send_buffer.size()), priority
@@ -4647,7 +4665,8 @@ namespace libtorrent
 			, (bwc2?bwc2->throttle():0)
 			, (bwc3?bwc3->throttle():0)
 			, (bwc4?bwc4->throttle():0)
-			, m_ignore_bandwidth_limits);
+            , m_ignore_bandwidth_limits);
+        */
 #endif
 
 		int ret = m_ses.m_upload_rate.request_bandwidth(self()
@@ -4663,7 +4682,7 @@ namespace libtorrent
 		{
 			m_quota[upload_channel] += ret;
 #ifdef TORRENT_VERBOSE_LOGGING
-			peer_log(">>> ASSIGN BANDWIDTH [ bytes: %d ]", ret);
+            //peer_log(">>> ASSIGN BANDWIDTH [ bytes: %d ]", ret);
 #endif
 		}
 		return ret;
@@ -4690,6 +4709,7 @@ namespace libtorrent
 		shared_ptr<torrent> t = m_torrent.lock();
 
 #ifdef TORRENT_VERBOSE_LOGGING
+        /*
 		peer_log("<<< REQUEST_BANDWIDTH [ download: %d prio: %d "
 			"channels: %p %p %p %p limits: %d %d %d %d ignore: %d ]"
 			, int(m_download_queue.size() * 16 * 1024 + 30), m_priority
@@ -4699,6 +4719,7 @@ namespace libtorrent
 			, (bwc3?bwc3->throttle():0)
 			, (bwc4?bwc4->throttle():0)
 			, m_ignore_bandwidth_limits);
+        */
 #endif
 
 		TORRENT_ASSERT(m_priority <= 255);
@@ -4716,7 +4737,7 @@ namespace libtorrent
 		else
 		{
 #ifdef TORRENT_VERBOSE_LOGGING
-			peer_log("<<< ASSIGN BANDWIDTH [ bytes: %d ]", ret);
+            //peer_log("<<< ASSIGN BANDWIDTH [ bytes: %d ]", ret);
 #endif
 			m_quota[download_channel] += ret;
 		}
@@ -5006,7 +5027,7 @@ namespace libtorrent
 			TORRENT_ASSERT((m_channel_state[download_channel] & peer_info::bw_network) == 0);
 			m_channel_state[download_channel] |= peer_info::bw_network;
 #ifdef TORRENT_VERBOSE_LOGGING
-			peer_log("<<< ASYNC_READ      [ max: %d bytes ]", max_receive);
+            //peer_log("<<< ASYNC_READ      [ max: %d bytes ]", max_receive);
 #endif
 
 #if defined TORRENT_ASIO_DEBUGGING
@@ -5038,7 +5059,7 @@ namespace libtorrent
 		}
 
 #ifdef TORRENT_VERBOSE_LOGGING
-		peer_log("<<< SYNC_READ [ max: %d ret: %d e: %s ]", max_receive, ret, ec ? ec.message().c_str() : "");
+        //peer_log("<<< SYNC_READ [ max: %d ret: %d e: %s ]", max_receive, ret, ec ? ec.message().c_str() : "");
 #endif
 		return ret;
 	}
@@ -5193,8 +5214,8 @@ namespace libtorrent
 		INVARIANT_CHECK;
 
 #ifdef TORRENT_VERBOSE_LOGGING
-			peer_log("<<< ON_RECEIVE_DATA [ bytes: %d error: %s ]"
-				, bytes_transferred, error.message().c_str());
+            //peer_log("<<< ON_RECEIVE_DATA [ bytes: %d error: %s ]"
+            //	, bytes_transferred, error.message().c_str());
 #endif
 #if defined TORRENT_ASIO_DEBUGGING
 		complete_async("peer_connection::on_receive_data");
@@ -5227,7 +5248,7 @@ namespace libtorrent
 		{
 			TORRENT_ASSERT(int(m_recv_pos + bytes_transferred) <= m_packet_size);
 #ifdef TORRENT_VERBOSE_LOGGING
-			peer_log("<<< read %d bytes", int(bytes_transferred));
+            //peer_log("<<< read %d bytes", int(bytes_transferred));
 #endif
 			// correct the dl quota usage, if not all of the buffer was actually read
 			TORRENT_ASSERT(int(bytes_transferred) <= m_quota[download_channel]);
@@ -5599,7 +5620,7 @@ namespace libtorrent
 		m_statistics.trancieve_ip_packet(bytes_transferred, m_remote.address().is_v6());
 
 #ifdef TORRENT_VERBOSE_LOGGING
-		peer_log(">>> wrote %d bytes", int(bytes_transferred));
+        //peer_log(">>> wrote %d bytes", int(bytes_transferred));
 #endif
 
 		if (error)
@@ -5711,7 +5732,7 @@ namespace libtorrent
 			}
 			//if (p && p->bytes_downloaded < p->full_block_bytes) TORRENT_ASSERT(in_download_queue);
 
-			TORRENT_ASSERT(m_outstanding_bytes == outstanding_bytes);
+            //TORRENT_ASSERT(m_outstanding_bytes == outstanding_bytes);
 		}
 
 		std::set<piece_block> unique;

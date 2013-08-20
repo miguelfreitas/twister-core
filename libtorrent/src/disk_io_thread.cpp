@@ -1159,7 +1159,7 @@ namespace libtorrent
 		if (p.blocks[start_block].buf != 0 && min_blocks_to_read > 1)
 			++start_block;
 
-		int piece_size = j.storage->info()->piece_size(j.piece);
+        int piece_size = p.piece_size;
 		int blocks_in_piece = (piece_size + m_block_size - 1) / m_block_size;
 		TORRENT_ASSERT(start_block < blocks_in_piece);
 
@@ -1273,6 +1273,8 @@ namespace libtorrent
 			ret = cache_read_block(j, l);
 			hit = false;
 			if (ret < 0) return ret;
+            //[MF]
+            j.buffer_size = ret;
 
 			p = find_cached_piece(m_read_pieces, j, l);
 			TORRENT_ASSERT(!m_read_pieces.empty());
