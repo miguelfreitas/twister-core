@@ -227,6 +227,16 @@ namespace libtorrent
 	t.reset(); \
 	do { ses.cond.wait(l); } while(!done); }
 
+#define TORRENT_SYNC_CALL4(x, a1, a2, a3, a4) \
+    boost::shared_ptr<torrent> t = m_torrent.lock(); \
+    if (t) { \
+    bool done = false; \
+    session_impl& ses = t->session(); \
+    mutex::scoped_lock l(ses.mut); \
+    ses.m_io_service.dispatch(boost::bind(&fun_wrap, &done, &ses.cond, &ses.mut, boost::function<void(void)>(boost::bind(&torrent:: x, t, a1, a2, a3, a4)))); \
+    t.reset(); \
+    do { ses.cond.wait(l); } while(!done); }
+
 #define TORRENT_SYNC_CALL_RET(type, def, x) \
 	boost::shared_ptr<torrent> t = m_torrent.lock(); \
 	if (!t) return def; \
@@ -789,10 +799,11 @@ namespace libtorrent
 		TORRENT_ASYNC_CALL1(add_tracker, url);
 	}
 
-	void torrent_handle::add_piece(int piece, char const* data, int flags) const
+    void torrent_handle::add_piece(int piece, char const* data, int size, int flags) const
 	{
 		INVARIANT_CHECK;
-		TORRENT_SYNC_CALL3(add_piece, piece, data, flags);
+        // [MF] sync just to ensure the buffer still valid
+        TORRENT_SYNC_CALL4(add_piece, piece, data, size, flags);
 	}
 
 	void torrent_handle::read_piece(int piece) const

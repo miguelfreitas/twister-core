@@ -166,7 +166,7 @@ namespace libtorrent
 		torrent_handle() {}
 
 		enum flags_t { overwrite_existing = 1 };
-		void add_piece(int piece, char const* data, int flags = 0) const;
+        void add_piece(int piece, char const* data, int size, int flags = 0) const;
 		void read_piece(int piece) const;
 		bool have_piece(int piece) const;
 

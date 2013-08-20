@@ -2495,7 +2495,7 @@ namespace libtorrent
 			check_postcondition post_checker2_(t, false);
 #endif
 			t->async_verify_piece(p.piece, boost::bind(&torrent::piece_finished, t
-				, p.piece, _1));
+                , p.piece, _1, p.length));
 		}
 
 		if (is_disconnecting()) return;

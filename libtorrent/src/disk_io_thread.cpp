@@ -1781,6 +1781,7 @@ namespace libtorrent
 						m_file_pool.release(0);
 					}
 #endif
+                    m_settings = session_settings();
 					m_settings = *s;
 					delete s;
 
@@ -2201,11 +2202,14 @@ namespace libtorrent
 					mutex::scoped_lock l(m_piece_mutex);
 					INVARIANT_CHECK;
 
+                    printf("disk_io_thread:hash for piece %d hash\n", j.piece);
 					cache_piece_index_t& idx = m_pieces.get<0>();
 					cache_piece_index_t::iterator i = find_cached_piece(m_pieces, j, l);
 					if (i != idx.end())
 					{
-						TORRENT_ASSERT(i->storage);
+                        //printf("disk_io_thread:flush piece %d (size=%d) before hash\n",
+                        //       j.piece, i->piece_size);
+                        TORRENT_ASSERT(i->storage);
 						int ret = flush_range(const_cast<cached_piece_entry&>(*i), 0, INT_MAX, l);
 						idx.erase(i);
 						if (test_error(j))

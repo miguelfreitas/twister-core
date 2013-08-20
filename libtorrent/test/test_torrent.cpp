@@ -108,7 +108,7 @@ void test_running_torrent(boost::intrusive_ptr<torrent_info> info, size_type fil
 		std::vector<char> piece(info->piece_length());
 		for (int i = 0; i < int(piece.size()); ++i)
 			piece[i] = (i % 26) + 'A';
-		h.add_piece(0, &piece[0]);
+        h.add_piece(0, &piece[0], info->piece_length());
 		test_sleep(10000);
 		st = h.status();
 		TEST_CHECK(st.pieces.size() > 0 && st.pieces[0] == true);

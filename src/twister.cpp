@@ -34,6 +34,7 @@ static session *ses = NULL;
 static CCriticalSection cs_dhtgetMap;
 static map<sha1_hash, alert_manager*> m_dhtgetMap;
 static map<std::string, bool> m_specialResources;
+static map<std::string, torrent_handle> m_userTorrent;
 
 sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
@@ -347,15 +348,14 @@ void ThreadSessionAlerts()
                         // Do something!
                         printf("Neighbor of special resource - do something!\n");
                         if( dd->m_resource == "tracker" ) {
-                            torrent_handle hnd  = ses->find_torrent(ih);
-                            if( !hnd.is_valid() ) {
+                            if( !m_userTorrent.count(dd->m_username) ) {
                                 printf("adding torrent for [%s,tracker]\n", dd->m_username.c_str());
                                 add_torrent_params tparams;
                                 tparams.info_hash = ih;
                                 tparams.name = dd->m_username;
                                 boost::filesystem::path torrentPath = GetDataDir() / "swarm" / "";
                                 tparams.save_path= torrentPath.string();
-                                ses->async_add_torrent(tparams);
+                                m_userTorrent[dd->m_username] = ses->add_torrent(tparams);
                             }
                         }
                     }
@@ -407,6 +407,8 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     printf("startSessionTorrent (waiting for external IP)\n");
 
     m_specialResources["tracker"] = true;
+    m_specialResources["swarm"] = true;
+
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
@@ -804,5 +806,33 @@ Value dhtget(const Array& params, bool fHelp)
     }
 
     return ret;
+}
+
+Value newpostmsg(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            "newpost <username> <k> <msg>\n"
+            "Post a new message to swarm");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    string strK        = params[1].get_str();
+    string strMsg      = params[2].get_str();
+    int k = atoi( strK.c_str() );
+
+    entry v;
+    createSignedUserpost(v, strUsername, k, strMsg,
+                         NULL, NULL, NULL,
+                         std::string(""), 0);
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    torrent_handle h = m_userTorrent[strUsername];
+    h.add_piece(k,buf.data(),buf.size());
+
+    return Value();
 }
 

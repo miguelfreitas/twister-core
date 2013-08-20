@@ -225,6 +225,7 @@ namespace libtorrent
         buf.iov_len = slot_size;
         // deliberately pass in 0 as flags, to disable random_access
         int ret = m_storage->readv(&buf, slot, 0, 1, 0);
+        //printf("piece_manager::hash_for_slot %d ret=%d\n", slot, ret);
         if (ret > 0) num_read += ret;
         // TODO: if the read fails, set error and exit immediately
 

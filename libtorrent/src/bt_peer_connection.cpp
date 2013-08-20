@@ -227,7 +227,8 @@ namespace libtorrent
 		if (m_state < read_packet_size) return;
 		boost::shared_ptr<torrent> t = associated_torrent().lock();
 		TORRENT_ASSERT(t);
-		write_bitfield();
+        if(!m_sent_bitfield)
+            write_bitfield();
 #ifndef TORRENT_DISABLE_DHT
 		if (m_supports_dht_port && m_ses.m_dht)
 			write_dht_port(m_ses.m_external_udp_port);

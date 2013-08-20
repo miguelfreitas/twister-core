@@ -1097,11 +1097,15 @@ namespace libtorrent
 	}
 
     // [MF] test only?
-	void torrent::add_piece(int piece, char const* data, int flags)
+    void torrent::add_piece(int piece, char const* data, int size, int flags)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
+
+        //[MF] increase num pieces to ensure we are not a seeder
+        increase_num_pieces(piece+2);
+
 		TORRENT_ASSERT(piece >= 0 && piece < m_torrent_file->num_pieces());
-		int piece_size = m_torrent_file->piece_size(piece);
+        int piece_size = size;
 		int blocks_in_piece = (piece_size + block_size() - 1) / block_size();
 
 		// avoid crash trying to access the picker when there is none
@@ -1138,7 +1142,7 @@ namespace libtorrent
 			picker().mark_as_writing(block, 0);
 		}
 		async_verify_piece(piece, boost::bind(&torrent::piece_finished
-			, shared_from_this(), piece, _1));
+            , shared_from_this(), piece, _1, p.length));
 		picker().dec_refcount(piece, 0);
 	}
 
@@ -1848,7 +1852,7 @@ namespace libtorrent
 									m_picker->mark_as_finished(piece_block(piece, block), 0);
 									if (m_picker->is_piece_finished(piece))
 										async_verify_piece(piece, boost::bind(&torrent::piece_finished
-											, shared_from_this(), piece, _1));
+                                            , shared_from_this(), piece, _1, 0));
 								}
 							}
 						}
@@ -3045,7 +3049,7 @@ namespace libtorrent
 	// 0: success, piece passed check
 	// -1: disk failure
 	// -2: piece failed check
-	void torrent::piece_finished(int index, int passed_hash_check)
+    void torrent::piece_finished(int index, int passed_hash_check, int piece_size)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
@@ -3053,7 +3057,7 @@ namespace libtorrent
 			, index, ((passed_hash_check == 0)
 				?"passed":passed_hash_check == -1
 				?"disk failed":"failed")
-			, m_torrent_file->piece_size(index));
+            , piece_size);
 #endif
 
 		TORRENT_ASSERT(valid_metadata());
@@ -4926,6 +4930,21 @@ namespace libtorrent
         if(has_picker()) {
             m_picker->increase_num_pieces(num_pieces);
         }
+
+        if (m_connections_initialized)
+        {
+            // all peer connections have to update num_pieces
+            for (torrent::peer_iterator i = m_connections.begin();
+                i != m_connections.end();)
+            {
+                peer_connection* pc = *i;
+                ++i;
+                if (pc->is_disconnecting()) continue;
+                pc->on_metadata_impl();
+                //if (pc->is_disconnecting()) continue;
+                //pc->init();
+            }
+        }
     }
 
 	void torrent::read_resume_data(lazy_entry const& rd)
@@ -6286,8 +6305,8 @@ namespace libtorrent
 				++i;
 				if (pc->is_disconnecting()) continue;
 				pc->on_metadata_impl();
-				if (pc->is_disconnecting()) continue;
-				pc->init();
+                //if (pc->is_disconnecting()) continue;
+                //pc->init();
 			}
 		}
 

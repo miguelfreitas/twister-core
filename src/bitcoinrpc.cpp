@@ -238,6 +238,7 @@ static const CRPCCommand vRPCCommands[] =
     // twister dht network
     { "dhtput",                 &dhtput,                 false,     true },
     { "dhtget",                 &dhtget,                 false,     true },
+    { "newpostmsg",             &newpostmsg,             false,     true },
 };
 
 CRPCTable::CRPCTable()

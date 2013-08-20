@@ -5773,7 +5773,7 @@ retry:
 	    if (m_dht) m_dht->getData(username, resource, multi,
 				      boost::bind( post_dht_getData, this, _1),
 				      boost::bind( getDataDone_fun, this, username, resource, multi, _1, _2));
-	}
+    }
 
 	void session_impl::on_dht_router_name_lookup(error_code const& e
 		, tcp::resolver::iterator host)

@@ -184,7 +184,7 @@ namespace libtorrent
 		int seed_rank(session_settings const& s) const;
 
 		enum flags_t { overwrite_existing = 1 };
-		void add_piece(int piece, char const* data, int flags = 0);
+        void add_piece(int piece, char const* data, int size, int flags = 0);
 		void on_disk_write_complete(int ret, disk_io_job const& j
 			, peer_request p);
 		void on_disk_cache_complete(int ret, disk_io_job const& j);
@@ -659,7 +659,7 @@ namespace libtorrent
 		// this is called from the peer_connection
 		// each time a piece has failed the hash
 		// test
-		void piece_finished(int index, int passed_hash_check);
+        void piece_finished(int index, int passed_hash_check, int piece_size);
 
 		// piece_passed is called when a piece passes the hash check
 		// this will tell all peers that we just got his piece
