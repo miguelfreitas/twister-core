@@ -231,8 +231,9 @@ namespace libtorrent
 
         if (ret > 0)
         {
+            std::string errmsg;
             *hash_ok = acceptSignedPost((char const*)buf.iov_base, ret,
-                                        m_info->name(), slot);
+                                        m_info->name(), slot, errmsg);
         }
 
         if (error()) return 0;

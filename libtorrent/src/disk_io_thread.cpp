@@ -1077,8 +1077,9 @@ namespace libtorrent
 
 		if (!m_settings.disable_hash_checks)
         {
+            std::string errmsg;
             *hash_ok = acceptSignedPost((char const*)p->blocks[0].buf, piece_size,
-                                        j.storage->info()->name(), j.piece);
+                                        j.storage->info()->name(), j.piece, errmsg);
 		}
 
         ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);

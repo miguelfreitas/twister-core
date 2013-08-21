@@ -48,6 +48,22 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
     return hasher(buf.data(), buf.size()).final();
 }
 
+torrent_handle startTorrentUser(std::string const &username)
+{
+    if( !m_userTorrent.count(username) ) {
+        sha1_hash ih = dhtTargetHash(username, "tracker", "m");
+
+        printf("adding torrent for [%s,tracker]\n", username.c_str());
+        add_torrent_params tparams;
+        tparams.info_hash = ih;
+        tparams.name = username;
+        boost::filesystem::path torrentPath = GetDataDir() / "swarm" / "";
+        tparams.save_path= torrentPath.string();
+        m_userTorrent[username] = ses->add_torrent(tparams);
+    }
+    return m_userTorrent[username];
+}
+
 int load_file(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000)
 {
 	ec.clear();
@@ -348,15 +364,7 @@ void ThreadSessionAlerts()
                         // Do something!
                         printf("Neighbor of special resource - do something!\n");
                         if( dd->m_resource == "tracker" ) {
-                            if( !m_userTorrent.count(dd->m_username) ) {
-                                printf("adding torrent for [%s,tracker]\n", dd->m_username.c_str());
-                                add_torrent_params tparams;
-                                tparams.info_hash = ih;
-                                tparams.name = dd->m_username;
-                                boost::filesystem::path torrentPath = GetDataDir() / "swarm" / "";
-                                tparams.save_path= torrentPath.string();
-                                m_userTorrent[dd->m_username] = ses->add_torrent(tparams);
-                            }
+                            startTorrentUser(dd->m_username);
                         }
                     }
                     continue;
@@ -388,7 +396,7 @@ void encryptDecryptTest()
     ecies_secure_t sec;
 
     bool encrypted = key1.GetPubKey().Encrypt(textIn, sec);
-    printf("encrypted = %d [key %d, mac %d, orig %d, body %d]\n", encrypted,
+    printf("encrypted = %d [key %zd, mac %zd, orig %zd, body %zd]\n", encrypted,
            sec.key.size(), sec.mac.size(), sec.orig, sec.body.size());
 
     std::string textOut;
@@ -527,9 +535,10 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
     return (pubkeyRec.GetID() == pubkey.GetID());
 }
 
-bool acceptSignedPost(char const *data, int data_size, std::string username, int seq)
+bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg)
 {
     bool ret = false;
+    char errbuf[200]="";
 
     lazy_entry v;
     int pos;
@@ -541,48 +550,46 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
             std::string sig = v.dict_find_string_value("sig_userpost");
 
             if( !post || !sig.size() ) {
-#ifdef DEBUG_ACCEPT_POST
-                printf("acceptSignedPost: missing post or signature\n");
-#endif
+                sprintf(errbuf,"missing post or signature.");
             } else {
                 std::string n = post->dict_find_string_value("n");
+                std::string msg = post->dict_find_string_value("msg");
                 int k = post->dict_find_int_value("k",-1);
                 int height = post->dict_find_int_value("height",-1);
 
                 if( n != username ) {
-#ifdef DEBUG_ACCEPT_POST
-                    printf("acceptSignedPost: expected username '%s' got '%s'\n",
-                           username.c_str(), n.c_str());
-#endif
+                    sprintf(errbuf,"expected username '%s' got '%s'",
+                            username.c_str(),n.c_str());
                 } else if( k != seq ) {
-#ifdef DEBUG_ACCEPT_POST
-                    printf("acceptSignedPost: expected piece '%d' got '%d'\n",
+                    sprintf(errbuf,"expected piece '%d' got '%d'",
                            seq, k);
-#endif
                 } else if( !validatePostNumberForUser(username, k) ) {
-#ifdef DEBUG_ACCEPT_POST
-                    printf("acceptSignedPost: too much posts from user '%s' rejecting post %d\n",
-                           username.c_str(), k);
-#endif
+                    sprintf(errbuf,"too much posts from user '%s' rejecting post",
+                            username.c_str());
                 } else if( height < 0 || height > getBestHeight() ) {
-#ifdef DEBUG_ACCEPT_POST
-                    printf("acceptSignedPost: post from future not accepted %d > %d\n",
-                           height, getBestHeight());
-#endif
+                    sprintf(errbuf,"post from future not accepted (height: %d > %d)",
+                            height, getBestHeight());
+                } else if( msg.size() && msg.size() > 140 ) {
+                    sprintf(errbuf,"msg too big (%zd > 140)", msg.size());
                 } else {
                     std::pair<char const*, int> postbuf = post->data_section();
                     ret = verifySignature(
                             std::string(postbuf.first,postbuf.second),
                             username, sig);
-#ifdef DEBUG_ACCEPT_POST
                     if( !ret ) {
-                        printf("acceptSignedPost: bad signature\n");
+                        sprintf(errbuf,"bad signature");
                     }
-#endif
                 }
             }
         }
     }
+
+    errmsg = errbuf;
+#ifdef DEBUG_ACCEPT_POST
+    if( !ret ) {
+        printf("acceptSignedPost: %s\n",errbuf);
+    }
+#endif
     return ret;
 }
 
@@ -823,16 +830,59 @@ Value newpostmsg(const Array& params, bool fHelp)
     int k = atoi( strK.c_str() );
 
     entry v;
-    createSignedUserpost(v, strUsername, k, strMsg,
+    if( !createSignedUserpost(v, strUsername, k, strMsg,
                          NULL, NULL, NULL,
-                         std::string(""), 0);
+                         std::string(""), 0) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
     std::vector<char> buf;
     bencode(std::back_inserter(buf), v);
 
-    torrent_handle h = m_userTorrent[strUsername];
+    std::string errmsg;
+    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = startTorrentUser(strUsername);
     h.add_piece(k,buf.data(),buf.size());
 
-    return Value();
+    return Value(std::string(buf.data(),buf.size()));
 }
 
+Value newdirectmsg(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4)
+        throw runtime_error(
+            "newdirectmessage <from> <k> <to> <msg>\n"
+            "Post a new dm to swarm");
+
+    EnsureWalletIsUnlocked();
+
+    string strFrom     = params[0].get_str();
+    string strK        = params[1].get_str();
+    string strTo       = params[2].get_str();
+    string strMsg      = params[3].get_str();
+    int k = atoi( strK.c_str() );
+
+    entry dm;
+    if( !createDirectMessage(dm, strTo, strMsg) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,
+                           "error encrypting to pubkey of destination user");
+
+    entry v;
+    if( !createSignedUserpost(v, strFrom, k, "",
+                              NULL, NULL, &dm,
+                              std::string(""), 0) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    std::string errmsg;
+    if( !acceptSignedPost(buf.data(),buf.size(),strFrom,k,errmsg) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = startTorrentUser(strFrom);
+    h.add_piece(k,buf.data(),buf.size());
+
+    return Value(std::string(buf.data(),buf.size()));
+}

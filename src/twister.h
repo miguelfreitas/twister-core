@@ -18,7 +18,7 @@ void stopSessionTorrent();
 std::string createSignature(std::string const &strMessage, std::string const &strUsername);
 bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign);
 
-bool acceptSignedPost(char const *data, int data_size, std::string username, int seq);
+bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg);
 bool validatePostNumberForUser(std::string const &username, int k);
 
 int getBestHeight();

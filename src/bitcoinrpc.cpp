@@ -239,6 +239,7 @@ static const CRPCCommand vRPCCommands[] =
     { "dhtput",                 &dhtput,                 false,     true },
     { "dhtget",                 &dhtget,                 false,     true },
     { "newpostmsg",             &newpostmsg,             false,     true },
+    { "newdirectmsg",           &newdirectmsg,           false,     true },
 };
 
 CRPCTable::CRPCTable()
