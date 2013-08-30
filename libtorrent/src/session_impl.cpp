@@ -5707,6 +5707,14 @@ retry:
 	void session_impl::stop_dht()
 	{
 		if (!m_dht) return;
+
+        /* FIXME: good idea... unfortunately it doesnt work.
+        if( m_dht->refresh_storage() ) {
+            // a small chance to refresh to suceed
+            sleep(5000);
+        }
+        */
+
 		m_udp_socket.unsubscribe(m_dht.get());
 		m_dht->stop();
 		m_dht = 0;

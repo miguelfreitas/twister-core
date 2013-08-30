@@ -179,7 +179,8 @@ public:
 	virtual ~node_impl() {}
 
 	void tick();
-	void refresh(node_id const& id, find_data::nodes_callback const& f);
+    bool refresh_storage();
+    void refresh(node_id const& id, find_data::nodes_callback const& f);
 	void bootstrap(std::vector<udp::endpoint> const& nodes
 		, find_data::nodes_callback const& f);
 	void add_router_node(udp::endpoint router);

@@ -305,12 +305,9 @@ namespace
 		}
 	}
 
-	// [MF] FIXME: putData_fun must receive {p, sig_p} (no need to sign it several times)
 	void putData_fun(std::vector<std::pair<node_entry, std::string> > const& v,
 			 node_impl& node,
-			 std::string const &username, std::string const &resource, bool multi,
-			 entry const &value, std::string const &sig_user,
-             boost::int64_t timeutc, int seq)
+             entry const &p, std::string const &sig_p, std::string const &sig_user)
 	{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 		TORRENT_LOG(node) << "sending putData [ username: " << username
@@ -342,24 +339,7 @@ namespace
 			entry& a = e["x"];
 			a["token"] = i->second;
 
-			entry& p = a["p"];
-			entry& target = p["target"];
-			target["n"] = username;
-			target["r"] = resource;
-			target["t"] = (multi) ? "m" : "s";
-			if (seq >= 0 && !multi) p["seq"] = seq;
-			p["v"] = value;
-			p["time"] = timeutc;
-			p["height"] = getBestHeight()-1; // be conservative
-
-			std::vector<char> pbuf;
-			bencode(std::back_inserter(pbuf), p);
-			std::string sig_p = createSignature(std::string(pbuf.data(),pbuf.size()), sig_user);
-			if( !sig_p.size() ) {
-				printf("putData_fun: createSignature error (this should have been caught earlier)\n");
-				return;
-			}
-
+            a["p"] = p;
 			a["sig_p"] = sig_p;
 			a["sig_user"] = sig_user;
 
@@ -448,13 +428,31 @@ void node_impl::putData(std::string const &username, std::string const &resource
 #endif
 	printf("putData: username=%s,res=%s,multi=%d sig_user=%s\n",
 		   username.c_str(), resource.c_str(), multi, sig_user.c_str());
+
+    // construct p dictionary and sign it
+    entry p;
+    entry& target = p["target"];
+    target["n"] = username;
+    target["r"] = resource;
+    target["t"] = (multi) ? "m" : "s";
+    if (seq >= 0 && !multi) p["seq"] = seq;
+    p["v"] = value;
+    p["time"] = timeutc;
+    p["height"] = getBestHeight()-1; // be conservative
+
+    std::vector<char> pbuf;
+    bencode(std::back_inserter(pbuf), p);
+    std::string sig_p = createSignature(std::string(pbuf.data(),pbuf.size()), sig_user);
+    if( !sig_p.size() ) {
+        printf("putData: createSignature error (this should have been caught earlier)\n");
+        return;
+    }
+
 	// search for nodes with ids close to id or with peers
 	// for info-hash id. then send putData to them.
 	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
 		 boost::bind(&nop),
-		 boost::bind(&putData_fun, _1, boost::ref(*this),
-			     username, resource, multi,
-			     value, sig_user, timeutc, seq), true));
+         boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
 	ta->start();
 }
 
@@ -480,38 +478,60 @@ void node_impl::tick()
 		refresh(target, boost::bind(&nop));
 
     ptime now = time_now();
-    if (now - m_last_storage_refresh > minutes(2)) {
+    if (now - m_last_storage_refresh > minutes(60)) {
         m_last_storage_refresh = now;
+        refresh_storage();
+    }
+}
 
-        printf("node dht: refreshing storage...\n");
+bool node_impl::refresh_storage() {
+    bool did_something = false;
 
-        for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
-             end(m_storage_table.end()); i != end; ++i )
-        {
-            dht_storage_list_t const& lsto = i->second;
-            if( lsto.size() == 1 ) {
-                dht_storage_item const& item = lsto.front();
+    if( m_storage_table.size() == 0 )
+        return did_something;
 
-                lazy_entry p;
-                int pos;
-                error_code err;
-                // FIXME: optimize to avoid bdecode (store seq separated, etc)
-                int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+    printf("node dht: refreshing storage...\n");
 
-                const lazy_entry *target = p.dict_find_dict("target");
+    for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
+         end(m_storage_table.end()); i != end; ++i )
+    {
+        dht_storage_list_t const& lsto = i->second;
+        if( lsto.size() == 1 ) {
+            dht_storage_item const& item = lsto.front();
 
-                // refresh only signed single posts
-                if( target->dict_find_string_value("t") == "s" ) {
-                    printf("refresh dht storage: [%s,%s,%s]\n",
-                           target->dict_find_string_value("n").c_str(),
-                           target->dict_find_string_value("r").c_str(),
-                           target->dict_find_string_value("t").c_str());
-                }
+            lazy_entry p;
+            int pos;
+            error_code err;
+            // FIXME: optimize to avoid bdecode (store seq separated, etc)
+            int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+
+            const lazy_entry *target = p.dict_find_dict("target");
+            std::string username = target->dict_find_string_value("n");
+            std::string resource = target->dict_find_string_value("r");
+            bool multi = (target->dict_find_string_value("t") == "m");
+
+            // refresh only signed single posts
+            if( !multi ) {
+                printf("refresh dht storage: [%s,%s,%s]\n",
+                       username.c_str(),
+                       resource.c_str(),
+                       target->dict_find_string_value("t").c_str());
+
+                entry entryP;
+                entryP = p; // lazy to non-lazy
+
+                // search for nodes with ids close to id or with peers
+                // for info-hash id. then send putData to them.
+                boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+                                                             boost::bind(&nop),
+                                                             boost::bind(&putData_fun, _1, boost::ref(*this),
+                                                                         entryP, item.sig_p, item.sig_user), true));
+                ta->start();
+                did_something = true;
             }
         }
-
-
     }
+    return did_something;
 }
 
 time_duration node_impl::connection_timeout()
@@ -1129,7 +1149,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
                     if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
 					    olditem = item;
 				    } else {
-					    incoming_error(e, "old sequence number");
+                        // don't report this error (because of refresh storage)
+                        //incoming_error(e, "old sequence number");
 					    return;
 				    }
 				} else {

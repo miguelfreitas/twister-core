@@ -283,6 +283,11 @@ namespace libtorrent { namespace dht
 		m_host_resolver.cancel();
 	}
 
+    bool dht_tracker::refresh_storage()
+    {
+        return m_dht.refresh_storage();
+    }
+
 	void dht_tracker::dht_status(session_status& s)
 	{
 		m_dht.status(s);
