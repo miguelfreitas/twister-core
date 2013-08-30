@@ -289,6 +289,7 @@ private:
 	dht_storage_table_t m_storage_table;
 	
 	ptime m_last_tracker_tick;
+    ptime m_last_storage_refresh;
 
 	// secret random numbers used to create write tokens
 	int m_secret[2];

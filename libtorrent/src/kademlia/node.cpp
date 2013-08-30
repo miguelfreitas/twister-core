@@ -104,6 +104,7 @@ node_impl::node_impl(alert_dispatcher* alert_disp
 	, m_table(m_id, 8, settings)
 	, m_rpc(m_id, m_table, sock, observer)
 	, m_last_tracker_tick(time_now())
+    , m_last_storage_refresh(time_now())
 	, m_post_alert(alert_disp)
 	, m_sock(sock)
 {
@@ -477,6 +478,40 @@ void node_impl::tick()
 	node_id target;
 	if (m_table.need_refresh(target))
 		refresh(target, boost::bind(&nop));
+
+    ptime now = time_now();
+    if (now - m_last_storage_refresh > minutes(2)) {
+        m_last_storage_refresh = now;
+
+        printf("node dht: refreshing storage...\n");
+
+        for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
+             end(m_storage_table.end()); i != end; ++i )
+        {
+            dht_storage_list_t const& lsto = i->second;
+            if( lsto.size() == 1 ) {
+                dht_storage_item const& item = lsto.front();
+
+                lazy_entry p;
+                int pos;
+                error_code err;
+                // FIXME: optimize to avoid bdecode (store seq separated, etc)
+                int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+
+                const lazy_entry *target = p.dict_find_dict("target");
+
+                // refresh only signed single posts
+                if( target->dict_find_string_value("t") == "s" ) {
+                    printf("refresh dht storage: [%s,%s,%s]\n",
+                           target->dict_find_string_value("n").c_str(),
+                           target->dict_find_string_value("r").c_str(),
+                           target->dict_find_string_value("t").c_str());
+                }
+            }
+        }
+
+
+    }
 }
 
 time_duration node_impl::connection_timeout()
@@ -1091,7 +1126,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 				int ret = lazy_bdecode(olditem.p.data(), olditem.p.data() + olditem.p.size(), p, err, &pos, 10, 500);
 
 				if( !multi ) {
-				    if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
+                    if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
 					    olditem = item;
 				    } else {
 					    incoming_error(e, "old sequence number");
