@@ -55,6 +55,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/version.hpp"
 #include "libtorrent/escape_string.hpp"
 
+#include "../../../src/util.h"
+
 using boost::ref;
 using libtorrent::dht::node_impl;
 using libtorrent::dht::node_id;
@@ -482,7 +484,7 @@ namespace libtorrent { namespace dht
 		if (match)
 		{
 			++match->count;
-			if (match->count >= 20)
+            if (match->count >= 200)
 			{
 				if (now < match->limit)
 				{
@@ -494,6 +496,13 @@ namespace libtorrent { namespace dht
 							<< " count: " << match->count << " ]";
 					}
 #endif
+                    if (match->count == 200)
+                    {
+                        printf(" BANNING PEER [ ip: %s:%d ] time: %.3f ]\n",
+                               ep.address().to_string().c_str(), ep.port(),
+                               total_milliseconds((now - match->limit) + seconds(5)) / 1000.f);
+                    }
+
 					// we've received 20 messages in less than 5 seconds from
 					// this node. Ignore it until it's silent for 5 minutes
 					match->limit = now + minutes(5);

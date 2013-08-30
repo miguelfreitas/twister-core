@@ -8,6 +8,7 @@ using namespace json_spirit;
 using namespace std;
 
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <time.h>
 
@@ -735,7 +736,7 @@ Value dhtput(const Array& params, bool fHelp)
     if (fHelp || params.size() < 5 || params.size() > 6)
         throw runtime_error(
             "dhtput <username> <resource> <s(ingle)/m(ulti)> <value> <sig_user> <seq>\n"
-            "Sign a message with the private key of an address");
+            "Store resource in dht network");
 
     EnsureWalletIsUnlocked();
 
@@ -776,7 +777,7 @@ Value dhtget(const Array& params, bool fHelp)
     if (fHelp || params.size() != 3)
         throw runtime_error(
             "dhtget <username> <resource> <s(ingle)/m(ulti)>\n"
-            "Sign a message with the private key of an address");
+            "Get resource from dht network");
 
     string strUsername = params[0].get_str();
     string strResource = params[1].get_str();
@@ -817,9 +818,9 @@ Value dhtget(const Array& params, bool fHelp)
 
 Value newpostmsg(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3)
+    if (fHelp || (params.size() != 3 && params.size() != 5))
         throw runtime_error(
-            "newpost <username> <k> <msg>\n"
+            "newpostmsg <username> <k> <msg> [reply_n] [reply_k]\n"
             "Post a new message to swarm");
 
     EnsureWalletIsUnlocked();
@@ -828,14 +829,21 @@ Value newpostmsg(const Array& params, bool fHelp)
     string strK        = params[1].get_str();
     string strMsg      = params[2].get_str();
     int k = atoi( strK.c_str() );
+    string strReplyN, strReplyK;
+    int replyK = 0;
+    if( params.size() > 3 ) {
+        strReplyN  = params[3].get_str();
+        strReplyK  = params[4].get_str();
+        replyK = atoi( strReplyK.c_str() );
+    }
 
     entry v;
     if( !createSignedUserpost(v, strUsername, k, strMsg,
                          NULL, NULL, NULL,
-                         std::string(""), 0) )
+                         strReplyN, replyK) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
-    std::vector<char> buf;
+    vector<char> buf;
     bencode(std::back_inserter(buf), v);
 
     std::string errmsg;
@@ -843,7 +851,41 @@ Value newpostmsg(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
     torrent_handle h = startTorrentUser(strUsername);
-    h.add_piece(k,buf.data(),buf.size());
+    if( h.is_valid() ) {
+        // if member of torrent post it directly
+        h.add_piece(k,buf.data(),buf.size());
+    } else {
+        // TODO: swarm resource forwarding not implemented
+        ses->dht_putData(strUsername, "swarm", false,
+                         v, strUsername, GetAdjustedTime(), k);
+    }
+
+    // post to dht as well
+    ses->dht_putData(strUsername, string("post")+strK, false,
+                     v, strUsername, GetAdjustedTime(), k);
+
+    // is this a reply? notify
+    if( strReplyN.length() ) {
+        ses->dht_putData(strReplyN, string("replies")+strReplyK, true,
+                         v, strUsername, GetAdjustedTime(), k);
+    }
+
+    // split and look for mentions and hashtags
+    vector<string> tokens;
+    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t"),
+                            boost::algorithm::token_compress_on);
+    BOOST_FOREACH(string const& token, tokens) {
+        if( token.length() >= 2 ) {
+            string word = token.substr(1);
+            if( token.at(0) == '#') {
+                ses->dht_putData(word, "hashtag", true,
+                                 v, strUsername, GetAdjustedTime(), k);
+            } else if( token.at(0) == '@') {
+                ses->dht_putData(word, "mention", true,
+                                 v, strUsername, GetAdjustedTime(), k);
+            }
+        }
+    }
 
     return Value(std::string(buf.data(),buf.size()));
 }
