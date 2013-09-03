@@ -31,6 +31,7 @@ twister::twister()
 
 using namespace libtorrent;
 static session *ses = NULL;
+static int num_outstanding_resume_data;
 
 static CCriticalSection cs_dhtgetMap;
 static map<sha1_hash, alert_manager*> m_dhtgetMap;
@@ -47,22 +48,6 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
     std::vector<char> buf;
     bencode(std::back_inserter(buf), target);
     return hasher(buf.data(), buf.size()).final();
-}
-
-torrent_handle startTorrentUser(std::string const &username)
-{
-    if( !m_userTorrent.count(username) ) {
-        sha1_hash ih = dhtTargetHash(username, "tracker", "m");
-
-        printf("adding torrent for [%s,tracker]\n", username.c_str());
-        add_torrent_params tparams;
-        tparams.info_hash = ih;
-        tparams.name = username;
-        boost::filesystem::path torrentPath = GetDataDir() / "swarm" / "";
-        tparams.save_path= torrentPath.string();
-        m_userTorrent[username] = ses->add_torrent(tparams);
-    }
-    return m_userTorrent[username];
 }
 
 int load_file(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000)
@@ -142,6 +127,28 @@ int save_file(std::string const& filename, std::vector<char>& v)
 	return 0;
 }
 
+torrent_handle startTorrentUser(std::string const &username)
+{
+    if( !m_userTorrent.count(username) ) {
+        sha1_hash ih = dhtTargetHash(username, "tracker", "m");
+
+        printf("adding torrent for [%s,tracker]\n", username.c_str());
+        add_torrent_params tparams;
+        tparams.info_hash = ih;
+        tparams.name = username;
+        boost::filesystem::path torrentPath = GetDataDir() / "swarm";
+        tparams.save_path= torrentPath.string();
+
+        error_code ec;
+        create_directory(tparams.save_path, ec);
+
+        std::string filename = combine_path(tparams.save_path, to_hex(ih.to_string()) + ".resume");
+        load_file(filename.c_str(), tparams.resume_data, ec);
+
+        m_userTorrent[username] = ses->add_torrent(tparams);
+    }
+    return m_userTorrent[username];
+}
 
 void ThreadWaitExtIP()
 {
@@ -371,18 +378,22 @@ void ThreadSessionAlerts()
                     continue;
                 }
 
-                /*
-                save_resume_data_alert const* rd = alert_cast<save_resume_data_alert>(*i);
-                if (rd) {
-                    if (!rd->resume_data) continue;
+                save_resume_data_alert const* rda = alert_cast<save_resume_data_alert>(*i);
+                if (rda) {
+                    num_outstanding_resume_data--;
+                    if (!rda->resume_data) continue;
 
-                    torrent_handle h = rd->handle;
+                    torrent_handle h = rda->handle;
                     torrent_status st = h.status(torrent_handle::query_save_path);
                     std::vector<char> out;
-                    bencode(std::back_inserter(out), *rd->resume_data);
-                    save_file(combine_path(st.save_path, combine_path(".resume", to_hex(st.info_hash.to_string()) + ".resume")), out);
+                    bencode(std::back_inserter(out), *rda->resume_data);
+                    save_file(combine_path(st.save_path, to_hex(st.info_hash.to_string()) + ".resume"), out);
                 }
-                */
+
+                if (alert_cast<save_resume_data_failed_alert>(*i))
+                {
+                    --num_outstanding_resume_data;
+                }
         }
     }
 }
@@ -426,10 +437,47 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     encryptDecryptTest();
 }
 
+bool yes(libtorrent::torrent_status const&)
+{ return true; }
+
 void stopSessionTorrent()
 {
     if( ses ){
             ses->pause();
+
+            printf("saving resume data\n");
+            std::vector<torrent_status> temp;
+            ses->get_torrent_status(&temp, &yes, 0);
+            for (std::vector<torrent_status>::iterator i = temp.begin();
+                i != temp.end(); ++i)
+            {
+                torrent_status& st = *i;
+                if (!st.handle.is_valid())
+                {
+                    printf("  skipping, invalid handle\n");
+                    continue;
+                }
+                if (!st.has_metadata)
+                {
+                    printf("  skipping %s, no metadata\n", st.name.c_str());
+                    continue;
+                }
+                if (!st.need_save_resume)
+                {
+                    printf("  skipping %s, resume file up-to-date\n", st.name.c_str());
+                    continue;
+                }
+
+                // save_resume_data will generate an alert when it's done
+                st.handle.save_resume_data();
+                ++num_outstanding_resume_data;
+                printf("\r%d  ", num_outstanding_resume_data);
+            }
+            printf("\nwaiting for resume data [%d]\n", num_outstanding_resume_data);
+            while (num_outstanding_resume_data > 0)
+            {
+                MilliSleep(100);
+            }
 
             printf("\nsaving session state\n");
 

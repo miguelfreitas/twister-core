@@ -692,7 +692,7 @@ namespace libtorrent
 		: m_info(info)
 		, m_files(m_info->files())
 		, m_storage(sc(m_info->orig_files(), &m_info->files() != &m_info->orig_files()
-			? &m_info->files() : 0, save_path + to_hex(m_info->info_hash().to_string()), fp, file_prio))
+            ? &m_info->files() : 0, combine_path(save_path,to_hex(m_info->info_hash().to_string())), fp, file_prio))
 		, m_storage_mode(sm)
 		, m_save_path(complete(save_path))
 		, m_state(state_none)

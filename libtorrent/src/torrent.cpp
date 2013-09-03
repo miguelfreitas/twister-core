@@ -8422,9 +8422,11 @@ namespace libtorrent
 		st->is_finished = is_finished();
 		st->super_seeding = m_super_seeding;
 		st->has_metadata = valid_metadata();
+        /* [MF]
 		bytes_done(*st, flags & torrent_handle::query_accurate_download_counters);
 		TORRENT_ASSERT(st->total_wanted_done >= 0);
 		TORRENT_ASSERT(st->total_done >= st->total_wanted_done);
+        */
 
 		// payload transfer
 		st->total_payload_download = m_stat.total_payload_download();
