@@ -1801,7 +1801,8 @@ namespace libtorrent
 			bits.size() != t->torrent_file().num_pieces() )
 		{
 			if( bits.size() > t->torrent_file().num_pieces() ) {
-				if(validatePostNumberForUser(t->name(), bits.size())) {
+				// validate with smaller size to account uncertanty in network received bitfield
+				if(validatePostNumberForUser(t->name(), bits.size()-7)) {
 					t->increase_num_pieces(bits.size());
 				} else {
 					disconnect(errors::invalid_bitfield_size, 2);
