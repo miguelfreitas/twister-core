@@ -406,7 +406,9 @@ void node_impl::announce(std::string const& trackerName, sha1_hash const& info_h
 #endif
 	printf("node_impl::announce '%s' host: %s:%d myself=%d\n", trackerName.c_str(), addr.to_string().c_str(), listen_port, myself);
 
-	add_peer( trackerName, info_hash, addr, listen_port, seed );
+	if( !addr.is_unspecified() ) {
+		add_peer( trackerName, info_hash, addr, listen_port, seed );
+	}
 
 	// do not announce other peers, just add them to our local m_map.
 	if( myself ) {
@@ -1239,6 +1241,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
 
 		if( msg_keys[mk_r]->string_value() == "tracker" ) {
 			lookup_peers(target, 20, reply, false, false);
+			entry::list_type& pe = reply["values"].list();
+			printf("tracker=> replying with %d peers\n", pe.size());
 		} else {
 			dht_storage_table_t::iterator i = m_storage_table.find(target);
 			if (i != m_storage_table.end())

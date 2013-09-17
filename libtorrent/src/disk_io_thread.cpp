@@ -2205,7 +2205,7 @@ namespace libtorrent
 					mutex::scoped_lock l(m_piece_mutex);
 					INVARIANT_CHECK;
 
-                    printf("disk_io_thread:hash for piece %d hash\n", j.piece);
+					//printf("disk_io_thread:hash for piece %d hash\n", j.piece);
 					cache_piece_index_t& idx = m_pieces.get<0>();
 					cache_piece_index_t::iterator i = find_cached_piece(m_pieces, j, l);
 					if (i != idx.end())

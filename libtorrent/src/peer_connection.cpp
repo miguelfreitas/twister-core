@@ -539,7 +539,7 @@ namespace libtorrent
 		char buf[450];
 		snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
         //(*m_logger) << buf;
-        //printf(buf);
+        printf(buf);
 	}
 #endif
 
@@ -1767,12 +1767,15 @@ namespace libtorrent
 	// --------- BITFIELD ----------
 	// -----------------------------
 
-	void peer_connection::incoming_bitfield(bitfield const& bits)
+	void peer_connection::incoming_bitfield(bitfield const& origbits)
 	{
 		INVARIANT_CHECK;
 
 		boost::shared_ptr<torrent> t = m_torrent.lock();
 		TORRENT_ASSERT(t);
+
+		// [MF] do a deep copy (sorry) - needed for resize below
+		bitfield bits(origbits);
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (extension_list_t::iterator i = m_extensions.begin()
@@ -1794,11 +1797,19 @@ namespace libtorrent
 
 		// if we don't have the metedata, we cannot
 		// verify the bitfield size
-		if (t->valid_metadata()
-			&& (bits.size() + 7) / 8 != (m_have_piece.size() + 7) / 8)
+		if (t->valid_metadata() &&
+			bits.size() != t->torrent_file().num_pieces() )
 		{
-			disconnect(errors::invalid_bitfield_size, 2);
-			return;
+			if( bits.size() > t->torrent_file().num_pieces() ) {
+				if(validatePostNumberForUser(t->name(), bits.size())) {
+					t->increase_num_pieces(bits.size());
+				} else {
+					disconnect(errors::invalid_bitfield_size, 2);
+					return;
+				}
+			} else {
+				bits.resize( t->torrent_file().num_pieces(), false);
+			}
 		}
 
 		if (m_bitfield_received)

@@ -865,6 +865,7 @@ namespace libtorrent
 		, disk_buffer_holder& buffer
 		, boost::function<void(int, disk_io_job const&)> const& handler)
 	{
+		//printf("async_write: piece %d size %d\n", r.piece, r.length );
 		TORRENT_ASSERT(r.length <= 16 * 1024);
 		// the buffer needs to be allocated through the io_thread
 		TORRENT_ASSERT(m_io_thread.is_disk_buffer(buffer.get()));

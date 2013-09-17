@@ -1101,12 +1101,11 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 
-        //[MF] increase num pieces to ensure we are not a seeder
-        increase_num_pieces(piece+2);
+		//[MF] increase num pieces to ensure we are not a seeder
+		increase_num_pieces(piece+2);
 
 		TORRENT_ASSERT(piece >= 0 && piece < m_torrent_file->num_pieces());
-        int piece_size = size;
-		int blocks_in_piece = (piece_size + block_size() - 1) / block_size();
+		int piece_size = size;
 
 		// avoid crash trying to access the picker when there is none
 		if (!has_picker()) return;
@@ -1119,36 +1118,33 @@ namespace libtorrent
 		p.piece = piece;
 		p.start = 0;
 		picker().inc_refcount(piece, 0);
-		for (int i = 0; i < blocks_in_piece; ++i, p.start += block_size())
-		{
-			if (picker().is_finished(piece_block(piece, i))
-				&& (flags & torrent::overwrite_existing) == 0)
-				continue;
 
-			p.length = (std::min)(piece_size - p.start, int(block_size()));
-			char* buffer = m_ses.allocate_disk_buffer("add piece");
-			// out of memory
-			if (buffer == 0)
-			{
-				picker().dec_refcount(piece, 0);
-				return;
-			}
-			disk_buffer_holder holder(m_ses, buffer);
-			std::memcpy(buffer, data + p.start, p.length);
-			filesystem().async_write(p, holder, boost::bind(&torrent::on_disk_write_complete
-				, shared_from_this(), _1, _2, p));
-			piece_block block(piece, i);
-			picker().mark_as_downloading(block, 0, piece_picker::fast);
-			picker().mark_as_writing(block, 0);
+		p.length = piece_size;
+		char* buffer = m_ses.allocate_disk_buffer("add piece");
+		// out of memory
+		if (buffer == 0)
+		{
+			picker().dec_refcount(piece, 0);
+			return;
 		}
+		disk_buffer_holder holder(m_ses, buffer);
+		std::memcpy(buffer, data + p.start, p.length);
+		filesystem().async_write(p, holder, boost::bind(&torrent::on_disk_write_complete
+				, shared_from_this(), _1, _2, p));
+		piece_block block(piece, 0);
+		picker().mark_as_downloading(block, 0, piece_picker::fast);
+		picker().mark_as_writing(block, 0);
+
 		async_verify_piece(piece, boost::bind(&torrent::piece_finished
-            , shared_from_this(), piece, _1, p.length));
+		  , shared_from_this(), piece, _1, p.length));
 		picker().dec_refcount(piece, 0);
 	}
 
 	void torrent::on_disk_write_complete(int ret, disk_io_job const& j
 		, peer_request p)
 	{
+		//printf("on_disk_write_complete: size %d\n", j.buffer_size);
+
 		TORRENT_ASSERT(m_ses.is_network_thread());
 
 		INVARIANT_CHECK;
@@ -2113,7 +2109,7 @@ namespace libtorrent
 			policy::peer const* p = *i;
 
 			if( p->connectable && !p->banned ) {
-                m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
+						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false
 						  , boost::bind(&nop));
 			}

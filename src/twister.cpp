@@ -146,6 +146,7 @@ torrent_handle startTorrentUser(std::string const &username)
         load_file(filename.c_str(), tparams.resume_data, ec);
 
         m_userTorrent[username] = ses->add_torrent(tparams);
+        m_userTorrent[username].force_dht_announce();
     }
     return m_userTorrent[username];
 }

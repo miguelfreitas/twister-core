@@ -973,12 +973,14 @@ namespace libtorrent
 		m_statistics.received_bytes(0, received);
 		// if we don't have the metedata, we cannot
 		// verify the bitfield size
+		/* [MF] size may differ - client may know a different number of pieces
 		if (t->valid_metadata()
 			&& packet_size() - 1 != (t->torrent_file().num_pieces() + 7) / 8)
 		{
 			disconnect(errors::invalid_bitfield_size, 2);
 			return;
 		}
+		*/
 
 		if (!packet_finished()) return;
 
@@ -986,7 +988,7 @@ namespace libtorrent
 
 		bitfield bits;
 		bits.borrow_bytes((char*)recv_buffer.begin + 1
-			, t->valid_metadata()?get_bitfield().size():(packet_size()-1)*8);
+			, (packet_size()-1)*8);
 		
 		incoming_bitfield(bits);
 	}
