@@ -433,9 +433,9 @@ namespace libtorrent
 		if (flags & add_default_plugins)
 		{
 			add_extension(create_ut_pex_plugin);
-            //add_extension(create_ut_metadata_plugin);
+			//add_extension(create_ut_metadata_plugin);
 			add_extension(create_lt_trackers_plugin);
-			add_extension(create_smart_ban_plugin);
+			//add_extension(create_smart_ban_plugin);
 		}
 #endif
 
