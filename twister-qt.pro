@@ -125,6 +125,16 @@ LIBS += $$PWD/libtorrent/src/.libs/libtorrent-rasterbar.a
 DEFINES += TORRENT_DEBUG
 DEFINES += BOOST_ASIO_SEPARATE_COMPILATION
 #DEFINES += BOOST_ASIO_DYN_LINK
+!win32 {
+    libtorrent.commands = cd $$PWD/libtorrent && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
+}
+libtorrent.target = $$PWD/libtorrent/src/.libs/libtorrent-rasterbar.a
+libtorrent.depends = FORCE
+PRE_TARGETDEPS += $$PWD/libtorrent/src/.libs/libtorrent-rasterbar.a
+QMAKE_EXTRA_TARGETS += libtorrent
+# Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
+QMAKE_CLEAN += $$PWD/libtorrent/src/.libs/libtorrent-rasterbar.a; cd $$PWD/libtorrent ; $(MAKE) clean
+
 
 # regenerate src/build.h
 !win32|contains(USE_BUILD_INFO, 1) {
