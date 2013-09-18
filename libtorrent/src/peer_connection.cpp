@@ -539,7 +539,7 @@ namespace libtorrent
 		char buf[450];
 		snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
         //(*m_logger) << buf;
-        printf(buf);
+        //printf(buf);
 	}
 #endif
 
