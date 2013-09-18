@@ -212,8 +212,8 @@ namespace libtorrent
 
 		// sets all pieces to dont-have
 		void init(int blocks_per_piece, int blocks_in_last_piece, int total_num_pieces);
-        void increase_num_pieces(int total_num_pieces);
-        int num_pieces() const { return int(m_piece_map.size()); }
+		void increase_num_pieces(int total_num_pieces);
+		int num_pieces() const { return int(m_piece_map.size()); }
 
 		bool have_piece(int index) const
 		{
@@ -356,6 +356,8 @@ namespace libtorrent
 		int num_have_filtered() const { return m_num_have_filtered; }
 
 		int num_have() const { return m_num_have; }
+
+		int last_have() const { return m_last_have; }
 
 		// the number of pieces we want and don't have
 		int num_want_left() const { return num_pieces() - m_num_have - m_num_filtered; }
@@ -610,6 +612,9 @@ namespace libtorrent
 		
 		// the number of pieces we have
 		int m_num_have;
+
+		// the index of last have
+		int m_last_have;
 
 		// we have all pieces in the range [0, m_cursor)
 		// m_cursor is the first piece we don't have

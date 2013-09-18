@@ -104,6 +104,7 @@ namespace libtorrent
 		, list_peers(0)
 		, connect_candidates(0)
 		, num_pieces(0)
+		, last_have(-1)
 		, total_done(0)
 		, total_wanted_done(0)
 		, total_wanted(0)

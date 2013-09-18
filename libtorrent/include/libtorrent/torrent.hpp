@@ -529,6 +529,13 @@ namespace libtorrent
 				: m_torrent_file->num_pieces();
 		}
 
+		int last_have() const
+		{
+			return has_picker()
+				? m_picker->last_have()
+				: -1;
+		}
+
 		// when we get a have message, this is called for that piece
 		void peer_has(int index, peer_connection const* peer)
 		{

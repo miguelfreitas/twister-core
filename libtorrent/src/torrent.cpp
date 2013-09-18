@@ -8537,6 +8537,7 @@ namespace libtorrent
 			st->pieces.resize(num_pieces, true);
 		}
 		st->num_pieces = num_have();
+		st->last_have = last_have();
 		st->num_seeds = num_seeds();
 		if ((flags & torrent_handle::query_distributed_copies) && m_picker.get())
 		{

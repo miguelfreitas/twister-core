@@ -147,8 +147,18 @@ torrent_handle startTorrentUser(std::string const &username)
 
         m_userTorrent[username] = ses->add_torrent(tparams);
         m_userTorrent[username].force_dht_announce();
+        torrent_status status = m_userTorrent[username].status();
     }
     return m_userTorrent[username];
+}
+
+int lastPostKfromTorrent(std::string const &username)
+{
+    if( !m_userTorrent.count(username) )
+        return -1;
+
+    torrent_status status = m_userTorrent[username].status();
+    return status.last_have;
 }
 
 void ThreadWaitExtIP()

@@ -558,6 +558,9 @@ namespace libtorrent
 		// std::accumulate(pieces->begin(), pieces->end());
 		int num_pieces;
 
+		// index of last piece we have
+		int last_have;
+
 		// the number of bytes of the file we have
 		// including pieces that may have been filtered
 		// after we downloaded them

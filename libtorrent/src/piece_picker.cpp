@@ -71,6 +71,7 @@ namespace libtorrent
 		, m_num_filtered(0)
 		, m_num_have_filtered(0)
 		, m_num_have(0)
+		, m_last_have(-1)
 		, m_cursor(0)
 		, m_reverse_cursor(0)
 		, m_sparse_regions(1)
@@ -104,6 +105,7 @@ namespace libtorrent
 		m_num_filtered += m_num_have_filtered;
 		m_num_have_filtered = 0;
 		m_num_have = 0;
+		m_last_have = -1;
 		m_dirty = true;
 		for (std::vector<piece_pos>::iterator i = m_piece_map.begin()
 			, end(m_piece_map.end()); i != end; ++i)
@@ -1224,6 +1226,11 @@ namespace libtorrent
 		--m_num_have;
 		p.set_not_have();
 
+		if (index == m_last_have) {
+			while( !m_piece_map[m_last_have].have() && m_last_have >= 0 )
+				m_last_have--;
+		}
+
 		if (m_dirty) return;
 		if (p.priority(this) >= 0) add(index);
 	}
@@ -1288,6 +1295,8 @@ namespace libtorrent
 		}
 		++m_num_have;
 		p.set_have();
+		if (index > m_last_have)
+			m_last_have = index;
 		if (m_cursor == m_reverse_cursor - 1 &&
 			m_cursor == index)
 		{
