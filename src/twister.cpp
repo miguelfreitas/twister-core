@@ -637,7 +637,22 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                             std::string(postbuf.first,postbuf.second),
                             username, sig);
                     if( !ret ) {
-                        sprintf(errbuf,"bad signature");
+                        sprintf(errbuf,"bad post signature");
+                    } else {
+                        lazy_entry const* rt = post->dict_find_dict("rt");
+                        std::string sig_rt = post->dict_find_string_value("sig_rt");
+
+                        if( rt ) {
+                            std::string username_rt = rt->dict_find_string_value("n");
+
+                            std::pair<char const*, int> rtbuf = rt->data_section();
+                            ret = verifySignature(
+                                    std::string(rtbuf.first,rtbuf.second),
+                                    username_rt, sig_rt);
+                            if( !ret ) {
+                                sprintf(errbuf,"bad RT signature");
+                            }
+                        }
                     }
                 }
             }
