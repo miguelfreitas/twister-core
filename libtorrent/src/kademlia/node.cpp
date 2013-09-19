@@ -406,9 +406,10 @@ void node_impl::announce(std::string const& trackerName, sha1_hash const& info_h
 #endif
 	printf("node_impl::announce '%s' host: %s:%d myself=%d\n", trackerName.c_str(), addr.to_string().c_str(), listen_port, myself);
 
-	if( !addr.is_unspecified() ) {
+	// [MF] is_unspecified() is not always available. never mind.
+	//if( !addr.is_unspecified() ) {
 		add_peer( trackerName, info_hash, addr, listen_port, seed );
-	}
+	//}
 
 	// do not announce other peers, just add them to our local m_map.
 	if( myself ) {
