@@ -206,8 +206,8 @@ static const CRPCCommand vRPCCommands[] =
     { "gethashespersec",        &gethashespersec,        true,      false },
     { "getinfo",                &getinfo,                true,      false },
     { "getmininginfo",          &getmininginfo,          true,      false },
-    { "createuserkey",          &createuserkey,          true,      false },
-    { "listusernames",          &listusernames,          true,      false },
+    { "createwalletuser",       &createwalletuser,       true,      false },
+    { "listwalletusers",        &listwalletusers,        true,      false },
     { "backupwallet",           &backupwallet,           true,      false },
     { "walletpassphrase",       &walletpassphrase,       true,      false },
     { "walletpassphrasechange", &walletpassphrasechange, false,     false },
@@ -231,7 +231,6 @@ static const CRPCCommand vRPCCommands[] =
     { "getrawtransaction",      &getrawtransaction,      false,     false },
     { "createrawtransaction",   &createrawtransaction,   false,     false },
     { "decoderawtransaction",   &decoderawtransaction,   false,     false },
-    { "signrawtransaction",     &signrawtransaction,     false,     false },
     { "sendrawtransaction",     &sendrawtransaction,     false,     false },
     { "sendnewusertransaction", &sendnewusertransaction, false,     false },
     { "verifychain",            &verifychain,            true,      false },
@@ -1172,8 +1171,6 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "listunspent"            && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "getblock"               && n > 1) ConvertTo<bool>(params[1]);
     if (strMethod == "getrawtransaction"      && n > 1) ConvertTo<boost::int64_t>(params[1]);
-    if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<Array>(params[1], true);
-    if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<Array>(params[2], true);
     if (strMethod == "gettxout"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "gettxout"               && n > 2) ConvertTo<bool>(params[2]);
     if (strMethod == "lockunspent"            && n > 0) ConvertTo<bool>(params[0]);
@@ -1181,6 +1178,12 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
     if (strMethod == "verifychain"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "verifychain"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "dhtput"                 && n > 5) ConvertTo<boost::int64_t>(params[5]);
+    if (strMethod == "newpostmsg"             && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "newpostmsg"             && n > 4) ConvertTo<boost::int64_t>(params[4]);
+    if (strMethod == "newdirectmsg"           && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "newrtmsg"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "newrtmsg"               && n > 2) ConvertTo<Object>(params[2]);
 
     return params;
 }

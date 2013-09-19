@@ -88,14 +88,14 @@ Value getinfo(const Array& params, bool fHelp)
 
 
 
-Value createuserkey(const Array& params, bool fHelp)
+Value createwalletuser(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "createuserkey <username>\n"
-            "Returns a new Bitcoin address for receiving payments.  "
-            "If [account] is specified (recommended), it is added to the address book "
-            "so payments received with the address will be credited to [account].");
+            "createwalletuser <username>\n"
+            "Create a new key pair for user and add it to wallet\n"
+            "Use sendnewusertransaction to publish it to the network.\n"
+            "Returns key secret (keep it safe)");
 
     EnsureWalletIsUnlocked();
 
@@ -106,7 +106,7 @@ Value createuserkey(const Array& params, bool fHelp)
       throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in wallet");
 
     uint256 userhash = SerializeHash(strUsername);
-    printf("createuserkey: usernamehash(%s) = %s\n", strUsername.c_str(), userhash.GetHex().c_str());
+    printf("createwalletuser: usernamehash(%s) = %s\n", strUsername.c_str(), userhash.GetHex().c_str());
 
     CTransaction txOut;
     uint256 hashBlock;
@@ -117,16 +117,19 @@ Value createuserkey(const Array& params, bool fHelp)
     CPubKey newKey = pwalletMain->GenerateNewKey(strUsername);
     keyID = newKey.GetID();
 
-    return CBitcoinAddress(keyID).ToString();
+    CKey vchSecret;
+    if (!pwalletMain->GetKey(keyID, vchSecret))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error: could not obtain just created privkey?!");
+    return CBitcoinSecret(vchSecret).ToString();
 }
 
 
-Value listusernames(const Array& params, bool fHelp)
+Value listwalletusers(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "listusernames\n"
-            "Returns the list of usernames.");
+            "listwalletusers\n"
+            "Returns the list of wallet usernames.");
 
     // Find all addresses that have the given account
     Array ret;

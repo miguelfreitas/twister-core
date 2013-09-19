@@ -158,8 +158,8 @@ extern json_spirit::Value getwork(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblocktemplate(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value submitblock(const json_spirit::Array& params, bool fHelp);
 
-extern json_spirit::Value createuserkey(const json_spirit::Array& params, bool fHelp); // in rpcwallet.cpp
-extern json_spirit::Value listusernames(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value createwalletuser(const json_spirit::Array& params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value listwalletusers(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value signmessage(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value verifymessage(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listtransactions(const json_spirit::Array& params, bool fHelp);
@@ -179,7 +179,6 @@ extern json_spirit::Value lockunspent(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value listlockunspent(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value decoderawtransaction(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value signrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendnewusertransaction(const json_spirit::Array& params, bool fHelp);
 

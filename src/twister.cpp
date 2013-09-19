@@ -9,6 +9,7 @@ using namespace std;
 
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <time.h>
 
@@ -857,8 +858,7 @@ Value dhtput(const Array& params, bool fHelp)
     if( !multi && params.size() != 6 )
         throw JSONRPCError(RPC_WALLET_ERROR, "Seq parameter required for single");
 
-    int seq = -1;
-    if( params.size() == 6 ) seq = atoi( params[5].get_str().c_str() );
+    int seq = params[5].get_int();
 
     if( !multi && strUsername != strSigUser )
         throw JSONRPCError(RPC_WALLET_ERROR, "Username must be the same as sig_user for single");
@@ -925,15 +925,16 @@ Value newpostmsg(const Array& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
-    string strK        = params[1].get_str();
+    int k              = params[1].get_int();
+    string strK        = boost::lexical_cast<std::string>(k);
     string strMsg      = params[2].get_str();
-    int k = atoi( strK.c_str() );
+
     string strReplyN, strReplyK;
     int replyK = 0;
-    if( params.size() > 3 ) {
+    if( params.size() == 5 ) {
         strReplyN  = params[3].get_str();
-        strReplyK  = params[4].get_str();
-        replyK = atoi( strReplyK.c_str() );
+        replyK = params[4].get_int();
+        strReplyK = boost::lexical_cast<std::string>(replyK);
     }
 
     entry v;
@@ -999,10 +1000,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     string strFrom     = params[0].get_str();
-    string strK        = params[1].get_str();
+    int k              = params[1].get_int();
     string strTo       = params[2].get_str();
     string strMsg      = params[3].get_str();
-    int k = atoi( strK.c_str() );
 
     entry dm;
     if( !createDirectMessage(dm, strTo, strMsg) )
@@ -1038,9 +1038,9 @@ Value newrtmsg(const Array& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
-    string strK        = params[1].get_str();
+    int k              = params[1].get_int();
+    string strK        = boost::lexical_cast<std::string>(k);
     entry  vrt         = jsonToEntry(params[2].get_obj());
-    int k = atoi( strK.c_str() );
 
     entry v;
     if( !createSignedUserpost(v, strUsername, k, "",
