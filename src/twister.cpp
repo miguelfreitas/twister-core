@@ -1041,10 +1041,12 @@ Value newrtmsg(const Array& params, bool fHelp)
     int k              = params[1].get_int();
     string strK        = boost::lexical_cast<std::string>(k);
     entry  vrt         = jsonToEntry(params[2].get_obj());
+    entry const *rt    = vrt.find_key("userpost");
+    entry const *sig_rt= vrt.find_key("sig_userpost");
 
     entry v;
     if( !createSignedUserpost(v, strUsername, k, "",
-                              vrt.find_key("userpost"), vrt.find_key("sig_userpost"), NULL,
+                              rt, sig_rt, NULL,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -1068,6 +1070,14 @@ Value newrtmsg(const Array& params, bool fHelp)
     // post to dht as well
     ses->dht_putData(strUsername, string("post")+strK, false,
                      v, strUsername, GetAdjustedTime(), k);
+
+    // notification to keep track of RTs of the original post
+    if( rt ) {
+        string rt_user = rt->find_key("n")->string();
+        string rt_k    = boost::lexical_cast<std::string>(rt->find_key("k")->integer());
+        ses->dht_putData(rt_user, string("rts")+rt_k, true,
+                         v, strUsername, GetAdjustedTime(), k);
+    }
 
     return entryToJson(v);
 }
