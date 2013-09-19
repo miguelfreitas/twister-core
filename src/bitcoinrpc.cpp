@@ -240,6 +240,7 @@ static const CRPCCommand vRPCCommands[] =
     { "dhtget",                 &dhtget,                 false,     true },
     { "newpostmsg",             &newpostmsg,             false,     true },
     { "newdirectmsg",           &newdirectmsg,           false,     true },
+    { "newrtmsg",               &newrtmsg,               false,     true },
 };
 
 CRPCTable::CRPCTable()

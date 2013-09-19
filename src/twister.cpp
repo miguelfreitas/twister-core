@@ -805,6 +805,31 @@ Value entryToJson(const entry &e)
     }
 }
 
+entry jsonToEntry(const Value &v)
+{
+    entry::list_type lst;
+    entry::dictionary_type dict;
+
+    switch( v.type() ) {
+        case int_type:
+            return v.get_int();
+        case str_type:
+            return v.get_str();
+        case array_type:
+            for (Array::const_iterator i = v.get_array().begin(); i != v.get_array().end(); ++i) {
+                lst.push_back( jsonToEntry(*i) );
+            }
+            return lst;
+        case obj_type:
+            for (Object::const_iterator i = v.get_obj().begin(); i != v.get_obj().end(); ++i) {
+                dict[ i->name_ ] = jsonToEntry(i->value_);
+            }
+            return dict;
+        default:
+            return string("<uninitialized>");
+    }
+}
+
 Value dhtput(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 5 || params.size() > 6)
@@ -961,7 +986,7 @@ Value newpostmsg(const Array& params, bool fHelp)
         }
     }
 
-    return Value(std::string(buf.data(),buf.size()));
+    return entryToJson(v);
 }
 
 Value newdirectmsg(const Array& params, bool fHelp)
@@ -1000,5 +1025,50 @@ Value newdirectmsg(const Array& params, bool fHelp)
     torrent_handle h = startTorrentUser(strFrom);
     h.add_piece(k,buf.data(),buf.size());
 
-    return Value(std::string(buf.data(),buf.size()));
+    return entryToJson(v);
 }
+
+Value newrtmsg(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 3))
+        throw runtime_error(
+            "newrtmsg <username> <k> <rt_v_object>\n"
+            "Post a new RT to swarm");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    string strK        = params[1].get_str();
+    entry  vrt         = jsonToEntry(params[2].get_obj());
+    int k = atoi( strK.c_str() );
+
+    entry v;
+    if( !createSignedUserpost(v, strUsername, k, "",
+                              vrt.find_key("userpost"), vrt.find_key("sig_userpost"), NULL,
+                              std::string(""), 0) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
+
+    vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    std::string errmsg;
+    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = startTorrentUser(strUsername);
+    if( h.is_valid() ) {
+        // if member of torrent post it directly
+        h.add_piece(k,buf.data(),buf.size());
+    } else {
+        // TODO: swarm resource forwarding not implemented
+        ses->dht_putData(strUsername, "swarm", false,
+                         v, strUsername, GetAdjustedTime(), k);
+    }
+
+    // post to dht as well
+    ses->dht_putData(strUsername, string("post")+strK, false,
+                     v, strUsername, GetAdjustedTime(), k);
+
+    return entryToJson(v);
+}
+
