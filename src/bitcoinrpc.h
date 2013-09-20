@@ -198,5 +198,6 @@ extern json_spirit::Value newpostmsg(const json_spirit::Array& params, bool fHel
 extern json_spirit::Value newdirectmsg(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value newrtmsg(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getposts(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setspammsg(const json_spirit::Array& params, bool fHelp);
 
 #endif

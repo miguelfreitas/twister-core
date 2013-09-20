@@ -1138,3 +1138,18 @@ Value getposts(const Array& params, bool fHelp)
     return ret;
 }
 
+Value setspammsg(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 2))
+        throw runtime_error(
+            "setspammsg <username> <msg>\n"
+            "Set spam message attached to generated blocks");
+
+    string strUsername = params[0].get_str();
+    string strMsg      = params[1].get_str();
+
+    strSpamUser    = strUsername;
+    strSpamMessage = strMsg;
+
+    return Value();
+}

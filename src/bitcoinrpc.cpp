@@ -241,6 +241,7 @@ static const CRPCCommand vRPCCommands[] =
     { "newdirectmsg",           &newdirectmsg,           false,     true },
     { "newrtmsg",               &newrtmsg,               false,     true },
     { "getposts",               &getposts,               false,     true },
+    { "setspammsg",             &setspammsg,             false,     true },
 };
 
 CRPCTable::CRPCTable()
