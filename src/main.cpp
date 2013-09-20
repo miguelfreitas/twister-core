@@ -65,7 +65,7 @@ int64 nHPSTimerStart = 0;
 // Settings
 int64 nTransactionFee = 0;
 
-string strSpamMessage = "spam message test";
+string strSpamMessage = "spam message test [en]";
 string strSpamUser = "nobody"; // [MF] FIXME: authenticy check needed
 
 
