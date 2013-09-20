@@ -1082,3 +1082,59 @@ Value newrtmsg(const Array& params, bool fHelp)
     return entryToJson(v);
 }
 
+Value getposts(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 2))
+        throw runtime_error(
+            "getposts <count> [{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]\n"
+            "get posts from users\n"
+            "max_id and since_id may be omited or -1");
+
+    int count          = params[0].get_int();
+    Array users        = params[1].get_array();
+
+    std::multimap<int64,entry> postsByTime;
+
+    for( unsigned int u = 0; u < users.size(); u++ ) {
+        Object user = users[u].get_obj();
+        string strUsername;
+        int max_id = -1;
+        int since_id = -1;
+
+        for (Object::const_iterator i = user.begin(); i != user.end(); ++i) {
+            if( i->name_ == "username" ) strUsername = i->value_.get_str();
+            if( i->name_ == "max_id" ) max_id = i->value_.get_int();
+            if( i->name_ == "since_id" ) since_id = i->value_.get_int();
+        }
+
+        if( strUsername.size() && m_userTorrent.count(strUsername) &&
+            m_userTorrent[strUsername].is_valid() ){
+
+            std::vector<std::string> pieces;
+            m_userTorrent[strUsername].get_pieces(pieces, count, max_id, since_id);
+
+            BOOST_FOREACH(string const& piece, pieces) {
+                lazy_entry v;
+                int pos;
+                error_code ec;
+                if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
+                    lazy_entry const* post = v.dict_find_dict("userpost");
+                    int64 time = post->dict_find_int_value("time",-1);
+
+                    entry vEntry;
+                    vEntry = v;
+                    postsByTime.insert( pair<int64,entry>(time, vEntry) );
+                }
+            }
+        }
+    }
+
+    Array ret;
+    std::multimap<int64,entry>::reverse_iterator rit;
+    for (rit=postsByTime.rbegin(); rit!=postsByTime.rend() && (int)ret.size() < count; ++rit) {
+        ret.push_back( entryToJson(rit->second) );
+    }
+
+    return ret;
+}
+

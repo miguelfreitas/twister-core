@@ -35,6 +35,6 @@ if cmd == "cmd":
         sys.exit(-1)
     parms = ""
     for i in xrange(3,len(sys.argv)):
-        parms += ' "' + sys.argv[i] + '"'
+        parms += " '" + sys.argv[i] + "'"
     os.system( twister + rpccfg + parms )
 

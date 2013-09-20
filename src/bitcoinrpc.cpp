@@ -240,6 +240,7 @@ static const CRPCCommand vRPCCommands[] =
     { "newpostmsg",             &newpostmsg,             false,     true },
     { "newdirectmsg",           &newdirectmsg,           false,     true },
     { "newrtmsg",               &newrtmsg,               false,     true },
+    { "getposts",               &getposts,               false,     true },
 };
 
 CRPCTable::CRPCTable()
@@ -1184,6 +1185,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "newdirectmsg"           && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newrtmsg"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newrtmsg"               && n > 2) ConvertTo<Object>(params[2]);
+    if (strMethod == "getposts"               && n > 0) ConvertTo<boost::int64_t>(params[0]);
+    if (strMethod == "getposts"               && n > 1) ConvertTo<Array>(params[1]);
 
     return params;
 }

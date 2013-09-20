@@ -238,6 +238,16 @@ namespace libtorrent
     t.reset(); \
     do { ses.cond.wait(l); } while(!done); }
 
+#define TORRENT_SYNC_CALL7(x, a1, a2, a3, a4, a5, a6, a7) \
+    boost::shared_ptr<torrent> t = m_torrent.lock(); \
+    if (t) { \
+    bool done = false; \
+    session_impl& ses = t->session(); \
+    mutex::scoped_lock l(ses.mut); \
+    ses.m_io_service.dispatch(boost::bind(&fun_wrap, &done, &ses.cond, &ses.mut, boost::function<void(void)>(boost::bind(&torrent:: x, t, a1, a2, a3, a4, a5, a6, a7)))); \
+    t.reset(); \
+    do { ses.cond.wait(l); } while(!done); }
+
 #define TORRENT_SYNC_CALL_RET(type, def, x) \
 	boost::shared_ptr<torrent> t = m_torrent.lock(); \
 	if (!t) return def; \
@@ -811,6 +821,22 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 		TORRENT_ASYNC_CALL1(read_piece, piece);
+	}
+
+	void torrent_handle::get_pieces(std::vector<std::string> &pieces, int count, int max_id, int since_id) const
+	{
+		INVARIANT_CHECK;
+
+		libtorrent::mutex mut;
+		libtorrent::condition_variable cond;
+		int reqs = 0;
+
+		TORRENT_SYNC_CALL7(get_pieces, &pieces, count, max_id, since_id, &mut, &cond, &reqs);
+
+		mutex::scoped_lock l2(mut);
+		while( reqs > 0 ) {
+			cond.wait(l2);
+		}
 	}
 
 	bool torrent_handle::have_piece(int piece) const

@@ -908,6 +908,46 @@ namespace libtorrent
 		}
 	}
 
+	void torrent::get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id,
+							 mutex *mut, condition_variable *cond, int *reqs)
+	{
+		if( !m_picker ) return;
+
+		if( max_id < 0 )
+			max_id = m_picker->last_have();
+
+		int piece_size = m_torrent_file->piece_size(0);
+
+		for( int i = max_id; i >= 0 && i > since_id && (*reqs) < count; i--) {
+			if( m_picker->have_piece(i) ) {
+				(*reqs)++;
+
+				peer_request r;
+				r.piece = i;
+				r.start = 0;
+				r.length = piece_size;
+				filesystem().async_read(r, boost::bind(&torrent::on_disk_read_get_piece_complete
+					, shared_from_this(), _1, _2, pieces, mut, cond, reqs));
+			}
+		}
+	}
+
+	void torrent::on_disk_read_get_piece_complete(int ret, disk_io_job const& j,
+												  std::vector<std::string> *pieces, mutex *mut, condition_variable *cond, int *reqs)
+	{
+		TORRENT_ASSERT(m_ses.is_network_thread());
+
+		mutex::scoped_lock l(*mut);
+		//printf("on_disk_read_get_piece_complete ret=%d reqs=%d\n", ret, *reqs);
+
+		if (ret > 0) {
+			pieces->push_back( std::string(j.buffer, ret));
+		}
+		(*reqs)--;
+
+		if (!(*reqs)) cond->notify_all();
+	}
+
 	void torrent::send_share_mode()
 	{
 #ifndef TORRENT_DISABLE_EXTENSIONS
