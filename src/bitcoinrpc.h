@@ -203,5 +203,6 @@ extern json_spirit::Value getspammsg(const json_spirit::Array& params, bool fHel
 extern json_spirit::Value follow(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value unfollow(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getfollowing(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listusernamespartial(const json_spirit::Array& params, bool fHelp);
 
 #endif

@@ -1239,3 +1239,40 @@ Value getfollowing(const Array& params, bool fHelp)
     return ret;
 }
 
+Value listusernamespartial(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 2))
+        throw runtime_error(
+            "listusernamespartial <username_starts_with> <count>\n"
+            "get list of usernames starting with");
+
+    string userStartsWith = params[0].get_str();
+    size_t count          = params[1].get_int();
+
+    set<string> retStrings;
+
+    for(CBlockIndex* pindex = pindexBest; pindex && retStrings.size() < count; pindex = pindex->pprev ) {
+        CBlock block;
+        if( !ReadBlockFromDisk(block, pindex) )
+            continue;
+
+        BOOST_FOREACH(const CTransaction&tx, block.vtx) {
+            if( !tx.IsSpamMessage() ) {
+                string txUsername = tx.userName.ExtractSmallString();
+                int toCompare = std::min( userStartsWith.size(), txUsername.size() );
+                if( memcmp( txUsername.data(), userStartsWith.data(), toCompare ) == 0 )
+                    retStrings.insert( txUsername );
+                if( retStrings.size() >= count )
+                   break;
+            }
+        }
+    }
+
+    Array ret;
+    BOOST_FOREACH(string username, retStrings) {
+        ret.push_back(username);
+    }
+
+    return ret;
+}
+
