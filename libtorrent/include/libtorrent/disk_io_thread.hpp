@@ -157,6 +157,9 @@ namespace libtorrent
 		// the time when this job was issued. This is used to
 		// keep track of disk I/O congestion
 		ptime start_time;
+
+		// post flags after hash checking
+		boost::uint32_t post_flags;
 	};
 
 	// returns true if the fundamental operation
@@ -411,8 +414,8 @@ namespace libtorrent
 		enum cache_flags_t {
 			cache_only = 1
 		};
-        int try_read_from_cache(disk_io_job & j, bool& hit, int flags = 0);
-        int read_piece_from_cache_and_hash(disk_io_job & j, bool *hash_ok);
+		int try_read_from_cache(disk_io_job & j, bool& hit, int flags = 0);
+		int read_piece_from_cache_and_hash(disk_io_job & j, bool *hash_ok);
 		int cache_piece(disk_io_job const& j, cache_piece_index_t::iterator& p
 			, bool& hit, int options, mutex::scoped_lock& l);
 

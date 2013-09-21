@@ -200,7 +200,7 @@ namespace libtorrent
 		void read_piece(int piece);
 		void on_disk_read_complete(int ret, disk_io_job const& j, peer_request r, read_piece_struct* rp);
 
-		void get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id,
+		void get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id, uint32_t filter_flags,
 						mutex *mut, condition_variable *cond, int *reqs);
 		void on_disk_read_get_piece_complete(int ret, disk_io_job const& j,
 											 std::vector<std::string> *pieces, mutex *mut, condition_variable *cond, int *reqs);
@@ -525,7 +525,7 @@ namespace libtorrent
 
 		// called when we learn that we have a piece
 		// only once per piece
-		void we_have(int index);
+		void we_have(int index, boost::uint32_t post_flags);
 
 		int num_have() const
 		{
@@ -666,18 +666,18 @@ namespace libtorrent
 		// we wasn't finished anymore.
 		void resume_download();
 
-		void async_verify_piece(int piece_index, boost::function<void(int)> const&);
+		void async_verify_piece(int piece_index, boost::function<void(int, boost::uint32_t)> const&);
 
 		// this is called from the peer_connection
 		// each time a piece has failed the hash
 		// test
-        void piece_finished(int index, int passed_hash_check, int piece_size);
+		void piece_finished(int index, int passed_hash_check, boost::uint32_t post_flags, int piece_size);
 
 		// piece_passed is called when a piece passes the hash check
 		// this will tell all peers that we just got his piece
 		// and also let the piece picker know that we have this piece
 		// so it wont pick it for download
-		void piece_passed(int index);
+		void piece_passed(int index, boost::uint32_t post_flags);
 
 		// piece_failed is called when a piece fails the hash check
 		void piece_failed(int index);
@@ -897,7 +897,7 @@ namespace libtorrent
 		void on_cache_flushed(int ret, disk_io_job const& j);
 
 		void on_piece_verified(int ret, disk_io_job const& j
-			, boost::function<void(int)> f);
+			, boost::function<void(int, boost::uint32_t)> f);
 	
 		int prioritize_tracker(int tracker_index);
 		int deprioritize_tracker(int tracker_index);

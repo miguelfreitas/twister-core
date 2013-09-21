@@ -597,10 +597,11 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
     return (pubkeyRec.GetID() == pubkey.GetID());
 }
 
-bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg)
+bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags)
 {
     bool ret = false;
     char errbuf[200]="";
+    if( flags ) *flags = 0;
 
     lazy_entry v;
     int pos;
@@ -645,6 +646,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                         std::string sig_rt = post->dict_find_string_value("sig_rt");
 
                         if( rt ) {
+                            if( flags ) (*flags) |= USERPOST_FLAG_RT;
                             std::string username_rt = rt->dict_find_string_value("n");
 
                             std::pair<char const*, int> rtbuf = rt->data_section();
@@ -654,6 +656,11 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                             if( !ret ) {
                                 sprintf(errbuf,"bad RT signature");
                             }
+                        }
+
+                        lazy_entry const* dm = post->dict_find_dict("dm");
+                        if( dm && flags ) {
+                            (*flags) |= USERPOST_FLAG_DM;
                         }
                     }
                 }
@@ -948,7 +955,7 @@ Value newpostmsg(const Array& params, bool fHelp)
     bencode(std::back_inserter(buf), v);
 
     std::string errmsg;
-    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg) )
+    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
     torrent_handle h = startTorrentUser(strUsername);
@@ -1020,7 +1027,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
     bencode(std::back_inserter(buf), v);
 
     std::string errmsg;
-    if( !acceptSignedPost(buf.data(),buf.size(),strFrom,k,errmsg) )
+    if( !acceptSignedPost(buf.data(),buf.size(),strFrom,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
     torrent_handle h = startTorrentUser(strFrom);
@@ -1055,7 +1062,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     bencode(std::back_inserter(buf), v);
 
     std::string errmsg;
-    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg) )
+    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
     torrent_handle h = startTorrentUser(strUsername);
@@ -1112,7 +1119,7 @@ Value getposts(const Array& params, bool fHelp)
             m_userTorrent[strUsername].is_valid() ){
 
             std::vector<std::string> pieces;
-            m_userTorrent[strUsername].get_pieces(pieces, count, max_id, since_id);
+            m_userTorrent[strUsername].get_pieces(pieces, count, max_id, since_id, USERPOST_FLAG_RT);
 
             BOOST_FOREACH(string const& piece, pieces) {
                 lazy_entry v;

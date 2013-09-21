@@ -1053,7 +1053,7 @@ namespace libtorrent
 	}
 
 	// cache the entire piece and hash it
-    int disk_io_thread::read_piece_from_cache_and_hash(disk_io_job & j, bool *hash_ok)
+	int disk_io_thread::read_piece_from_cache_and_hash(disk_io_job & j, bool *hash_ok)
 	{
 		TORRENT_ASSERT(j.buffer);
 
@@ -1073,16 +1073,16 @@ namespace libtorrent
 		bool hit;
 		int ret = cache_piece(j, p, hit, ignore_cache_size, l);
 		if (ret < 0) return ret;
-        piece_size = p->piece_size;
+		piece_size = p->piece_size;
 
 		if (!m_settings.disable_hash_checks)
-        {
-            std::string errmsg;
-            *hash_ok = acceptSignedPost((char const*)p->blocks[0].buf, piece_size,
-                                        j.storage->info()->name(), j.piece, errmsg);
+		{
+		    std::string errmsg;
+		    *hash_ok = acceptSignedPost((char const*)p->blocks[0].buf, piece_size,
+						j.storage->info()->name(), j.piece, errmsg, &j.post_flags);
 		}
 
-        ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);
+		ret = copy_from_piece(const_cast<cached_piece_entry&>(*p), hit, j, l);
 		TORRENT_ASSERT(ret > 0);
 		if (ret < 0) return ret;
 		cache_piece_index_t& idx = m_read_pieces.get<0>();
@@ -1947,8 +1947,8 @@ namespace libtorrent
 					// since we need to check the hash, this function
 					// will ignore the cache size limit (at least for
 					// reading and hashing, not for keeping it around)
-                    bool hash_ok;
-                    ret = read_piece_from_cache_and_hash(j, &hash_ok);
+					bool hash_ok;
+					ret = read_piece_from_cache_and_hash(j, &hash_ok);
 
 					// -2 means there's no space in the read cache
 					// or that the read cache is disabled
@@ -1958,7 +1958,7 @@ namespace libtorrent
 						break;
 					}
 					if (!m_settings.disable_hash_checks)
-                        ret = (hash_ok)?ret:-3;
+						ret = (hash_ok)?ret:-3;
 					if (ret == -3)
 					{
 						j.storage->mark_failed(j.piece);
@@ -2232,7 +2232,7 @@ namespace libtorrent
 					ptime hash_start = time_now_hires();
 
 					int readback = 0;
-                    bool hash_ok = j.storage->hash_for_piece_impl(j.piece, &readback);
+					bool hash_ok = j.storage->hash_for_piece_impl(j.piece, &readback, &j.post_flags);
 					if (test_error(j))
 					{
 						ret = -1;
@@ -2413,7 +2413,7 @@ namespace libtorrent
 						ptime hash_start = time_now_hires();
 						if (m_waiting_to_shutdown) break;
 
-						ret = j.storage->check_files(j.piece, j.offset, j.error);
+						ret = j.storage->check_files(j.piece, j.offset, j.error, &j.post_flags);
 
 						ptime done = time_now_hires();
 						m_hash_time.add_sample(total_microseconds(done - hash_start));

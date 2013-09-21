@@ -203,7 +203,7 @@ namespace libtorrent
 		// it means that the refcounter will indicate that
 		// we are not interested in this piece anymore
 		// (i.e. we don't have to maintain a refcount)
-		void we_have(int index);
+		void we_have(int index, boost::uint32_t flags);
 		void we_dont_have(int index);
 
 		int cursor() const { return m_cursor; }
@@ -220,6 +220,13 @@ namespace libtorrent
 			TORRENT_ASSERT(index >= 0);
 			TORRENT_ASSERT(index < int(m_piece_map.size()));
 			return m_piece_map[index].index == piece_pos::we_have_index;
+		}
+
+		boost::uint32_t post_flags(int index) const
+		{
+			TORRENT_ASSERT(index >= 0);
+			TORRENT_ASSERT(index < int(m_piece_map.size()));
+			return m_piece_map[index].post_flags;
 		}
 
 		bool is_downloading(int index) const
@@ -421,6 +428,8 @@ namespace libtorrent
 #else
 			boost::uint32_t peer_count : 16;
 #endif
+			// post flags (1 = rt, 2 = dm)
+			boost::uint32_t post_flags : 2;
 			// is 1 if the piece is marked as being downloaded
 			boost::uint32_t downloading : 1;
 			// set when downloading, but no free blocks to request left
@@ -465,7 +474,7 @@ namespace libtorrent
 			};
 			
 			bool have() const { return index == we_have_index; }
-			void set_have() { index = we_have_index; TORRENT_ASSERT(have()); }
+			void set_have(boost::uint32_t flags) { index = we_have_index; post_flags = flags; TORRENT_ASSERT(have()); }
 			void set_not_have() { index = 0; TORRENT_ASSERT(!have()); }
 			
 			bool filtered() const { return piece_priority == filter_priority; }

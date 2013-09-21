@@ -1239,7 +1239,7 @@ namespace libtorrent
 	// downloaded a piece, and that no further attempts
 	// to pick that piece should be made. The piece will
 	// be removed from the available piece list.
-	void piece_picker::we_have(int index)
+	void piece_picker::we_have(int index, boost::uint32_t flags)
 	{
 #ifdef TORRENT_EXPENSIVE_INVARIANT_CHECKS
 		TORRENT_PIECE_PICKER_INVARIANT_CHECK;
@@ -1294,7 +1294,7 @@ namespace libtorrent
 			++m_num_have_filtered;
 		}
 		++m_num_have;
-		p.set_have();
+		p.set_have(flags);
 		if (index > m_last_have)
 			m_last_have = index;
 		if (m_cursor == m_reverse_cursor - 1 &&

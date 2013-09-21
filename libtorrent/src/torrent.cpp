@@ -908,7 +908,7 @@ namespace libtorrent
 		}
 	}
 
-	void torrent::get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id,
+	void torrent::get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id, uint32_t filter_flags,
 							 mutex *mut, condition_variable *cond, int *reqs)
 	{
 		if( !m_picker ) return;
@@ -919,7 +919,8 @@ namespace libtorrent
 		int piece_size = m_torrent_file->piece_size(0);
 
 		for( int i = max_id; i >= 0 && i > since_id && (*reqs) < count; i--) {
-			if( m_picker->have_piece(i) ) {
+			if( m_picker->have_piece(i) &&
+			   (m_picker->post_flags(i) & filter_flags) == m_picker->post_flags(i) ) {
 				(*reqs)++;
 
 				peer_request r;
@@ -1176,7 +1177,7 @@ namespace libtorrent
 		picker().mark_as_writing(block, 0);
 
 		async_verify_piece(piece, boost::bind(&torrent::piece_finished
-		  , shared_from_this(), piece, _1, p.length));
+		  , shared_from_this(), piece, _1, _2, p.length));
 		picker().dec_refcount(piece, 0);
 	}
 
@@ -1642,6 +1643,8 @@ namespace libtorrent
 			// if we marked an entire piece as finished, we actually
 			// need to consider it finished
 
+			/* [MF] FIXME: not sure what to do - download queue on resume?
+			  => the problem is the missing (new) parameter of we_have()
 			std::vector<piece_picker::downloading_piece> const& dq
 				= m_picker->get_download_queue();
 
@@ -1660,6 +1663,7 @@ namespace libtorrent
 			{
 				we_have(*i);
 			}
+			*/
 		}
 
 		m_storage->async_check_fastresume(&m_resume_entry
@@ -1838,20 +1842,8 @@ namespace libtorrent
 					char const* pieces_str = pieces->string_ptr();
 					for (int i = 0, end(pieces->string_length()); i < end; ++i)
 					{
-						if (pieces_str[i] & 1) we_have(i);
+						if (pieces_str[i] & 1) we_have(i, pieces_str[i]>>1);
 						if (m_seed_mode && (pieces_str[i] & 2)) m_verified.set_bit(i);
-					}
-				}
-				else
-				{
-					lazy_entry const* slots = m_resume_entry.dict_find("slots");
-					if (slots && slots->type() == lazy_entry::list_t)
-					{
-						for (int i = 0; i < slots->list_size(); ++i)
-						{
-							int piece = slots->list_int_value_at(i, -1);
-							if (piece >= 0) we_have(piece);
-						}
 					}
 				}
 
@@ -1888,7 +1880,7 @@ namespace libtorrent
 									m_picker->mark_as_finished(piece_block(piece, block), 0);
 									if (m_picker->is_piece_finished(piece))
 										async_verify_piece(piece, boost::bind(&torrent::piece_finished
-                                            , shared_from_this(), piece, _1, 0));
+										    , shared_from_this(), piece, _1, _2, 0));
 								}
 							}
 						}
@@ -2038,7 +2030,7 @@ namespace libtorrent
 		TORRENT_ASSERT(m_picker);
 		if (j.offset >= 0 && !m_picker->have_piece(j.offset))
 		{
-			we_have(j.offset);
+			we_have(j.offset, j.post_flags);
 			remove_time_critical_piece(j.offset);
 		}
 
@@ -3085,7 +3077,7 @@ namespace libtorrent
 	// 0: success, piece passed check
 	// -1: disk failure
 	// -2: piece failed check
-    void torrent::piece_finished(int index, int passed_hash_check, int piece_size)
+	void torrent::piece_finished(int index, int passed_hash_check, boost::uint32_t post_flags, int piece_size)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
@@ -3119,7 +3111,7 @@ namespace libtorrent
 		{
 			// the following call may cause picker to become invalid
 			// in case we just became a seed
-			piece_passed(index);
+			piece_passed(index, post_flags);
 			// if we're in seed mode, we just acquired this piece
 			// mark it as verified
 			if (m_seed_mode) verified(index);
@@ -3150,7 +3142,7 @@ namespace libtorrent
 			m_picker->set_piece_priority(i, 6);
 	}
 
-	void torrent::we_have(int index)
+	void torrent::we_have(int index, boost::uint32_t post_flags)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 		// update m_file_progress
@@ -3160,10 +3152,10 @@ namespace libtorrent
 
 		remove_time_critical_piece(index, true);
 
-		m_picker->we_have(index);
+		m_picker->we_have(index, post_flags);
 	}
 
-	void torrent::piece_passed(int index)
+	void torrent::piece_passed(int index, boost::uint32_t post_flags)
 	{
 //		INVARIANT_CHECK;
 		TORRENT_ASSERT(m_ses.is_network_thread());
@@ -3235,7 +3227,7 @@ namespace libtorrent
 		downloaders.clear();
 		peers.clear();
 
-		we_have(index);
+		we_have(index, post_flags);
 
 		for (peer_iterator i = m_connections.begin(); i != m_connections.end();)
 		{
@@ -5323,7 +5315,7 @@ namespace libtorrent
 		else
 		{
 			for (int i = 0, end(pieces.size()); i < end; ++i)
-				pieces[i] = m_picker->have_piece(i) ? 1 : 0;
+				pieces[i] = m_picker->have_piece(i) ? 1 + (m_picker->post_flags(i)<<1) : 0;
 		}
 
 		if (m_seed_mode)
@@ -8175,7 +8167,7 @@ namespace libtorrent
 		state_updated();
 	}
 
-	void torrent::async_verify_piece(int piece_index, boost::function<void(int)> const& f)
+	void torrent::async_verify_piece(int piece_index, boost::function<void(int, boost::uint32_t)> const& f)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 //		INVARIANT_CHECK;
@@ -8205,7 +8197,7 @@ namespace libtorrent
 	}
 
 	void torrent::on_piece_verified(int ret, disk_io_job const& j
-		, boost::function<void(int)> f)
+		, boost::function<void(int, boost::uint32_t)> f)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 
@@ -8217,7 +8209,7 @@ namespace libtorrent
 		state_updated();
 
 		if (ret == -1) handle_disk_error(j);
-		f(ret);
+		f(ret, j.post_flags);
 	}
 
 	tcp::endpoint torrent::current_tracker() const

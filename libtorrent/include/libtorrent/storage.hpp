@@ -415,7 +415,7 @@ namespace libtorrent
 		int check_fastresume(lazy_entry const& rd, error_code& error);
 
 		// this function returns true if the checking is complete
-		int check_files(int& current_slot, int& have_piece, error_code& error);
+		int check_files(int& current_slot, int& have_piece, error_code& error, boost::uint32_t *post_flags);
 
 #ifndef TORRENT_NO_DEPRECATE
 		bool compact_allocation() const
@@ -428,7 +428,7 @@ namespace libtorrent
 
 		bool allocate_slots_impl(int num_slots, mutex::scoped_lock& l, bool abort_on_disk = false);
 
-        int hash_for_slot(int slot, bool *hash_ok, int piece_size);
+		int hash_for_slot(int slot, bool *hash_ok, boost::uint32_t *post_flags, int piece_size);
 
 		void hint_read_impl(int piece_index, int offset, int size);
 
@@ -447,10 +447,10 @@ namespace libtorrent
 		size_type physical_offset(int piece_index, int offset);
 
 		// -1=error 0=ok >0=skip this many pieces
-		int check_one_piece(int& have_piece);
+		int check_one_piece(int& have_piece, boost::uint32_t *post_flags);
 
 		void switch_to_full_mode();
-        bool hash_for_piece_impl(int piece, int* readback = 0);
+		bool hash_for_piece_impl(int piece, int* readback = 0, boost::uint32_t *post_flags = NULL);
 
 		int release_files_impl() { return m_storage->release_files(); }
 		int delete_files_impl() { return m_storage->delete_files(); }

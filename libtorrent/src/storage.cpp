@@ -210,7 +210,7 @@ namespace libtorrent
 	}
 #endif
 
-    int piece_manager::hash_for_slot(int slot, bool *hash_ok, int piece_size)
+    int piece_manager::hash_for_slot(int slot, bool *hash_ok, boost::uint32_t *post_flags, int piece_size)
 	{
 		TORRENT_ASSERT_VAL(!error(), error());
         *hash_ok = false;
@@ -233,7 +233,7 @@ namespace libtorrent
         {
             std::string errmsg;
             *hash_ok = acceptSignedPost((char const*)buf.iov_base, ret,
-                                        m_info->name(), slot, errmsg);
+                                        m_info->name(), slot, errmsg, post_flags);
         }
 
         if (error()) return 0;
@@ -900,17 +900,17 @@ namespace libtorrent
 		return m_save_path;
 	}
 
-    bool piece_manager::hash_for_piece_impl(int piece, int* readback)
+	bool piece_manager::hash_for_piece_impl(int piece, int* readback, boost::uint32_t *post_flags)
 	{
 		TORRENT_ASSERT(!m_storage->error());
 
-        bool hash_ok = false;
+		bool hash_ok = false;
 
 		int slot = slot_for(piece);
-        int read = hash_for_slot(slot, &hash_ok, m_files.piece_size(piece));
+		int read = hash_for_slot(slot, &hash_ok, post_flags, m_files.piece_size(piece));
 		if (readback) *readback = read;
-        if (m_storage->error()) return false;
-        return hash_ok;
+		if (m_storage->error()) return false;
+		return hash_ok;
 	}
 
 	int piece_manager::move_storage_impl(std::string const& save_path, int flags)
@@ -1100,7 +1100,7 @@ namespace libtorrent
 	// the second return value is the progress the
 	// file check is at. 0 is nothing done, and 1
 	// is finished
-	int piece_manager::check_files(int& current_slot, int& have_piece, error_code& error)
+	int piece_manager::check_files(int& current_slot, int& have_piece, error_code& error, boost::uint32_t *post_flags)
 	{
 		if (m_state == state_none) return check_no_fastresume(error);
 
@@ -1110,7 +1110,7 @@ namespace libtorrent
 		TORRENT_ASSERT(m_state == state_full_check);
 		if (m_state == state_finished) return 0;
 
-		int skip = check_one_piece(have_piece);
+		int skip = check_one_piece(have_piece, post_flags);
 		TORRENT_ASSERT(m_current_slot <= m_files.num_pieces());
 
 		if (skip == -1)
@@ -1147,7 +1147,7 @@ namespace libtorrent
 	}
 
 	// -1 = error, 0 = ok, >0 = skip this many pieces
-	int piece_manager::check_one_piece(int& have_piece)
+	int piece_manager::check_one_piece(int& have_piece, boost::uint32_t *post_flags)
 	{
 		// ------------------------
 		//    DO THE FULL CHECK
@@ -1157,13 +1157,13 @@ namespace libtorrent
 
 		// initialization for the full check
 
-        bool hash_ok = false;
+		bool hash_ok = false;
 		int num_read = 0;
 		int piece_size = m_files.piece_size(m_current_slot);
 
-        num_read = hash_for_slot(m_current_slot, &hash_ok, piece_size);
+		num_read = hash_for_slot(m_current_slot, &hash_ok, post_flags, piece_size);
 
-        if (!hash_ok)
+		if (!hash_ok)
 		{
 			// the data did not match any piece. Maybe we're reading
 			// from a sparse region, see if we are and skip
@@ -1171,7 +1171,7 @@ namespace libtorrent
 
             //int next_slot = m_storage->sparse_end(m_current_slot + 1);
             int next_slot = m_current_slot + 1;
-			if (next_slot > m_current_slot + 1) return next_slot - m_current_slot;
+                        if (next_slot > m_current_slot + 1) return next_slot - m_current_slot;
 		}
 
 		return 0;
