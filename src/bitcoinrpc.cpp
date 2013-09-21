@@ -242,6 +242,10 @@ static const CRPCCommand vRPCCommands[] =
     { "newrtmsg",               &newrtmsg,               false,     true },
     { "getposts",               &getposts,               false,     true },
     { "setspammsg",             &setspammsg,             false,     true },
+    { "getspammsg",             &getspammsg,             false,     true },
+    { "follow",                 &follow,                 false,     true },
+    { "unfollow",               &unfollow,               false,     true },
+    { "getfollowing",           &getfollowing,               false,     true },
 };
 
 CRPCTable::CRPCTable()
@@ -1188,6 +1192,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "newrtmsg"               && n > 2) ConvertTo<Object>(params[2]);
     if (strMethod == "getposts"               && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "getposts"               && n > 1) ConvertTo<Array>(params[1]);
+    if (strMethod == "follow"                 && n > 0) ConvertTo<Array>(params[0]);
+    if (strMethod == "unfollow"               && n > 0) ConvertTo<Array>(params[0]);
 
     return params;
 }

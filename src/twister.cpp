@@ -38,6 +38,7 @@ static CCriticalSection cs_dhtgetMap;
 static map<sha1_hash, alert_manager*> m_dhtgetMap;
 static map<std::string, bool> m_specialResources;
 static map<std::string, torrent_handle> m_userTorrent;
+static std::set<std::string> m_following;
 
 sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
@@ -1153,3 +1154,81 @@ Value setspammsg(const Array& params, bool fHelp)
 
     return Value();
 }
+
+Value getspammsg(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 0))
+        throw runtime_error(
+            "getspammsg\n"
+            "get spam message attached to generated blocks");
+
+    Array ret;
+    ret.push_back(strSpamUser);
+    ret.push_back(strSpamMessage);
+
+    return ret;
+}
+
+Value follow(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "follow [username1,username2,...]\n"
+            "start following users");
+
+    Array users        = params[0].get_array();
+
+    for( unsigned int u = 0; u < users.size(); u++ ) {
+        string username = users[u].get_str();
+
+        if( !m_following.count(username) ) {
+            if( m_userTorrent.count(username) ) {
+                // perhaps torrent is already initialized due to neighborhood
+                m_following.insert(username);
+            } else {
+                torrent_handle h = startTorrentUser(username);
+                if( h.is_valid() ) {
+                    m_following.insert(username);
+                }
+            }
+        }
+    }
+
+    return Value();
+}
+
+Value unfollow(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "unfollow [username1,username2,...]\n"
+            "stop following users");
+
+    Array users        = params[0].get_array();
+
+    for( unsigned int u = 0; u < users.size(); u++ ) {
+        string username = users[u].get_str();
+
+        if( m_following.count(username) ) {
+            m_following.erase(username);
+        }
+    }
+
+    return Value();
+}
+
+Value getfollowing(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 0))
+        throw runtime_error(
+            "getfollowing\n"
+            "get list of users we follow");
+
+    Array ret;
+    BOOST_FOREACH(string username, m_following) {
+        ret.push_back(username);
+    }
+
+    return ret;
+}
+

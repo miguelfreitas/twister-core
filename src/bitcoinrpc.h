@@ -199,5 +199,9 @@ extern json_spirit::Value newdirectmsg(const json_spirit::Array& params, bool fH
 extern json_spirit::Value newrtmsg(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getposts(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setspammsg(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getspammsg(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value follow(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value unfollow(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getfollowing(const json_spirit::Array& params, bool fHelp);
 
 #endif
