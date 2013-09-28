@@ -197,7 +197,8 @@ HEADERS +=  \
     src/leveldb.h \
     src/threadsafety.h \
     src/limitedmap.h \
-    src/twister.h
+    src/twister.h \
+    src/twister_utils.h
 
 #    src/qt/bitcoingui.h
 #    src/qt/transactiontablemodel.h \
@@ -270,7 +271,8 @@ SOURCES += \ #src/qt/bitcoin.cpp \
     src/noui.cpp \
     src/leveldb.cpp \
     src/txdb.cpp \
-    src/twister.cpp
+    src/twister.cpp \
+    src/twister_utils.cpp
 
 #    src/qt/guiutil.cpp \
 #    src/qt/bitcoingui.cpp \

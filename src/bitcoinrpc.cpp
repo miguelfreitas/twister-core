@@ -12,7 +12,7 @@
 #include "bitcoinrpc.h"
 #include "db.h"
 
-#include "twister.h"
+#include "twister_utils.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
@@ -252,6 +252,8 @@ static const CRPCCommand vRPCCommands[] =
     { "unfollow",               &unfollow,               false,     true },
     { "getfollowing",           &getfollowing,           false,     true },
     { "listusernamespartial",   &listusernamespartial,   false,     true },
+    { "getdefaultuser",         &getdefaultuser,         false,     true },
+    { "setdefaultuser",         &setdefaultuser,         false,     true },
 };
 
 CRPCTable::CRPCTable()
@@ -1156,6 +1158,20 @@ void ConvertTo(Value& value, bool fAllowNull=false)
     }
 }
 
+void ConvertToValue(Value& value)
+{
+    if (value.type() == str_type)
+    {
+        // reinterpret string as unquoted json value
+        Value value2;
+        string strJSON = value.get_str();
+        if (!read_string(strJSON, value2))
+            throw runtime_error(string("Error parsing JSON:")+strJSON);
+        value = value2;
+    }
+}
+
+
 // Convert strings to command-specific RPC representation
 Array RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams)
 {
@@ -1210,6 +1226,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
     if (strMethod == "verifychain"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "verifychain"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "dhtput"                 && n > 3) ConvertToValue(params[3]);
     if (strMethod == "dhtput"                 && n > 5) ConvertTo<boost::int64_t>(params[5]);
     if (strMethod == "newpostmsg"             && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newpostmsg"             && n > 4) ConvertTo<boost::int64_t>(params[4]);

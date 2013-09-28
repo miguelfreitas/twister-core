@@ -140,6 +140,53 @@ Value listwalletusers(const Array& params, bool fHelp)
     return ret;
 }
 
+Value setdefaultuser(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "setdefaultuser <username>\n"
+            "Set default user to use (must exist)");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+
+    CKeyID keyID;
+    if( !pwalletMain->GetKeyIdFromUsername(strUsername, keyID) )
+      throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: username does not exist in wallet");
+
+    CPubKey vchPubKey;
+    if( !pwalletMain->GetPubKey( keyID, vchPubKey) )
+      throw JSONRPCError(RPC_WALLET_ERROR, "Error recovering pubkey from wallet");
+
+    if( !pwalletMain->SetDefaultKey(vchPubKey) )
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error setting default key");
+
+    return Value();
+}
+
+Value getdefaultuser(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getdefaultuser\n"
+            "Get default user being used");
+
+    EnsureWalletIsUnlocked();
+
+    CPubKey vchPubKey = pwalletMain->vchDefaultKey;
+
+    if( !vchPubKey.IsValid() )
+      throw JSONRPCError(RPC_WALLET_ERROR, "Error: default user key is invalid");
+
+    CKeyID keyID = vchPubKey.GetID();
+    std::string username;
+    if( !pwalletMain->GetUsernameFromKeyId(keyID, username) )
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error converting keyID to username");
+
+    return username;
+}
+
 
 Value signmessage(const Array& params, bool fHelp)
 {

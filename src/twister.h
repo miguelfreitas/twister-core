@@ -27,7 +27,4 @@ bool validatePostNumberForUser(std::string const &username, int k);
 
 int getBestHeight();
 
-int load_file(std::string const& filename, std::vector<char>& v, int limit = 8000000);
-
-
 #endif // TWISTER_H

@@ -110,6 +110,17 @@ bool CWallet::GetKeyIdFromUsername(std::string username, CKeyID &keyid)
   return false;
 }
 
+bool CWallet::GetUsernameFromKeyId(CKeyID keyid, std::string &username)
+{
+  for (std::map<CKeyID, CKeyMetadata>::const_iterator it = mapKeyMetadata.begin(); it != mapKeyMetadata.end(); it++) {
+    if (it->first == keyid) {
+        username = it->second.username;
+        return true;
+    }
+  }
+  return false;
+}
+
 bool CWallet::LoadCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret)
 {
     return CCryptoKeyStore::AddCryptedKey(vchPubKey, vchCryptedSecret);

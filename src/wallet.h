@@ -133,6 +133,7 @@ public:
     bool LoadKeyMetadata(const CPubKey &pubkey, const CKeyMetadata &metadata);
     // Search metadata for a given username
     bool GetKeyIdFromUsername(std::string username, CKeyID &keyid);
+    bool GetUsernameFromKeyId(CKeyID keyid, std::string &username);
 
     bool LoadMinVersion(int nVersion) { nWalletVersion = nVersion; nWalletMaxVersion = std::max(nWalletMaxVersion, nVersion); return true; }
 
