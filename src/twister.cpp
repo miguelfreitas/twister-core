@@ -52,56 +52,41 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
     return hasher(buf.data(), buf.size()).final();
 }
 
-int load_file(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000)
+int load_file(std::string const& filename, std::vector<char>& v, int limit)
 {
-	ec.clear();
 	FILE* f = fopen(filename.c_str(), "rb");
 	if (f == NULL)
-	{
-		ec.assign(errno, boost::system::get_generic_category());
 		return -1;
-	}
-
 	int r = fseek(f, 0, SEEK_END);
-	if (r != 0)
-	{
-		ec.assign(errno, boost::system::get_generic_category());
+	if (r != 0) {
 		fclose(f);
 		return -1;
 	}
 	long s = ftell(f);
-	if (s < 0)
-	{
-		ec.assign(errno, boost::system::get_generic_category());
+	if (s < 0) {
 		fclose(f);
 		return -1;
 	}
 
-	if (s > limit)
-	{
+	if (s > limit) {
 		fclose(f);
 		return -2;
 	}
 
 	r = fseek(f, 0, SEEK_SET);
-	if (r != 0)
-	{
-		ec.assign(errno, boost::system::get_generic_category());
+	if (r != 0) {
 		fclose(f);
 		return -1;
 	}
 
 	v.resize(s);
-	if (s == 0)
-	{
+	if (s == 0) {
 		fclose(f);
 		return 0;
 	}
 
 	r = fread(&v[0], 1, v.size(), f);
-	if (r < 0)
-	{
-		ec.assign(errno, boost::system::get_generic_category());
+	if (r < 0) {
 		fclose(f);
 		return -1;
 	}
@@ -145,7 +130,7 @@ torrent_handle startTorrentUser(std::string const &username)
         create_directory(tparams.save_path, ec);
 
         std::string filename = combine_path(tparams.save_path, to_hex(ih.to_string()) + ".resume");
-        load_file(filename.c_str(), tparams.resume_data, ec);
+        load_file(filename.c_str(), tparams.resume_data);
 
         m_userTorrent[username] = ses->add_torrent(tparams);
         m_userTorrent[username].force_dht_announce();
@@ -194,7 +179,7 @@ void ThreadWaitExtIP()
 
     std::vector<char> in;
     boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
-    if (load_file(sesStatePath.string(), in, ec) == 0)
+    if (load_file(sesStatePath.string(), in) == 0)
     {
             lazy_entry e;
             if (lazy_bdecode(&in[0], &in[0] + in.size(), e, ec) == 0)

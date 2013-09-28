@@ -12,6 +12,8 @@
 #include "bitcoinrpc.h"
 #include "db.h"
 
+#include "twister.h"
+
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ip/v6_only.hpp>
@@ -25,6 +27,9 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/shared_ptr.hpp>
 #include <list>
+#include <string>
+#include <fstream>
+#include <streambuf>
 
 using namespace std;
 using namespace boost;
@@ -306,7 +311,7 @@ string rfc1123Time()
     return string(buffer);
 }
 
-static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
+static string HTTPReply(int nStatus, const string& strMsg, bool keepalive, const char *contentType = "application/json")
 {
     if (nStatus == HTTP_UNAUTHORIZED)
         return strprintf("HTTP/1.0 401 Authorization Required\r\n"
@@ -332,22 +337,23 @@ static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
     else if (nStatus == HTTP_NOT_FOUND) cStatus = "Not Found";
     else if (nStatus == HTTP_INTERNAL_SERVER_ERROR) cStatus = "Internal Server Error";
     else cStatus = "";
-    return strprintf(
+
+    string strReply = strprintf(
             "HTTP/1.1 %d %s\r\n"
             "Date: %s\r\n"
             "Connection: %s\r\n"
             "Content-Length: %"PRIszu"\r\n"
-            "Content-Type: application/json\r\n"
+            "Content-Type: %s\r\n"
             "Server: bitcoin-json-rpc/%s\r\n"
-            "\r\n"
-            "%s",
+            "\r\n",
         nStatus,
         cStatus,
         rfc1123Time().c_str(),
         keepalive ? "keep-alive" : "close",
         strMsg.size(),
-        FormatFullVersion().c_str(),
-        strMsg.c_str());
+        contentType,
+        FormatFullVersion().c_str());
+    return strReply + strMsg;
 }
 
 bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
@@ -364,6 +370,19 @@ bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
 
     // HTTP methods permitted: GET, POST
     http_method = vWords[0];
+    if (http_method == "OPTIONS") {
+        string replyOptions= strprintf(
+                "HTTP/1.1 %d %s\r\n"
+                "Date: %s\r\n"
+                "Connection: close\r\n"
+                "Allow: GET,POST,OPTIONS\r\n"
+                "Access-Control-Allow-Origin: *\r\n"
+                "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
+                "Access-Control-Allow-Headers: origin, x-csrf-token, content-type, accept, authorization\r\n"
+                "Server: bitcoin-json-rpc/%s\r\n"
+                "\r\n", HTTP_OK, "OK", rfc1123Time().c_str(), FormatFullVersion().c_str());
+        (*static_cast<std::iostream*>(&stream)) << replyOptions << std::flush;
+    }
     if (http_method != "GET" && http_method != "POST")
         return false;
 
@@ -952,7 +971,13 @@ void ServiceConnection(AcceptedConnection *conn)
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
         if (strURI != "/") {
-            conn->stream() << HTTPReply(HTTP_NOT_FOUND, "", false) << std::flush;
+            std::vector<char> file_data;
+            if( load_file(strURI.c_str(), file_data) == 0 ) {
+                std::string str(file_data.data(), file_data.size());
+                conn->stream() << HTTPReply(HTTP_OK, str, false, "text/html") << std::flush;
+            } else {
+                conn->stream() << HTTPReply(HTTP_NOT_FOUND, "", false) << std::flush;
+            }
             break;
         }
 
