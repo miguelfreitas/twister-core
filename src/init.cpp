@@ -737,10 +737,10 @@ bool AppInit2(boost::thread_group& threadGroup)
         if (!fLoaded) {
             // first suggest a reindex
             if (!fReset) {
-                bool fRet = uiInterface.ThreadSafeMessageBox(
+                /*bool fRet =*/ uiInterface.ThreadSafeMessageBox(
                     strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
                     "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
-                if (fRet) {
+                if (true /* [MF] fRet*/) {
                     fReindex = true;
                     fRequestShutdown = false;
                 } else {
