@@ -483,8 +483,11 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
 
     {
         // do we already have it?
-        if( pblocktree->HaveTxIndex(userhash) )
+        if( pblocktree->HaveTxIndex(userhash) &&
+            // duplicate should be discarded but replacement is allowed.
+            !verifyDuplicateOrReplacementTx(tx, false, true) ) {
             return false;
+        }
 
         unsigned int nSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
 
@@ -664,8 +667,40 @@ bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashB
     return false;
 }
 
+bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement)
+{
+    CTransaction oldTx;
+    uint256 hashBlock;
+    if( GetTransaction( tx.GetUsernameHash(), oldTx, hashBlock) ) {
+        if( checkDuplicate && oldTx.GetHash() == tx.GetHash() ) {
+            return true;
+        }
 
+        vector< vector<unsigned char> > vData;
+        if( checkReplacement && tx.pubKey.ExtractPushData(vData) && vData.size() >= 2 ) {
+            // possibly a key replacement. check if new key is signed by the old one.
 
+            // vData[0] is the (supposedly) new pub key
+            string strNewKey( (char *)vData[0].data(), vData[0].size() );
+            CHashWriter ss(SER_GETHASH, 0);
+            ss << strMessageMagic;
+            ss << strNewKey;
+            uint256 hashNewKey = ss.GetHash();
+
+            // vData[1] is (supposedly) the hash of the new key signed with the old one
+            CPubKey pubkeyRec;
+            vector< vector<unsigned char> > oldvData;
+            if (pubkeyRec.RecoverCompact(hashNewKey, vData[1]) &&
+                oldTx.pubKey.ExtractPushData(oldvData) &&
+                oldvData.size() >= 1 &&
+                pubkeyRec.GetID() == CPubKey(oldvData[0]).GetID()) {
+                // good signature. key replacement allowed.
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 
 
@@ -1053,9 +1088,22 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     }
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
+    // except if they are signed by the older one (key replacement)
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
-        if( pblocktree->HaveTxIndex(block.vtx[i].GetUsernameHash()) )
-          return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
+        CTransaction &tx = block.vtx[i];
+
+        if( pblocktree->HaveTxIndex(block.vtx[i].GetUsernameHash()) ) {
+            /* We have index for this username, which is not allowed, except:
+             * 1) same transaction. this shouldn't happen but it does if twisterd terminates badly.
+             *    explanation: TxIndex seems to get out-of-sync with block chain, so it may try to
+             *    reconnect blocks which transactions are already written to the tx index.
+             * 2) possibly a key replacement. check if new key is signed by the old one.
+             */
+            if( !verifyDuplicateOrReplacementTx(tx, true, true) ) {
+                // not the same, not replacement => error!
+                return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
+            }
+        }
     }
 
     CBlockUndo blockundo;
@@ -2335,9 +2383,17 @@ bool static AlreadyHave(const CInv& inv)
                 txInMap = mempool.exists(inv.hash);
             }
             bool txInTxIndex = false;
+            /* [MF] checkme: because of key replacement, we better not check
+             * txIndex but rather only memory. "mempool" cmd is replied with
+             * "inv" cmd of the current txs in memory. if recipient decides he
+             * already has a given tx in txindex (by calling this function),
+             * he would never ask/receive the key replacement.
+             */
+            /*
             if( !txInMap ) {
                 txInTxIndex = pblocktree->HaveTxIndex(inv.hash);
             }
+            */
             return txInMap || txInTxIndex;
         }
     case MSG_BLOCK:
@@ -3534,8 +3590,10 @@ CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
 
             // This should never happen; all transactions in the memory are new
             if( pblocktree->HaveTxIndex(tx.GetUsernameHash()) ) {
-                printf("ERROR: mempool transaction already exists\n");
-                if (fDebug) assert("mempool transaction already exists" == 0);
+                if( !verifyDuplicateOrReplacementTx(tx, false, true) ) {
+                    printf("ERROR: mempool transaction already exists\n");
+                    if (fDebug) assert("mempool transaction already exists" == 0);
+                }
             }
 
             // Size limits
