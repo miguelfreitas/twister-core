@@ -12,6 +12,9 @@
 #include "ui_interface.h"
 #include "checkqueue.h"
 #include "chainparams.h"
+
+#include "twister.h"
+
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -65,7 +68,7 @@ int64 nHPSTimerStart = 0;
 // Settings
 int64 nTransactionFee = 0;
 
-string strSpamMessage = "spam message test [en]";
+string strSpamMessage = "Promoted posts are needed to run the network infrastructure. If you want to help, start generating blocks and advertise. [en]";
 string strSpamUser = "nobody"; // [MF] FIXME: authenticy check needed
 
 
@@ -1657,6 +1660,15 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     }
 
     printf("ProcessBlock: ACCEPTED\n");
+    if( pblock->vtx[0].IsSpamMessage() ) {
+        string msg = pblock->vtx[0].message.ExtractPushDataString(0);
+        string user = pblock->vtx[0].userName.ExtractPushDataString(0);
+        // [MF] FIXME: validate user properly
+        if( msg.length() <= 140 ) {
+            printf("ProcessBlock: msg='%s' user='%s'\n", msg.c_str(), user.c_str());
+            receivedSpamMessage(msg, user);
+        }
+    }
     return true;
 }
 

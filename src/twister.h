@@ -25,6 +25,8 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags);
 bool validatePostNumberForUser(std::string const &username, int k);
 
+void receivedSpamMessage(std::string const &message, std::string const &user);
+
 int getBestHeight();
 
 #endif // TWISTER_H

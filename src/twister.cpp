@@ -41,6 +41,9 @@ static map<sha1_hash, alert_manager*> m_dhtgetMap;
 static map<std::string, bool> m_specialResources;
 static map<std::string, torrent_handle> m_userTorrent;
 static std::set<std::string> m_following;
+static std::string preferredSpamLang = "[en]";
+static std::string receivedSpamMsgStr;
+static std::string receivedSpamUserStr;
 
 sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
@@ -715,6 +718,16 @@ int getBestHeight()
     return nBestHeight;
 }
 
+void receivedSpamMessage(std::string const &message, std::string const &user)
+{
+    if( !receivedSpamMsgStr.length() ||
+         (preferredSpamLang.length() && message.find(preferredSpamLang) != string::npos) ) {
+        receivedSpamMsgStr = message;
+        receivedSpamUserStr = user;
+    }
+}
+
+
 Value dhtput(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 5 || params.size() > 6)
@@ -1018,6 +1031,28 @@ Value getposts(const Array& params, bool fHelp)
     std::multimap<int64,entry>::reverse_iterator rit;
     for (rit=postsByTime.rbegin(); rit!=postsByTime.rend() && (int)ret.size() < count; ++rit) {
         ret.push_back( entryToJson(rit->second) );
+    }
+
+    if( receivedSpamMsgStr.length() ) {
+        // we must agree on an acceptable level here
+        if( rand() < (RAND_MAX/10) ) {
+            entry v;
+            entry &userpost = v["userpost"];
+
+            userpost["n"] = receivedSpamUserStr;
+            userpost["k"] = 1;
+            userpost["time"] = GetAdjustedTime();
+            userpost["height"] = getBestHeight();
+
+            userpost["msg"] = receivedSpamMsgStr;
+
+            unsigned char vchSig[65];
+            RAND_bytes(vchSig,sizeof(vchSig));
+            v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
+            ret.insert(ret.begin(),entryToJson(v));
+        }
+        receivedSpamMsgStr = "";
+        receivedSpamUserStr = "";
     }
 
     return ret;
