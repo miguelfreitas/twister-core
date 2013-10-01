@@ -557,7 +557,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 } else if( !validatePostNumberForUser(username, k) ) {
                     sprintf(errbuf,"too much posts from user '%s' rejecting post",
                             username.c_str());
-                } else if( height < 0 || height > getBestHeight() ) {
+                } else if( height < 0 || (height > getBestHeight() && getBestHeight()) ) {
                     sprintf(errbuf,"post from future not accepted (height: %d > %d)",
                             height, getBestHeight());
                 } else if( msg.size() && msg.size() > 140 ) {
@@ -617,7 +617,9 @@ bool validatePostNumberForUser(std::string const &username, int k)
 
     CBlockIndex* pblockindex = mapBlockIndex[hashBlock];
 
-    if( k < 0 || k > 2*(getBestHeight() - pblockindex->nHeight) + 10)
+    if( k < 0 )
+        return false;
+    if( getBestHeight() && k > 2*(getBestHeight() - pblockindex->nHeight) + 20)
         return false;
 
     return true;

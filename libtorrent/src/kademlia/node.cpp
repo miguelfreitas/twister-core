@@ -1092,8 +1092,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
-		if (msg_keys[mk_height]->int_value() > getBestHeight() ) {
-			incoming_error(e, "future messages not allowed");
+		if (msg_keys[mk_height]->int_value() > getBestHeight() && getBestHeight()) {
+			incoming_error(e, "height > getBestHeight");
 			return;
 		}
 
