@@ -1218,6 +1218,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "listunspent"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "listunspent"            && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "getblock"               && n > 1) ConvertTo<bool>(params[1]);
+    if (strMethod == "createwalletuser"       && n > 1) ConvertTo<bool>(params[1]);
     if (strMethod == "getrawtransaction"      && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "gettxout"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "gettxout"               && n > 2) ConvertTo<bool>(params[2]);

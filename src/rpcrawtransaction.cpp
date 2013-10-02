@@ -11,6 +11,7 @@
 #include "init.h"
 #include "net.h"
 #include "wallet.h"
+#include "twister.h"
 
 using namespace std;
 using namespace boost;
@@ -145,9 +146,9 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
 Value createrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2)
+    if (fHelp || (params.size() != 2 && params.size() != 3))
         throw runtime_error(
-            "createrawtransaction <username> <pubKey>\n"
+            "createrawtransaction <username> <pubKey> [signedByOldKey]\n"
             "Create a transaction registering a new user\n"
             "Returns hex-encoded raw transaction.\n"
             "it is not stored in the wallet or transmitted to the network.");
@@ -165,6 +166,10 @@ Value createrawtransaction(const Array& params, bool fHelp)
       throw JSONRPCError(RPC_INTERNAL_ERROR, "pubkey is not valid");
 
     rawTx.pubKey << vch;
+    if( params.size() > 2) {
+        vector<unsigned char> vchSign(ParseHexV(params[2], "signedByOldKey"));
+        rawTx.pubKey << vchSign;
+    }
 
     DoTxProofOfWork(rawTx);
 
@@ -221,6 +226,13 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     uint256 hashBlock;
     CTransaction tx2;
     fHave = GetTransaction(hashTx, tx2, hashBlock);
+
+    // treat replacement as !fHave
+    if( fHave && verifyDuplicateOrReplacementTx(tx, false, true) ) {
+        printf("verifyDuplicateOrReplacementTx true\n");
+        fHave = false;
+    }
+
     if (!fHave) {
         // push to local node
         CValidationState state;
@@ -255,6 +267,9 @@ Value sendnewusertransaction(const Array& params, bool fHelp)
     throw JSONRPCError(RPC_INVALID_PARAMETER, "username must be string");
   string strUsername = params[0].get_str();
 
+  CKeyID oldKeyID;
+  bool replaceKey = pwalletMain->GetKeyIdBeingReplaced(strUsername, oldKeyID);
+
   CKeyID keyID;
   if( !pwalletMain->GetKeyIdFromUsername(strUsername, keyID) )
     throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: username must exist in wallet");
@@ -267,13 +282,26 @@ Value sendnewusertransaction(const Array& params, bool fHelp)
   CTransaction txOut;
   uint256 hashBlock;
   uint256 userhash = SerializeHash(strUsername);
-  if( GetTransaction(userhash, txOut, hashBlock) )
+  bool userInTxIndex = GetTransaction(userhash, txOut, hashBlock);
+  if( !replaceKey && userInTxIndex )
       throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in tx database");
+  if( replaceKey && !userInTxIndex )
+      throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: key replacemente requires old key in tx database");
 
   Array createTxParams;
   createTxParams.push_back(strUsername);
   createTxParams.push_back(HexStr(pubkey));
+  if( replaceKey ) {
+    string newPubKey((const char *)pubkey.begin(), static_cast<size_t>(pubkey.size()));
+    string signedByOldKey;
+    signedByOldKey = createSignature(newPubKey, oldKeyID);
+    createTxParams.push_back(HexStr(signedByOldKey));
+  }
   Value txValue = createrawtransaction(createTxParams, false);
+
+  if( replaceKey ) {
+      pwalletMain->ForgetReplacementMap(strUsername);
+  }
 
   std::string strTxHex = txValue.get_str();
   Array sendTxParams;

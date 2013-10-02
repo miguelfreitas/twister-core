@@ -90,9 +90,9 @@ Value getinfo(const Array& params, bool fHelp)
 
 Value createwalletuser(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || (params.size() != 1 && params.size() != 2))
         throw runtime_error(
-            "createwalletuser <username>\n"
+            "createwalletuser <username> [replacekey]\n"
             "Create a new key pair for user and add it to wallet\n"
             "Use sendnewusertransaction to publish it to the network.\n"
             "Returns key secret (keep it safe)");
@@ -101,17 +101,27 @@ Value createwalletuser(const Array& params, bool fHelp)
 
     string strUsername = params[0].get_str();
 
+    bool replaceKey = false;
+    if (params.size() > 1)
+        replaceKey = params[1].get_bool();
+
     CKeyID keyID;
-    if( pwalletMain->GetKeyIdFromUsername(strUsername, keyID) )
+    bool keyInWallet = pwalletMain->GetKeyIdFromUsername(strUsername, keyID);
+    if( keyInWallet && !replaceKey )
       throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in wallet");
+    if( !keyInWallet && replaceKey )
+      throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: replacekey given but old key not in wallet");
 
     uint256 userhash = SerializeHash(strUsername);
     printf("createwalletuser: usernamehash(%s) = %s\n", strUsername.c_str(), userhash.GetHex().c_str());
 
     CTransaction txOut;
     uint256 hashBlock;
-    if( GetTransaction(userhash, txOut, hashBlock) )
+    if( GetTransaction(userhash, txOut, hashBlock) && !replaceKey )
         throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in tx database");
+
+    if( replaceKey && !pwalletMain->MoveKeyForReplacement(strUsername) )
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error: moving key for replacement");
 
     // Generate a new key that is added to wallet
     CPubKey newKey = pwalletMain->GenerateNewKey(strUsername);

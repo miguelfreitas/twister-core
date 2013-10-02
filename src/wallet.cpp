@@ -121,6 +121,41 @@ bool CWallet::GetUsernameFromKeyId(CKeyID keyid, std::string &username)
   return false;
 }
 
+bool CWallet::MoveKeyForReplacement(std::string username)
+{
+  for (std::map<CKeyID, CKeyMetadata>::iterator it = mapKeyMetadata.begin(); it != mapKeyMetadata.end(); it++) {
+    if (it->second.username == username) {
+        mapKeyReplacement.insert(make_pair(it->first, username));
+        mapKeyMetadata.erase(it);
+        return true;
+    }
+  }
+  return false;
+}
+
+bool CWallet::GetKeyIdBeingReplaced(std::string username, CKeyID &keyid)
+{
+  for (std::map<CKeyID, string>::const_iterator it = mapKeyReplacement.begin(); it != mapKeyReplacement.end(); it++) {
+    if (it->second == username) {
+        keyid = it->first;
+        return true;
+    }
+  }
+  return false;
+}
+
+bool CWallet::ForgetReplacementMap(std::string username)
+{
+  for (std::map<CKeyID, string>::iterator it = mapKeyReplacement.begin(); it != mapKeyReplacement.end(); it++) {
+    if (it->second == username) {
+        mapKeyReplacement.erase(it);
+        return true;
+    }
+  }
+  return false;
+}
+
+
 bool CWallet::LoadCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret)
 {
     return CCryptoKeyStore::AddCryptedKey(vchPubKey, vchCryptedSecret);

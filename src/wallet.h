@@ -84,6 +84,7 @@ public:
 
     std::set<int64> setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
+    std::map<CKeyID, string> mapKeyReplacement;
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
@@ -199,6 +200,10 @@ public:
 
     // get the current wallet format (the oldest client version guaranteed to understand this wallet)
     int GetVersion() { return nWalletVersion; }
+
+    bool MoveKeyForReplacement(std::string username);
+    bool GetKeyIdBeingReplaced(std::string username, CKeyID &keyid);
+    bool ForgetReplacementMap(std::string username);
 
     /** Address book entry changed.
      * @note called with lock cs_wallet held.

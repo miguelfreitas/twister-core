@@ -436,22 +436,16 @@ void stopSessionTorrent()
     printf("libtorrent + dht stopped\n");
 }
 
-std::string createSignature(std::string const &strMessage, std::string const &strUsername)
+std::string createSignature(std::string const &strMessage, CKeyID &keyID)
 {
     if (pwalletMain->IsLocked()) {
         printf("createSignature: Error please enter the wallet passphrase with walletpassphrase first.\n");
         return std::string();
     }
 
-    CKeyID keyID;
-    if( !pwalletMain->GetKeyIdFromUsername(strUsername, keyID) ) {
-        printf("createSignature: user '%s' unknown.\n", strUsername.c_str());
-        return std::string();
-    }
-
     CKey key;
     if (!pwalletMain->GetKey(keyID, key)) {
-        printf("createSignature: private key not available for user '%s'.\n", strUsername.c_str());
+        printf("createSignature: private key not available for given keyid.\n");
         return std::string();
     }
 
@@ -467,6 +461,23 @@ std::string createSignature(std::string const &strMessage, std::string const &st
 
     return std::string((const char *)&vchSig[0], vchSig.size());
 }
+
+std::string createSignature(std::string const &strMessage, std::string const &strUsername)
+{
+    if (pwalletMain->IsLocked()) {
+        printf("createSignature: Error please enter the wallet passphrase with walletpassphrase first.\n");
+        return std::string();
+    }
+
+    CKeyID keyID;
+    if( !pwalletMain->GetKeyIdFromUsername(strUsername, keyID) ) {
+        printf("createSignature: user '%s' unknown.\n", strUsername.c_str());
+        return std::string();
+    }
+
+    return createSignature( strMessage, keyID );
+}
+
 
 bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey)
 {
