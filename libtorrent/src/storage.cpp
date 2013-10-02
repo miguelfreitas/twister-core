@@ -540,10 +540,17 @@ namespace libtorrent
 
         std::string postStr(static_cast<char *>(bufs[0].iov_base), bufs[0].iov_len);
 
-        if( Write(std::make_pair('p', slot), postStr) ) {
-            return postStr.size();
-        } else {
-            return -1;
+        int tries = 2;
+        while( tries-- ) {
+            try {
+                if( Write(std::make_pair('p', slot), postStr) ) {
+                    return postStr.size();
+                } else {
+                    return -1;
+                }
+            } catch( leveldb_error &e ) {
+                RepairDB();
+            }
         }
 
 	}
@@ -572,13 +579,20 @@ namespace libtorrent
         TORRENT_ASSERT(num_bufs == 1);
         TORRENT_ASSERT(offset == 0);
 
-        std::string postStr;
-        if( Read(std::make_pair('p', slot), postStr) ) {
-            TORRENT_ASSERT(bufs[0].iov_len >= postStr.size());
-            memcpy(bufs[0].iov_base, postStr.data(), postStr.size());
-            return postStr.size();
-        } else {
-            return 0;
+        int tries = 2;
+        while( tries-- ) {
+            try {
+                std::string postStr;
+                if( Read(std::make_pair('p', slot), postStr) ) {
+                    TORRENT_ASSERT(bufs[0].iov_len >= postStr.size());
+                    memcpy(bufs[0].iov_base, postStr.data(), postStr.size());
+                    return postStr.size();
+                } else {
+                    return 0;
+                }
+            } catch( leveldb_error &e ) {
+                RepairDB();
+            }
         }
 	}
 

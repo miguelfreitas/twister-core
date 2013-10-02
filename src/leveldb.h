@@ -76,6 +76,9 @@ private:
     // the database itself
     leveldb::DB *pdb;
 
+    std::string m_path;
+    size_t m_nCacheSize;
+
 public:
     CLevelDB(const boost::filesystem::path &path, size_t nCacheSize, bool fMemory = false, bool fWipe = false);
     ~CLevelDB();
@@ -148,6 +151,8 @@ public:
     leveldb::Iterator *NewIterator() {
         return pdb->NewIterator(iteroptions);
     }
+
+    void RepairDB();
 };
 
 #endif // BITCOIN_LEVELDB_H

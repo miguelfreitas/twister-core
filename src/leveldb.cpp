@@ -35,6 +35,8 @@ static leveldb::Options GetOptions(size_t nCacheSize) {
 }
 
 CLevelDB::CLevelDB(const boost::filesystem::path &path, size_t nCacheSize, bool fMemory, bool fWipe) {
+    m_path = path.string();
+    m_nCacheSize = nCacheSize;
     penv = NULL;
     readoptions.verify_checksums = true;
     iteroptions.verify_checksums = true;
@@ -78,4 +80,22 @@ bool CLevelDB::WriteBatch(CLevelDBBatch &batch, bool fSync) throw(leveldb_error)
         return false;
     }
     return true;
+}
+
+void CLevelDB::RepairDB()
+{
+    printf("CLevelDB::RepairDB trying to repair...\n");
+    delete pdb;
+    pdb = NULL;
+
+    leveldb::Status status;
+
+    status = leveldb::RepairDB(m_path, options);
+    if (!status.ok())
+        throw std::runtime_error(strprintf("CLevelDB(): error RepairDB %s", status.ToString().c_str()));
+
+    status = leveldb::DB::Open(options, m_path, &pdb);
+    if (!status.ok())
+        throw std::runtime_error(strprintf("CLevelDB(): error opening database environment %s", status.ToString().c_str()));
+    printf("Repaired and reopened LevelDB successfully\n");
 }
