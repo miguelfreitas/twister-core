@@ -95,7 +95,7 @@ udp_socket::udp_socket(asio::io_service& ios
 #endif
 #endif
 
-	m_buf_size = 2000;
+	m_buf_size = 10000;
 	m_new_buf_size = m_buf_size;
 	m_buf = (char*)malloc(m_buf_size);
 }

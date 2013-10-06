@@ -1038,6 +1038,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		// pointer and length to the whole entry
 		std::pair<char const*, int> buf = msg_keys[mk_p]->data_section();
 		int maxSize = (multi) ? 512 : 8192; // single is bigger for avatar image etc
+		// Note: when increasing maxSize, check m_buf_size @ udp_socket.cpp.
 		if (buf.second > maxSize || buf.second <= 0)
 		{
 			incoming_error(e, "message too big");
