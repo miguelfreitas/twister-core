@@ -241,6 +241,9 @@ namespace libtorrent { namespace dht
 
 		TORRENT_LOG(dht_tracker) << "starting DHT tracker with node id: " << m_dht.nid();
 #endif
+		if (state && state->type() == entry::dictionary_t) {
+			m_dht.load_storage(state->find_key("storage_table"));
+		}
 	}
 
 	dht_tracker::~dht_tracker() {}
@@ -602,6 +605,12 @@ namespace libtorrent { namespace dht
 			}
 			if (!nodes.list().empty())
 				ret["nodes"] = nodes;
+
+			// [MF] save stored keys
+			entry storate_entry(entry::dictionary_t);
+			if( m_dht.save_storage(storate_entry) ) {
+				ret["storage_table"] = storate_entry;
+			}
 		}
 
 		ret["node-id"] = m_dht.nid().to_string();

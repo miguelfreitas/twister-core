@@ -537,6 +537,70 @@ bool node_impl::refresh_storage() {
     return did_something;
 }
 
+bool node_impl::save_storage(entry &save) const {
+    bool did_something = false;
+
+    if( m_storage_table.size() == 0 )
+        return did_something;
+
+    printf("node dht: saving storage... (storage_table.size = %d)\n", m_storage_table.size());
+
+    for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
+         iend(m_storage_table.end()); i != iend; ++i )
+    {
+        entry save_list(entry::list_t);
+
+        dht_storage_list_t const& lsto = i->second;
+        // save only 's' items? for now save everything
+        /*if( lsto.size() == 1 )*/ {
+            for(dht_storage_list_t::const_iterator j = lsto.begin(),
+                jend(lsto.end()); j != jend; ++j ) {
+
+                dht_storage_item const& item = *j;
+
+                entry entry_item;
+                entry_item["p"] = item.p;
+                entry_item["sig_p"] = item.sig_p;
+                entry_item["sig_user"] = item.sig_user;
+                save_list.list().push_back(entry_item);
+            }
+        }
+
+        if( save_list.list().size() ) {
+            save[i->first.to_string()] = save_list;
+            did_something = true;
+        }
+    }
+    return did_something;
+}
+
+void node_impl::load_storage(entry const* e) {
+    if( !e || e->type() != entry::dictionary_t)
+        return;
+
+    printf("node dht: loading storage... (%d node_id keys)\n", e->dict().size());
+
+    for (entry::dictionary_type::const_iterator i = e->dict().begin();
+         i != e->dict().end(); ++i) {
+
+        node_id target( i->first );
+        dht_storage_list_t to_add;
+        if ( i->second.type() != entry::list_t )
+            continue;
+        for (entry::list_type::const_iterator j = i->second.list().begin();
+             j != i->second.list().end(); ++j) {
+            dht_storage_item item;
+            item.p = j->find_key("p")->string();
+            item.sig_p = j->find_key("sig_p")->string();
+            item.sig_user = j->find_key("sig_user")->string();
+            to_add.push_back(item);
+        }
+        m_storage_table.insert(std::make_pair(target, to_add));
+    }
+}
+
+
+
 time_duration node_impl::connection_timeout()
 {
 	time_duration d = m_rpc.tick();
