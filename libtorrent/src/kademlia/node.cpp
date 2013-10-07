@@ -404,7 +404,7 @@ void node_impl::announce(std::string const& trackerName, sha1_hash const& info_h
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "announcing [ ih: " << info_hash << " p: " << listen_port << " ]" ;
 #endif
-	printf("node_impl::announce '%s' host: %s:%d myself=%d\n", trackerName.c_str(), addr.to_string().c_str(), listen_port, myself);
+	//printf("node_impl::announce '%s' host: %s:%d myself=%d\n", trackerName.c_str(), addr.to_string().c_str(), listen_port, myself);
 
 	// [MF] is_unspecified() is not always available. never mind.
 	//if( !addr.is_unspecified() ) {

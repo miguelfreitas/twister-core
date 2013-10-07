@@ -1354,7 +1354,7 @@ namespace libtorrent
 			char msg[200];
 			snprintf(msg, 200, "already connected to peer: %s %s"
 				, print_endpoint(remote).c_str(), hex_pid);
-			m_torrent->debug_log(msg);
+			//m_torrent->debug_log(msg);
 
 			TORRENT_ASSERT(p->connection->associated_torrent().lock().get() == m_torrent);
 		}
