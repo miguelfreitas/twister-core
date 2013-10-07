@@ -1007,7 +1007,7 @@ class CTxMemPool
 {
 public:
     mutable CCriticalSection cs;
-    std::map<uint256, CTransaction> mapTx; // [MF] hash is now userhash
+    std::map<uint256, CTransaction> mapTx; // [MF] hash is txhash again
 
     bool accept(CValidationState &state, CTransaction &tx, bool fLimitFree, bool* pfMissingInputs);
     bool addUnchecked(const uint256& userhash, CTransaction &tx);
@@ -1021,14 +1021,14 @@ public:
         return mapTx.size();
     }
 
-    bool exists(uint256 userhash)
+    bool exists(uint256 txhash)
     {
-        return (mapTx.count(userhash) != 0);
+        return (mapTx.count(txhash) != 0);
     }
 
-    CTransaction& lookup(uint256 userhash)
+    CTransaction& lookup(uint256 txhash)
     {
-        return mapTx[userhash];
+        return mapTx[txhash];
     }
 };
 

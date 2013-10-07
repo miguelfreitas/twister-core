@@ -1792,17 +1792,17 @@ instance_of_cnetcleanup;
 
 
 
-void RelayTransaction(const CTransaction& tx, const uint256& userhash)
+void RelayTransaction(const CTransaction& tx, const uint256& txhash)
 {
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss.reserve(10000);
     ss << tx;
-    RelayTransaction(tx, userhash, ss);
+    RelayTransaction(tx, txhash, ss);
 }
 
-void RelayTransaction(const CTransaction& tx, const uint256& userhash, const CDataStream& ss)
+void RelayTransaction(const CTransaction& tx, const uint256& txhash, const CDataStream& ss)
 {
-    CInv inv(MSG_TX, userhash);
+    CInv inv(MSG_TX, txhash);
     {
         LOCK(cs_mapRelay);
         // Expire old relay messages
@@ -1824,7 +1824,7 @@ void RelayTransaction(const CTransaction& tx, const uint256& userhash, const CDa
         LOCK(pnode->cs_filter);
         if (pnode->pfilter)
         {
-            if (pnode->pfilter->IsRelevantAndUpdate(tx, userhash))
+            if (pnode->pfilter->IsRelevantAndUpdate(tx, txhash))
                 pnode->PushInventory(inv);
         } else
             pnode->PushInventory(inv);

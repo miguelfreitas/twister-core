@@ -220,16 +220,16 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     catch (std::exception &e) {
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     }
-    uint256 hashTx = tx.GetUsernameHash();
+    uint256 hashTx = tx.GetHash();
 
     bool fHave = false;
     uint256 hashBlock;
     CTransaction tx2;
-    fHave = GetTransaction(hashTx, tx2, hashBlock);
+    fHave = GetTransaction(tx.GetUsernameHash(), tx2, hashBlock);
 
     // treat replacement as !fHave
     if( fHave && verifyDuplicateOrReplacementTx(tx, false, true) ) {
-        printf("verifyDuplicateOrReplacementTx true\n");
+        printf("sendrawtransaction: is ReplacementTx true\n");
         fHave = false;
     }
 
