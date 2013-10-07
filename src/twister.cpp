@@ -1164,6 +1164,21 @@ Value getfollowing(const Array& params, bool fHelp)
     return ret;
 }
 
+Value getlasthave(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 0))
+        throw runtime_error(
+            "getfollowing\n"
+            "get last 'have' (higher post number) of each user user we follow");
+
+    Object ret;
+    BOOST_FOREACH(string username, m_following) {
+        ret.push_back(Pair(username,lastPostKfromTorrent(username)));
+    }
+
+    return ret;
+}
+
 Value listusernamespartial(const Array& params, bool fHelp)
 {
     if (fHelp || (params.size() != 2))
