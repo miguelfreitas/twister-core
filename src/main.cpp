@@ -474,16 +474,16 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
                      reason.c_str());
 
     // is it already in the memory pool?
-    uint256 userhash = tx.GetUsernameHash();
+    uint256 txhash = tx.GetHash();
     {
         LOCK(cs);
-        if (mapTx.count(userhash))
+        if (mapTx.count(txhash))
             return false;
     }
 
     {
         // do we already have it?
-        if( pblocktree->HaveTxIndex(userhash) &&
+        if( pblocktree->HaveTxIndex(tx.GetUsernameHash()) &&
             // duplicate should be discarded but replacement is allowed.
             !verifyDuplicateOrReplacementTx(tx, false, true) ) {
             return false;
@@ -518,25 +518,25 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     // Store transaction in memory
     {
         LOCK(cs);
-        addUnchecked(userhash, tx); // adds to mapTx
+        addUnchecked(txhash, tx); // adds to mapTx
     }
 
     ///// are we sure this is ok when loading transactions or restoring block txes
-    SyncWithWallets(userhash, tx, NULL, true);
+    SyncWithWallets(txhash, tx, NULL, true);
 
     printf("CTxMemPool::accept() : accepted %s (poolsz %"PRIszu")\n",
-           userhash.ToString().c_str(),
+           txhash.ToString().c_str(),
            mapTx.size());
     return true;
 }
 
 
-bool CTxMemPool::addUnchecked(const uint256& userhash, CTransaction &tx)
+bool CTxMemPool::addUnchecked(const uint256& txhash, CTransaction &tx)
 {
     // Add to memory pool without checking anything.  Don't call this directly,
     // call CTxMemPool::accept to properly check the transaction first.
     {
-        mapTx[userhash] = tx;
+        mapTx[txhash] = tx;
         nTransactionsUpdated++;
     }
     return true;
@@ -548,7 +548,7 @@ bool CTxMemPool::remove(const CTransaction &tx, bool fRecursive)
     // Remove transaction from memory pool
     if( !tx.IsSpamMessage() ){
         LOCK(cs);
-        uint256 hash = tx.GetUsernameHash();
+        uint256 hash = tx.GetHash();
         if (mapTx.count(hash))
         {
             mapTx.erase(hash);
@@ -636,12 +636,14 @@ bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashB
     {
         LOCK(cs_main);
         {
+            /* [MF] don't look in mempool anymore - userhash must be written to some block.
             LOCK(mempool.cs);
-            if (mempool.exists(userhash))
+            if (mempool.exists(userhash)) // and btw mempool is not indexed by userhash anymore!
             {
                 txOut = mempool.lookup(userhash);
                 return true;
             }
+            */
         }
 
         if (fTxIndex) {
@@ -1740,12 +1742,10 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         uint256 hash = block.vtx[i].GetHash();
-        // [MF] unsure. force 0, use userhash for filter, hash for merkletree
-        // [MF] FIXME: this is most likely broken!
-        if (i == 0 || filter.IsRelevantAndUpdate(block.vtx[i], block.vtx[i].GetUsernameHash()))
+        if (i == 0 || filter.IsRelevantAndUpdate(block.vtx[i], hash))
         {
             vMatch.push_back(true);
-            vMatchedTxn.push_back(make_pair(i, block.vtx[i].GetUsernameHash()));
+            vMatchedTxn.push_back(make_pair(i, hash));
         }
         else
             vMatch.push_back(false);
@@ -2388,6 +2388,7 @@ bool static AlreadyHave(const CInv& inv)
              * "inv" cmd of the current txs in memory. if recipient decides he
              * already has a given tx in txindex (by calling this function),
              * he would never ask/receive the key replacement.
+             * Besides: HaveTxIndex is userhash, mempool is txhash.
              */
             /*
             if( !txInMap ) {
@@ -2447,7 +2448,6 @@ void static ProcessGetData(CNode* pfrom)
                             // Thus, the protocol spec specified allows for us to provide duplicate txn here,
                             // however we MUST always provide at least what the remote peer needs
                             typedef std::pair<unsigned int, uint256> PairType;
-                            // [MF] check if vMatchedTxn is userhash
                             BOOST_FOREACH(PairType& pair, merkleBlock.vMatchedTxn)
                                 if (!pfrom->setInventoryKnown.count(CInv(MSG_TX, pair.second)))
                                     pfrom->PushMessage("tx", block.vtx[pair.first]);
@@ -2863,7 +2863,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CTransaction tx;
         vRecv >> tx;
 
-        CInv inv(MSG_TX, tx.GetUsernameHash());
+        CInv inv(MSG_TX, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
 
         // Truncate messages to the size of the tx in them

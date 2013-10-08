@@ -180,10 +180,12 @@ public:
 
 	void tick();
     bool refresh_storage();
+    bool save_storage(entry &save) const;
     void refresh(node_id const& id, find_data::nodes_callback const& f);
 	void bootstrap(std::vector<udp::endpoint> const& nodes
 		, find_data::nodes_callback const& f);
 	void add_router_node(udp::endpoint router);
+	void load_storage(entry const* load);
 		
 	void unreachable(udp::endpoint const& ep);
 	void incoming(msg const& m);
@@ -288,7 +290,7 @@ public:
 private:
 	table_t m_map;
 	dht_storage_table_t m_storage_table;
-	
+
 	ptime m_last_tracker_tick;
     ptime m_last_storage_refresh;
 
