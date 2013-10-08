@@ -600,6 +600,27 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                         lazy_entry const* dm = post->dict_find_dict("dm");
                         if( dm && flags ) {
                             (*flags) |= USERPOST_FLAG_DM;
+
+                            ecies_secure_t sec;
+                            sec.key = dm->dict_find_string_value("key");
+                            sec.mac = dm->dict_find_string_value("mac");
+                            sec.orig = dm->dict_find_int_value("orig");
+                            sec.body = dm->dict_find_string_value("body");
+
+                            BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
+                            {
+                                CKey key;
+                                if (!pwalletMain->GetKey(item.first, key)) {
+                                    printf("acceptSignedPost: private key not available trying to decrypt DM.\n");
+                                } else {
+                                    std::string textOut;
+                                    if( key.Decrypt(sec, textOut) ) {
+                                        printf("Received DM for user '%s' text = '%s'\n",
+                                               item.second.username.c_str(),
+                                               textOut.c_str());
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -905,7 +926,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 4)
         throw runtime_error(
-            "newdirectmessage <from> <k> <to> <msg>\n"
+            "newdirectmsg <from> <k> <to> <msg>\n"
             "Post a new dm to swarm");
 
     EnsureWalletIsUnlocked();
