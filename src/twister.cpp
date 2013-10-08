@@ -38,12 +38,30 @@ static int num_outstanding_resume_data;
 
 static CCriticalSection cs_dhtgetMap;
 static map<sha1_hash, alert_manager*> m_dhtgetMap;
+
+static CCriticalSection cs_twister;
 static map<std::string, bool> m_specialResources;
 static map<std::string, torrent_handle> m_userTorrent;
-static std::set<std::string> m_following;
-static std::string preferredSpamLang = "[en]";
-static std::string receivedSpamMsgStr;
-static std::string receivedSpamUserStr;
+
+static std::string m_preferredSpamLang = "[en]";
+static std::string m_receivedSpamMsgStr;
+static std::string m_receivedSpamUserStr;
+
+// in-memory unencrypted DMs
+struct StoredDirectMsg {
+    int64 m_utcTime;
+    std::string m_text;
+    bool m_fromMe;
+};
+
+// in-memory data per wallet user
+struct UserData {
+    std::set<std::string> m_following;
+    // m_directmsg key is the other username
+    std::map<std::string, std::list<StoredDirectMsg> > m_directmsg;
+};
+
+static std::map<std::string,UserData> m_users;
 
 sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
@@ -59,6 +77,7 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
 
 torrent_handle startTorrentUser(std::string const &username)
 {
+    LOCK(cs_twister);
     if( !m_userTorrent.count(username) ) {
         sha1_hash ih = dhtTargetHash(username, "tracker", "m");
 
@@ -536,6 +555,47 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
     return (pubkeyRec.GetID() == pubkey.GetID());
 }
 
+bool processReceivedDM(lazy_entry const* post)
+{
+    lazy_entry const* dm = post->dict_find_dict("dm");
+    if( dm ) {
+        ecies_secure_t sec;
+        sec.key = dm->dict_find_string_value("key");
+        sec.mac = dm->dict_find_string_value("mac");
+        sec.orig = dm->dict_find_int_value("orig");
+        sec.body = dm->dict_find_string_value("body");
+
+        LOCK(pwalletMain->cs_wallet);
+        BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
+        {
+            CKey key;
+            if (!pwalletMain->GetKey(item.first, key)) {
+                printf("acceptSignedPost: private key not available trying to decrypt DM.\n");
+            } else {
+                std::string textOut;
+                if( key.Decrypt(sec, textOut) ) {
+                    printf("Received DM for user '%s' text = '%s'\n",
+                           item.second.username.c_str(),
+                           textOut.c_str());
+
+                    std::string n = post->dict_find_string_value("n");
+
+                    StoredDirectMsg stoDM;
+                    stoDM.m_fromMe  = false;
+                    stoDM.m_text    = textOut;
+                    stoDM.m_utcTime = post->dict_find_int_value("time");;
+
+                    LOCK(cs_twister);
+                    m_users[item.second.username].m_directmsg[n].push_back(stoDM);
+
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags)
 {
     bool ret = false;
@@ -600,27 +660,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                         lazy_entry const* dm = post->dict_find_dict("dm");
                         if( dm && flags ) {
                             (*flags) |= USERPOST_FLAG_DM;
-
-                            ecies_secure_t sec;
-                            sec.key = dm->dict_find_string_value("key");
-                            sec.mac = dm->dict_find_string_value("mac");
-                            sec.orig = dm->dict_find_int_value("orig");
-                            sec.body = dm->dict_find_string_value("body");
-
-                            BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
-                            {
-                                CKey key;
-                                if (!pwalletMain->GetKey(item.first, key)) {
-                                    printf("acceptSignedPost: private key not available trying to decrypt DM.\n");
-                                } else {
-                                    std::string textOut;
-                                    if( key.Decrypt(sec, textOut) ) {
-                                        printf("Received DM for user '%s' text = '%s'\n",
-                                               item.second.username.c_str(),
-                                               textOut.c_str());
-                                    }
-                                }
-                            }
+                            processReceivedDM(post);
                         }
                     }
                 }
@@ -754,10 +794,11 @@ int getBestHeight()
 
 void receivedSpamMessage(std::string const &message, std::string const &user)
 {
-    if( !receivedSpamMsgStr.length() ||
-         (preferredSpamLang.length() && message.find(preferredSpamLang) != string::npos) ) {
-        receivedSpamMsgStr = message;
-        receivedSpamUserStr = user;
+    LOCK(cs_twister);
+    if( !m_receivedSpamMsgStr.length() ||
+         (m_preferredSpamLang.length() && message.find(m_preferredSpamLang) != string::npos) ) {
+        m_receivedSpamMsgStr = message;
+        m_receivedSpamUserStr = user;
     }
 }
 
@@ -957,6 +998,15 @@ Value newdirectmsg(const Array& params, bool fHelp)
     torrent_handle h = startTorrentUser(strFrom);
     h.add_piece(k,buf.data(),buf.size());
 
+    StoredDirectMsg stoDM;
+    stoDM.m_fromMe  = true;
+    stoDM.m_text    = strMsg;
+    stoDM.m_utcTime = v["userpost"]["time"].integer();
+    {
+        LOCK(cs_twister);
+        m_users[strFrom].m_directmsg[strTo].push_back(stoDM);
+    }
+
     return entryToJson(v);
 }
 
@@ -1067,26 +1117,29 @@ Value getposts(const Array& params, bool fHelp)
         ret.push_back( entryToJson(rit->second) );
     }
 
-    if( receivedSpamMsgStr.length() ) {
-        // we must agree on an acceptable level here
-        if( rand() < (RAND_MAX/10) ) {
-            entry v;
-            entry &userpost = v["userpost"];
+    {
+        LOCK(cs_twister);
+        if( m_receivedSpamMsgStr.length() ) {
+            // we must agree on an acceptable level here
+            if( rand() < (RAND_MAX/10) ) {
+                entry v;
+                entry &userpost = v["userpost"];
 
-            userpost["n"] = receivedSpamUserStr;
-            userpost["k"] = 1;
-            userpost["time"] = GetAdjustedTime();
-            userpost["height"] = getBestHeight();
+                userpost["n"] = m_receivedSpamUserStr;
+                userpost["k"] = 1;
+                userpost["time"] = GetAdjustedTime();
+                userpost["height"] = getBestHeight();
 
-            userpost["msg"] = receivedSpamMsgStr;
+                userpost["msg"] = m_receivedSpamMsgStr;
 
-            unsigned char vchSig[65];
-            RAND_bytes(vchSig,sizeof(vchSig));
-            v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
-            ret.insert(ret.begin(),entryToJson(v));
+                unsigned char vchSig[65];
+                RAND_bytes(vchSig,sizeof(vchSig));
+                v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
+                ret.insert(ret.begin(),entryToJson(v));
+            }
+            m_receivedSpamMsgStr = "";
+            m_receivedSpamUserStr = "";
         }
-        receivedSpamMsgStr = "";
-        receivedSpamUserStr = "";
     }
 
     return ret;
@@ -1102,6 +1155,7 @@ Value setspammsg(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     string strMsg      = params[1].get_str();
 
+    LOCK(cs_twister);
     strSpamUser    = strUsername;
     strSpamMessage = strMsg;
 
@@ -1116,6 +1170,7 @@ Value getspammsg(const Array& params, bool fHelp)
             "get spam message attached to generated blocks");
 
     Array ret;
+    LOCK(cs_twister);
     ret.push_back(strSpamUser);
     ret.push_back(strSpamMessage);
 
@@ -1124,24 +1179,26 @@ Value getspammsg(const Array& params, bool fHelp)
 
 Value follow(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 1))
+    if (fHelp || (params.size() != 2))
         throw runtime_error(
-            "follow [username1,username2,...]\n"
+            "follow <username> [follow_username1,follow_username2,...]\n"
             "start following users");
 
-    Array users        = params[0].get_array();
+    string localUser = params[0].get_str();
+    Array users      = params[1].get_array();
 
+    LOCK(cs_twister);
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
 
-        if( !m_following.count(username) ) {
+        if( !m_users[localUser].m_following.count(username) ) {
             if( m_userTorrent.count(username) ) {
                 // perhaps torrent is already initialized due to neighborhood
-                m_following.insert(username);
+                m_users[localUser].m_following.insert(username);
             } else {
                 torrent_handle h = startTorrentUser(username);
                 if( h.is_valid() ) {
-                    m_following.insert(username);
+                    m_users[localUser].m_following.insert(username);
                 }
             }
         }
@@ -1152,18 +1209,20 @@ Value follow(const Array& params, bool fHelp)
 
 Value unfollow(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 1))
+    if (fHelp || (params.size() != 2))
         throw runtime_error(
-            "unfollow [username1,username2,...]\n"
+            "unfollow <username> [unfollow_username1,unfollow_username2,...]\n"
             "stop following users");
 
-    Array users        = params[0].get_array();
+    string localUser = params[0].get_str();
+    Array users      = params[1].get_array();
 
+    LOCK(cs_twister);
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
 
-        if( m_following.count(username) ) {
-            m_following.erase(username);
+        if( m_users[localUser].m_following.count(username) ) {
+            m_users[localUser].m_following.erase(username);
         }
     }
 
@@ -1172,13 +1231,16 @@ Value unfollow(const Array& params, bool fHelp)
 
 Value getfollowing(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 0))
+    if (fHelp || (params.size() != 1))
         throw runtime_error(
-            "getfollowing\n"
+            "getfollowing <username>\n"
             "get list of users we follow");
 
+    string localUser = params[0].get_str();
+
     Array ret;
-    BOOST_FOREACH(string username, m_following) {
+    LOCK(cs_twister);
+    BOOST_FOREACH(string username, m_users[localUser].m_following) {
         ret.push_back(username);
     }
 
@@ -1187,13 +1249,16 @@ Value getfollowing(const Array& params, bool fHelp)
 
 Value getlasthave(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 0))
+    if (fHelp || (params.size() != 1))
         throw runtime_error(
-            "getfollowing\n"
+            "getlasthave <username>\n"
             "get last 'have' (higher post number) of each user user we follow");
 
+    string localUser = params[0].get_str();
+
     Object ret;
-    BOOST_FOREACH(string username, m_following) {
+    LOCK(cs_twister);
+    BOOST_FOREACH(string username, m_users[localUser].m_following) {
         ret.push_back(Pair(username,lastPostKfromTorrent(username)));
     }
 
@@ -1213,13 +1278,18 @@ Value listusernamespartial(const Array& params, bool fHelp)
     set<string> retStrings;
 
     // priorize users in following list
-    BOOST_FOREACH(const string &user, m_following)
     {
-        int toCompare = std::min( userStartsWith.size(), user.size() );
-        if( memcmp( user.data(), userStartsWith.data(), toCompare ) == 0 )
-            retStrings.insert( user );
-        if( retStrings.size() >= count )
-            break;
+        LOCK(pwalletMain->cs_wallet);
+        BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata) {
+            LOCK(cs_twister);
+            BOOST_FOREACH(const string &user, m_users[item.second.username].m_following) {
+                int toCompare = std::min( userStartsWith.size(), user.size() );
+                if( memcmp( user.data(), userStartsWith.data(), toCompare ) == 0 )
+                    retStrings.insert( user );
+                if( retStrings.size() >= count )
+                    break;
+            }
+        }
     }
 
     // now the rest, the entire block chain

@@ -11,7 +11,7 @@ n   = int(sys.argv[2])
 datadir = "/tmp/twister%d" % n
 port = "%d" % (30000+n)
 rpcport = "%d" % (40000+n)
-rpcline = " -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport="
+rpcline = " -genproclimit=1 -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport="
 rpccfg = rpcline + rpcport
 rpccfg1 = rpcline + "40001"
 

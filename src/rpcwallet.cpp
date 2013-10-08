@@ -143,6 +143,7 @@ Value listwalletusers(const Array& params, bool fHelp)
 
     // Find all addresses that have the given account
     Array ret;
+    LOCK(pwalletMain->cs_wallet);
     BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
     {
       ret.push_back(item.second.username);
