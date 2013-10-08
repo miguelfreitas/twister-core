@@ -126,7 +126,20 @@ bool CWallet::MoveKeyForReplacement(std::string username)
   for (std::map<CKeyID, CKeyMetadata>::iterator it = mapKeyMetadata.begin(); it != mapKeyMetadata.end(); it++) {
     if (it->second.username == username) {
         mapKeyReplacement.insert(make_pair(it->first, username));
-        mapKeyMetadata.erase(it);
+        it->second.username += "/replaced"; // prevents being used again with GetKeyIdFromUsername
+
+        // [MF] make sure old metadata (with new name) is updated on disk
+        CPubKey pubkey;
+        CKey secret;
+        GetPubKey(it->first, pubkey);
+        GetKey(it->first,secret);
+        if (!IsCrypted()) {
+            CWalletDB(strWalletFile).WriteKey(pubkey,
+                                              secret.GetPrivKey(),
+                                              it->second);
+        } else {
+            printf("WARNING: MoveKeyForReplacement not implemeted for crypted wallet. duplicate metadata may occur!\n" );
+        }
         return true;
     }
   }
