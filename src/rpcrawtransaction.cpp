@@ -100,6 +100,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
             CBlockIndex* pindex = (*mi).second;
             if (pindex->IsInMainChain())
             {
+                entry.push_back(Pair("height", pindex->nHeight));
                 entry.push_back(Pair("confirmations", 1 + nBestHeight - pindex->nHeight));
                 entry.push_back(Pair("time", (boost::int64_t)pindex->nTime));
                 entry.push_back(Pair("blocktime", (boost::int64_t)pindex->nTime));
@@ -114,13 +115,14 @@ Value getrawtransaction(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "getrawtransaction <txid> [verbose=0]\n"
+            "getrawtransaction <username> [verbose=0]\n"
             "If verbose=0, returns a string that is\n"
             "serialized, hex-encoded data for <txid>.\n"
             "If verbose is non-zero, returns an Object\n"
-            "with information about <txid>.");
+            "with information about transaction.");
 
-    uint256 hash = ParseHashV(params[0], "parameter 1");
+    //uint256 hash = ParseHashV(params[0], "parameter 1");
+    uint256 hash = SerializeHash(params[0].get_str());
 
     bool fVerbose = false;
     if (params.size() > 1)
