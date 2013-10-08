@@ -1191,6 +1191,17 @@ Value listusernamespartial(const Array& params, bool fHelp)
 
     set<string> retStrings;
 
+    // priorize users in following list
+    BOOST_FOREACH(const string &user, m_following)
+    {
+        int toCompare = std::min( userStartsWith.size(), user.size() );
+        if( memcmp( user.data(), userStartsWith.data(), toCompare ) == 0 )
+            retStrings.insert( user );
+        if( retStrings.size() >= count )
+            break;
+    }
+
+    // now the rest, the entire block chain
     for(CBlockIndex* pindex = pindexBest; pindex && retStrings.size() < count; pindex = pindex->pprev ) {
         CBlock block;
         if( !ReadBlockFromDisk(block, pindex) )
