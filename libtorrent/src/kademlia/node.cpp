@@ -1152,7 +1152,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
-		if (!multi && (!msg_keys[mk_seq] || msg_keys[mk_seq]->int_value() <= 0)) {
+		if (!multi && (!msg_keys[mk_seq] || msg_keys[mk_seq]->int_value() < 0)) {
 			incoming_error(e, "seq is required for single");
 			return;
 		}

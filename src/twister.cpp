@@ -930,17 +930,17 @@ Value newpostmsg(const Array& params, bool fHelp)
     } else {
         // TODO: swarm resource forwarding not implemented
         ses->dht_putData(strUsername, "swarm", false,
-                         v, strUsername, GetAdjustedTime(), k);
+                         v, strUsername, GetAdjustedTime(), 1);
     }
 
     // post to dht as well
     ses->dht_putData(strUsername, string("post")+strK, false,
-                     v, strUsername, GetAdjustedTime(), k);
+                     v, strUsername, GetAdjustedTime(), 1);
 
     // is this a reply? notify
     if( strReplyN.length() ) {
         ses->dht_putData(strReplyN, string("replies")+strReplyK, true,
-                         v, strUsername, GetAdjustedTime(), k);
+                         v, strUsername, GetAdjustedTime(), 0);
     }
 
     // split and look for mentions and hashtags
@@ -952,10 +952,10 @@ Value newpostmsg(const Array& params, bool fHelp)
             string word = token.substr(1);
             if( token.at(0) == '#') {
                 ses->dht_putData(word, "hashtag", true,
-                                 v, strUsername, GetAdjustedTime(), k);
+                                 v, strUsername, GetAdjustedTime(), 0);
             } else if( token.at(0) == '@') {
                 ses->dht_putData(word, "mention", true,
-                                 v, strUsername, GetAdjustedTime(), k);
+                                 v, strUsername, GetAdjustedTime(), 0);
             }
         }
     }
@@ -1046,19 +1046,19 @@ Value newrtmsg(const Array& params, bool fHelp)
     } else {
         // TODO: swarm resource forwarding not implemented
         ses->dht_putData(strUsername, "swarm", false,
-                         v, strUsername, GetAdjustedTime(), k);
+                         v, strUsername, GetAdjustedTime(), 1);
     }
 
     // post to dht as well
     ses->dht_putData(strUsername, string("post")+strK, false,
-                     v, strUsername, GetAdjustedTime(), k);
+                     v, strUsername, GetAdjustedTime(), 1);
 
     // notification to keep track of RTs of the original post
     if( rt ) {
         string rt_user = rt->find_key("n")->string();
         string rt_k    = boost::lexical_cast<std::string>(rt->find_key("k")->integer());
         ses->dht_putData(rt_user, string("rts")+rt_k, true,
-                         v, strUsername, GetAdjustedTime(), k);
+                         v, strUsername, GetAdjustedTime(), 0);
     }
 
     return entryToJson(v);
