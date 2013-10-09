@@ -174,21 +174,29 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
         lazy_entry userEntry;
         error_code ec;
         if (lazy_bdecode(&in[0], &in[0] + in.size(), userEntry, ec) == 0) {
+            if( userEntry.type() != lazy_entry::dict_t ) goto data_error;
             for( int i = 0; i < userEntry.dict_size(); i++) {
                 UserData data;
 
                 const lazy_entry *dataEntry = userEntry.dict_at(i).second;
                 const lazy_entry *followingEntry = dataEntry->dict_find("following");
+                if( followingEntry->type() != lazy_entry::list_t ) goto data_error;
+
                 for( int j = 0; j < followingEntry->list_size(); j++ ) {
                     data.m_following.insert( followingEntry->list_string_value_at(j) );
                 }
 
                 const lazy_entry *dmEntry = dataEntry->dict_find("dm");
+                if( dmEntry->type() != lazy_entry::dict_t ) goto data_error;
+
                 for( int j = 0; j < dmEntry->dict_size(); j++ ) {
                     const lazy_entry *stoDmLstEntry = dmEntry->dict_at(j).second;
+                    if( stoDmLstEntry->type() != lazy_entry::list_t ) goto data_error;
 
                     for( int k = 0; k < stoDmLstEntry->list_size(); k++ ) {
                         const lazy_entry *stoDmEntry = stoDmLstEntry->list_at(k);
+                        if( stoDmEntry->type() != lazy_entry::dict_t ) goto data_error;
+
                         StoredDirectMsg dm;
                         dm.m_text    = stoDmEntry->dict_find_string_value("text");
                         dm.m_utcTime = stoDmEntry->dict_find_int_value("time");
@@ -196,13 +204,16 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
                         data.m_directmsg[dmEntry->dict_at(j).first].push_back(dm);
                     }
                 }
-
                 users[userEntry.dict_at(i).first] = data;
             }
             return 0;
         }
     }
     return -1;
+
+data_error:
+    printf("loadUserData: unexpected bencode type - user_data corrupt!\n");
+    return -2;
 }
 
 
