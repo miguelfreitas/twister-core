@@ -6,6 +6,22 @@
 
 #include <string>
 #include <vector>
+#include <set>
+
+// in-memory unencrypted DMs
+struct StoredDirectMsg {
+    int64_t m_utcTime;
+    std::string m_text;
+    bool m_fromMe;
+};
+
+// in-memory data per wallet user
+struct UserData {
+    std::set<std::string> m_following;
+    // m_directmsg key is the other username
+    std::map<std::string, std::list<StoredDirectMsg> > m_directmsg;
+};
+
 
 class twister_utils
 {
@@ -18,5 +34,8 @@ int save_file(std::string const& filename, std::vector<char>& v);
 
 json_spirit::Value entryToJson(const libtorrent::entry &e);
 libtorrent::entry jsonToEntry(const json_spirit::Value &v);
+
+int saveUserData(std::string const& filename, std::map<std::string,UserData> const &users);
+int loadUserData(std::string const& filename, std::map<std::string,UserData> &users);
 
 #endif // TWISTER_UTILS_H

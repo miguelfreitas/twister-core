@@ -46,21 +46,6 @@ static map<std::string, torrent_handle> m_userTorrent;
 static std::string m_preferredSpamLang = "[en]";
 static std::string m_receivedSpamMsgStr;
 static std::string m_receivedSpamUserStr;
-
-// in-memory unencrypted DMs
-struct StoredDirectMsg {
-    int64 m_utcTime;
-    std::string m_text;
-    bool m_fromMe;
-};
-
-// in-memory data per wallet user
-struct UserData {
-    std::set<std::string> m_following;
-    // m_directmsg key is the other username
-    std::map<std::string, std::list<StoredDirectMsg> > m_directmsg;
-};
-
 static std::map<std::string,UserData> m_users;
 
 sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
@@ -174,6 +159,20 @@ void ThreadWaitExtIP()
     //settings.dht_announce_interval = 60; // test
     //settings.min_announce_interval = 60; // test
     ses->set_settings(settings);
+
+
+    boost::filesystem::path userDataPath = GetDataDir() / "user_data";
+    loadUserData(userDataPath.string(), m_users);
+    printf("loaded user_data for %d users\n", m_users.size());
+
+    // now restart the user torrents (all m_following)
+    std::map<std::string,UserData>::const_iterator i;
+    for (i = m_users.begin(); i != m_users.end(); ++i) {
+        UserData const &data = i->second;
+        BOOST_FOREACH(string username, data.m_following) {
+            startTorrentUser(username);
+        }
+    }
 
     printf("libtorrent + dht started\n");
 }
@@ -452,6 +451,13 @@ void stopSessionTorrent()
 	    delete ses;
 	    ses = NULL;
     }
+
+    if( m_users.size() ) {
+        printf("saving user_data (followers and DMs)...\n");
+        boost::filesystem::path userDataPath = GetDataDir() / "user_data";
+        saveUserData(userDataPath.string(), m_users);
+    }
+
     printf("libtorrent + dht stopped\n");
 }
 

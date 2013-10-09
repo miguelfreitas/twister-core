@@ -1,10 +1,14 @@
 #include "twister_utils.h"
 
 #include <libtorrent/session.hpp>
+#include <libtorrent/bencode.hpp>
+
+#include <boost/foreach.hpp>
 
 #include <stdio.h>
 
 using namespace std;
+using namespace boost;
 
 twister_utils::twister_utils()
 {
@@ -122,6 +126,83 @@ entry jsonToEntry(const Value &v)
         default:
             return string("<uninitialized>");
     }
+}
+
+
+int saveUserData(std::string const& filename, std::map<std::string,UserData> const &users)
+{
+    entry userEntry;
+
+    std::map<std::string,UserData>::const_iterator i;
+    for (i = users.begin(); i != users.end(); ++i) {
+        UserData const &data = i->second;
+
+        entry &dataEntry = userEntry[i->first];
+        entry &followingEntry = dataEntry["following"];
+        BOOST_FOREACH( std::string const &n, data.m_following) {
+            followingEntry.list().push_back(n);
+        }
+
+        entry &dmEntry = dataEntry["dm"];
+
+        std::map<std::string, std::list<StoredDirectMsg> >::const_iterator j;
+        for (j = data.m_directmsg.begin(); j != data.m_directmsg.end(); ++j) {
+            std::list<StoredDirectMsg> const &stoDmList = j->second;
+
+            entry &stoDmLstEntry = dmEntry[j->first];
+            BOOST_FOREACH( StoredDirectMsg const &dm, stoDmList) {
+                entry stoDmEntry;
+                stoDmEntry["time"] = dm.m_utcTime;
+                stoDmEntry["text"] = dm.m_text;
+                stoDmEntry["fromMe"] = dm.m_fromMe;
+                stoDmLstEntry.list().push_back(stoDmEntry);
+            }
+        }
+    }
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), userEntry);
+
+    return save_file(filename, buf);
+}
+
+
+int loadUserData(std::string const& filename, std::map<std::string,UserData> &users)
+{
+    std::vector<char> in;
+    if (load_file(filename, in) == 0) {
+        lazy_entry userEntry;
+        error_code ec;
+        if (lazy_bdecode(&in[0], &in[0] + in.size(), userEntry, ec) == 0) {
+            for( int i = 0; i < userEntry.dict_size(); i++) {
+                UserData data;
+
+                const lazy_entry *dataEntry = userEntry.dict_at(i).second;
+                const lazy_entry *followingEntry = dataEntry->dict_find("following");
+                for( int j = 0; j < followingEntry->list_size(); j++ ) {
+                    data.m_following.insert( followingEntry->list_string_value_at(j) );
+                }
+
+                const lazy_entry *dmEntry = dataEntry->dict_find("dm");
+                for( int j = 0; j < dmEntry->dict_size(); j++ ) {
+                    const lazy_entry *stoDmLstEntry = dmEntry->dict_at(j).second;
+
+                    for( int k = 0; k < stoDmLstEntry->list_size(); k++ ) {
+                        const lazy_entry *stoDmEntry = stoDmLstEntry->list_at(k);
+                        StoredDirectMsg dm;
+                        dm.m_text    = stoDmEntry->dict_find_string_value("text");
+                        dm.m_utcTime = stoDmEntry->dict_find_int_value("time");
+                        dm.m_fromMe  = stoDmEntry->dict_find_int_value("fromMe");
+                        data.m_directmsg[dmEntry->dict_at(j).first].push_back(dm);
+                    }
+                }
+
+                users[userEntry.dict_at(i).first] = data;
+            }
+            return 0;
+        }
+    }
+    return -1;
 }
 
 
