@@ -1010,7 +1010,19 @@ Value newdirectmsg(const Array& params, bool fHelp)
     stoDM.m_utcTime = v["userpost"]["time"].integer();
     {
         LOCK(cs_twister);
-        m_users[strFrom].m_directmsg[strTo].push_back(stoDM);
+
+        std::list<StoredDirectMsg> &dmsFromToUser = m_users[strFrom].m_directmsg[strTo];
+        std::list<StoredDirectMsg>::const_iterator it;
+        // prevent duplicates
+        for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
+            if( stoDM.m_utcTime == (*it).m_utcTime &&
+                stoDM.m_text    == (*it).m_text ) {
+                break;
+            }
+        }
+        if( it != dmsFromToUser.end() ) {
+            dmsFromToUser.push_back(stoDM);
+        }
     }
 
     return entryToJson(v);

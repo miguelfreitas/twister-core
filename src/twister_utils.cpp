@@ -150,10 +150,8 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
 
             std::map<std::string, std::list<StoredDirectMsg> >::const_iterator j;
             for (j = udata.m_directmsg.begin(); j != udata.m_directmsg.end(); ++j) {
-                std::list<StoredDirectMsg> const &dmsToFromUser = j->second;
-
                 entry &dmList = dmDict[j->first];
-                BOOST_FOREACH( StoredDirectMsg const &stoDm, dmsToFromUser) {
+                BOOST_FOREACH( StoredDirectMsg const &stoDm, j->second) {
                     entry dmElem;
                     dmElem["time"]   = stoDm.m_utcTime;
                     dmElem["text"]   = stoDm.m_text;
