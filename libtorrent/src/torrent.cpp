@@ -1632,39 +1632,6 @@ namespace libtorrent
 #endif
 
 		TORRENT_ASSERT(block_size() > 0);
-        //[MF]
-        for( int i = 0; i < m_torrent_file->num_pieces(); i++) {
-            piece_block pb(i, 0);
-            m_picker->mark_as_finished(pb, 0);
-        }
-
-        if (m_padding > 0)
-		{
-			// if we marked an entire piece as finished, we actually
-			// need to consider it finished
-
-			/* [MF] FIXME: not sure what to do - download queue on resume?
-			  => the problem is the missing (new) parameter of we_have()
-			std::vector<piece_picker::downloading_piece> const& dq
-				= m_picker->get_download_queue();
-
-			std::vector<int> have_pieces;
-
-			for (std::vector<piece_picker::downloading_piece>::const_iterator i
-				= dq.begin(); i != dq.end(); ++i)
-			{
-				int num_blocks = m_picker->blocks_in_piece(i->index);
-				if (i->finished < num_blocks) continue;
-				have_pieces.push_back(i->index);
-			}
-
-			for (std::vector<int>::iterator i = have_pieces.begin();
-				i != have_pieces.end(); ++i)
-			{
-				we_have(*i);
-			}
-			*/
-		}
 
 		m_storage->async_check_fastresume(&m_resume_entry
 			, boost::bind(&torrent::on_resume_data_checked
@@ -1850,42 +1817,6 @@ namespace libtorrent
 				// parse unfinished pieces
 				int num_blocks_per_piece =
 					static_cast<int>(torrent_file().piece_length()) / block_size();
-
-				if (lazy_entry const* unfinished_ent = m_resume_entry.dict_find_list("unfinished"))
-				{
-					for (int i = 0; i < unfinished_ent->list_size(); ++i)
-					{
-						lazy_entry const* e = unfinished_ent->list_at(i);
-						if (e->type() != lazy_entry::dict_t) continue;
-						int piece = e->dict_find_int_value("piece", -1);
-						if (piece < 0 || piece > torrent_file().num_pieces()) continue;
-
-						if (m_picker->have_piece(piece))
-							m_picker->we_dont_have(piece);
-
-						std::string bitmask = e->dict_find_string_value("bitmask");
-						if (bitmask.empty()) continue;
-
-						const int num_bitmask_bytes = (std::max)(num_blocks_per_piece / 8, 1);
-						if ((int)bitmask.size() != num_bitmask_bytes) continue;
-						for (int k = 0; k < num_bitmask_bytes; ++k)
-						{
-							unsigned char bits = bitmask[k];
-							int num_bits = (std::min)(num_blocks_per_piece - k*8, 8);
-							for (int b = 0; b < num_bits; ++b)
-							{
-								const int block = k * 8 + b;
-								if (bits & (1 << b))
-								{
-									m_picker->mark_as_finished(piece_block(piece, block), 0);
-									if (m_picker->is_piece_finished(piece))
-										async_verify_piece(piece, boost::bind(&torrent::piece_finished
-										    , shared_from_this(), piece, _1, _2, 0));
-								}
-							}
-						}
-					}
-				}
 			}
 
 			files_checked();
@@ -5215,48 +5146,6 @@ namespace libtorrent
 			std::vector<sha1_hash> const& tree = m_torrent_file->merkle_tree();
 			tree_str.resize(tree.size() * 20);
 			std::memcpy(&tree_str[0], &tree[0], tree.size() * 20);
-		}
-
-		// if this torrent is a seed, we won't have a piece picker
-		// and there will be no half-finished pieces.
-		if (has_picker())
-		{
-			const std::vector<piece_picker::downloading_piece>& q
-				= m_picker->get_download_queue();
-
-			// unfinished pieces
-			ret["unfinished"] = entry::list_type();
-			entry::list_type& up = ret["unfinished"].list();
-
-			// info for each unfinished piece
-			for (std::vector<piece_picker::downloading_piece>::const_iterator i
-				= q.begin(); i != q.end(); ++i)
-			{
-				if (i->finished == 0) continue;
-
-				entry piece_struct(entry::dictionary_t);
-
-				// the unfinished piece's index
-				piece_struct["piece"] = i->index;
-
-				std::string bitmask;
-				const int num_bitmask_bytes
-					= (std::max)(num_blocks_per_piece / 8, 1);
-
-				for (int j = 0; j < num_bitmask_bytes; ++j)
-				{
-					unsigned char v = 0;
-					int bits = (std::min)(num_blocks_per_piece - j*8, 8);
-					for (int k = 0; k < bits; ++k)
-						v |= (i->info[j*8+k].state == piece_picker::block_info::state_finished)
-						? (1 << k) : 0;
-					bitmask.append(1, v);
-					TORRENT_ASSERT(bits == 8 || j == num_bitmask_bytes - 1);
-				}
-				piece_struct["bitmask"] = bitmask;
-				// push the struct onto the unfinished-piece list
-				up.push_back(piece_struct);
-			}
 		}
 
 		// save trackers
