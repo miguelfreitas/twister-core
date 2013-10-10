@@ -47,9 +47,9 @@ Testing
 Some security checks are disabled (temporarily) allowing multiple clients per IP.
 Therefore it is possible to run multiple twisterd instances at the same machine:
 
-$ twisterd -datadir=/tmp/twister1 -port=30001 -daemon -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40001
-$ twisterd -datadir=/tmp/twister2 -port=30002 -daemon -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40002
-$ twisterd -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40001 addnode <external-ip>:30002 onetry
+    $ twisterd -datadir=/tmp/twister1 -port=30001 -daemon -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40001
+    $ twisterd -datadir=/tmp/twister2 -port=30002 -daemon -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40002
+    $ twisterd -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40001 addnode <external-ip>:30002 onetry
 
 Note: some features (like block generation and dht put/get) do now work unless
 there are at least two known nodes, like these two instances.

@@ -163,7 +163,7 @@ void ThreadWaitExtIP()
 
     boost::filesystem::path userDataPath = GetDataDir() / "user_data";
     loadUserData(userDataPath.string(), m_users);
-    printf("loaded user_data for %d users\n", m_users.size());
+    printf("loaded user_data for %z users\n", m_users.size());
 
     // now restart the user torrents (all m_following)
     std::map<std::string,UserData>::const_iterator i;

@@ -131,37 +131,43 @@ entry jsonToEntry(const Value &v)
 
 int saveUserData(std::string const& filename, std::map<std::string,UserData> const &users)
 {
-    entry userEntry;
+    entry userDict;
 
     std::map<std::string,UserData>::const_iterator i;
     for (i = users.begin(); i != users.end(); ++i) {
-        UserData const &data = i->second;
+        UserData const &udata = i->second;
 
-        entry &dataEntry = userEntry[i->first];
-        entry &followingEntry = dataEntry["following"];
-        BOOST_FOREACH( std::string const &n, data.m_following) {
-            followingEntry.list().push_back(n);
+        entry &userData = userDict[i->first];
+        if( udata.m_following.size() ) {
+            entry &followingList = userData["following"];
+            BOOST_FOREACH( std::string const &n, udata.m_following) {
+                followingList.list().push_back(n);
+            }
         }
 
-        entry &dmEntry = dataEntry["dm"];
+        if( udata.m_directmsg.size() ) {
+            entry &dmDict = userData["dm"];
 
-        std::map<std::string, std::list<StoredDirectMsg> >::const_iterator j;
-        for (j = data.m_directmsg.begin(); j != data.m_directmsg.end(); ++j) {
-            std::list<StoredDirectMsg> const &stoDmList = j->second;
+            std::map<std::string, std::list<StoredDirectMsg> >::const_iterator j;
+            for (j = udata.m_directmsg.begin(); j != udata.m_directmsg.end(); ++j) {
+                std::list<StoredDirectMsg> const &dmsToFromUser = j->second;
 
-            entry &stoDmLstEntry = dmEntry[j->first];
-            BOOST_FOREACH( StoredDirectMsg const &dm, stoDmList) {
-                entry stoDmEntry;
-                stoDmEntry["time"] = dm.m_utcTime;
-                stoDmEntry["text"] = dm.m_text;
-                stoDmEntry["fromMe"] = dm.m_fromMe;
-                stoDmLstEntry.list().push_back(stoDmEntry);
+                entry &dmList = dmDict[j->first];
+                BOOST_FOREACH( StoredDirectMsg const &stoDm, dmsToFromUser) {
+                    entry dmElem;
+                    dmElem["time"]   = stoDm.m_utcTime;
+                    dmElem["text"]   = stoDm.m_text;
+                    dmElem["fromMe"] = stoDm.m_fromMe;
+                    dmList.list().push_back(dmElem);
+                }
             }
         }
     }
 
     std::vector<char> buf;
-    bencode(std::back_inserter(buf), userEntry);
+    if( users.size() ) {
+        bencode(std::back_inserter(buf), userDict);
+    }
 
     return save_file(filename, buf);
 }
@@ -171,40 +177,47 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
 {
     std::vector<char> in;
     if (load_file(filename, in) == 0) {
-        lazy_entry userEntry;
+        lazy_entry userDict;
         error_code ec;
-        if (lazy_bdecode(&in[0], &in[0] + in.size(), userEntry, ec) == 0) {
-            if( userEntry.type() != lazy_entry::dict_t ) goto data_error;
-            for( int i = 0; i < userEntry.dict_size(); i++) {
-                UserData data;
+        if (lazy_bdecode(&in[0], &in[0] + in.size(), userDict, ec) == 0) {
+            if( userDict.type() != lazy_entry::dict_t ) goto data_error;
 
-                const lazy_entry *dataEntry = userEntry.dict_at(i).second;
-                const lazy_entry *followingEntry = dataEntry->dict_find("following");
-                if( followingEntry->type() != lazy_entry::list_t ) goto data_error;
+            for( int i = 0; i < userDict.dict_size(); i++) {
+                UserData udata;
 
-                for( int j = 0; j < followingEntry->list_size(); j++ ) {
-                    data.m_following.insert( followingEntry->list_string_value_at(j) );
-                }
+                const lazy_entry *userData = userDict.dict_at(i).second;
+                if( userData->type() != lazy_entry::dict_t ) goto data_error;
 
-                const lazy_entry *dmEntry = dataEntry->dict_find("dm");
-                if( dmEntry->type() != lazy_entry::dict_t ) goto data_error;
+                const lazy_entry *followingList = userData->dict_find("following");
+                if( followingList ) {
+                    if( followingList->type() != lazy_entry::list_t ) goto data_error;
 
-                for( int j = 0; j < dmEntry->dict_size(); j++ ) {
-                    const lazy_entry *stoDmLstEntry = dmEntry->dict_at(j).second;
-                    if( stoDmLstEntry->type() != lazy_entry::list_t ) goto data_error;
-
-                    for( int k = 0; k < stoDmLstEntry->list_size(); k++ ) {
-                        const lazy_entry *stoDmEntry = stoDmLstEntry->list_at(k);
-                        if( stoDmEntry->type() != lazy_entry::dict_t ) goto data_error;
-
-                        StoredDirectMsg dm;
-                        dm.m_text    = stoDmEntry->dict_find_string_value("text");
-                        dm.m_utcTime = stoDmEntry->dict_find_int_value("time");
-                        dm.m_fromMe  = stoDmEntry->dict_find_int_value("fromMe");
-                        data.m_directmsg[dmEntry->dict_at(j).first].push_back(dm);
+                    for( int j = 0; j < followingList->list_size(); j++ ) {
+                        udata.m_following.insert( followingList->list_string_value_at(j) );
                     }
                 }
-                users[userEntry.dict_at(i).first] = data;
+
+                const lazy_entry *dmDict = userData->dict_find("dm");
+                if( dmDict ) {
+                    if( dmDict->type() != lazy_entry::dict_t ) goto data_error;
+
+                    for( int j = 0; j < dmDict->dict_size(); j++ ) {
+                        const lazy_entry *dmList = dmDict->dict_at(j).second;
+                        if( !dmList || dmList->type() != lazy_entry::list_t ) goto data_error;
+
+                        for( int k = 0; k < dmList->list_size(); k++ ) {
+                            const lazy_entry *dmElem = dmList->list_at(k);
+                            if( dmElem->type() != lazy_entry::dict_t ) goto data_error;
+
+                            StoredDirectMsg stoDm;
+                            stoDm.m_text    = dmElem->dict_find_string_value("text");
+                            stoDm.m_utcTime = dmElem->dict_find_int_value("time");
+                            stoDm.m_fromMe  = dmElem->dict_find_int_value("fromMe");
+                            udata.m_directmsg[dmDict->dict_at(j).first].push_back(stoDm);
+                        }
+                    }
+                }
+                users[userDict.dict_at(i).first] = udata;
             }
             return 0;
         }
