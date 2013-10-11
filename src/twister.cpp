@@ -593,7 +593,18 @@ bool processReceivedDM(lazy_entry const* post)
                     stoDM.m_utcTime = post->dict_find_int_value("time");;
 
                     LOCK(cs_twister);
-                    m_users[item.second.username].m_directmsg[n].push_back(stoDM);
+                    // store this dm in memory list, but prevent duplicates
+                    std::list<StoredDirectMsg> &dmsFromToUser = m_users[item.second.username].m_directmsg[n];
+                    std::list<StoredDirectMsg>::const_iterator it;
+                    for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
+                        if( stoDM.m_utcTime == (*it).m_utcTime &&
+                            stoDM.m_text    == (*it).m_text ) {
+                            break;
+                        }
+                    }
+                    if( it == dmsFromToUser.end() ) {
+                        dmsFromToUser.push_back(stoDM);
+                    }
 
                     return true;
                 }
@@ -1002,29 +1013,18 @@ Value newdirectmsg(const Array& params, bool fHelp)
     if( !acceptSignedPost(buf.data(),buf.size(),strFrom,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
+    {
+        StoredDirectMsg stoDM;
+        stoDM.m_fromMe  = true;
+        stoDM.m_text    = strMsg;
+        stoDM.m_utcTime = v["userpost"]["time"].integer();
+
+        LOCK(cs_twister);
+        m_users[strFrom].m_directmsg[strTo].push_back(stoDM);
+    }
+
     torrent_handle h = startTorrentUser(strFrom);
     h.add_piece(k,buf.data(),buf.size());
-
-    StoredDirectMsg stoDM;
-    stoDM.m_fromMe  = true;
-    stoDM.m_text    = strMsg;
-    stoDM.m_utcTime = v["userpost"]["time"].integer();
-    {
-        LOCK(cs_twister);
-
-        std::list<StoredDirectMsg> &dmsFromToUser = m_users[strFrom].m_directmsg[strTo];
-        std::list<StoredDirectMsg>::const_iterator it;
-        // prevent duplicates
-        for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
-            if( stoDM.m_utcTime == (*it).m_utcTime &&
-                stoDM.m_text    == (*it).m_text ) {
-                break;
-            }
-        }
-        if( it != dmsFromToUser.end() ) {
-            dmsFromToUser.push_back(stoDM);
-        }
-    }
 
     return entryToJson(v);
 }
