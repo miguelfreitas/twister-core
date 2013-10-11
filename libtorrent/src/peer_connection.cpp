@@ -165,7 +165,7 @@ namespace libtorrent
 		, m_upload_rate_peak(0)
 		, m_rtt(0)
 		, m_prefer_whole_pieces(0)
-		, m_desired_queue_size(2)
+		, m_desired_queue_size(8)
 		, m_fast_reconnect(false)
 		, m_outgoing(outgoing)
 		, m_received_listen_port(false)

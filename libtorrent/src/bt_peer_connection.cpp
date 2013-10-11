@@ -3105,6 +3105,9 @@ namespace libtorrent
 				if (i != p.end_peer())
 				{
 					TORRENT_ASSERT((*i)->connection->pid() == pid);
+#ifdef TORRENT_VERBOSE_LOGGING
+					peer_log("*** will disconnect: duplicated connection\n");
+#endif
 					// we found another connection with the same peer-id
 					// which connection should be closed in order to be
 					// sure that the other end closes the same connection?
@@ -3128,6 +3131,9 @@ namespace libtorrent
 			// since it most likely is ourself then
 			if (pid == m_ses.get_peer_id())
 			{
+#ifdef TORRENT_VERBOSE_LOGGING
+				peer_log("*** will disconnect: duplicated connection\n");
+#endif
 				if (peer_info_struct()) t->get_policy().ban_peer(peer_info_struct());
 				disconnect(errors::self_connection, 1);
 				return;

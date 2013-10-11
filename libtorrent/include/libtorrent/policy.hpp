@@ -95,7 +95,7 @@ namespace libtorrent
 	enum
 	{
 		// the limits of the download queue size
-		min_request_queue = 2,
+		min_request_queue = 8,
 
 		// the amount of free upload allowed before
 		// the peer is choked

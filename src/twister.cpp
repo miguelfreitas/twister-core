@@ -155,9 +155,10 @@ void ThreadWaitExtIP()
     session_settings settings;
     // settings to test local connections
     settings.allow_multiple_connections_per_ip = true;
-    settings.enable_outgoing_utp = false; // test (netstat display)
+    //settings.enable_outgoing_utp = false; // (false to see connections in netstat)
     //settings.dht_announce_interval = 60; // test
     //settings.min_announce_interval = 60; // test
+    settings.anonymous_mode = false; // (false => send peer_id, avoid connecting to itself)
     ses->set_settings(settings);
 
 
