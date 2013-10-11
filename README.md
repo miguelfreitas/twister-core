@@ -1,11 +1,11 @@
 twister - p2p microblogging
 ===========================
 
-http://www.twister.net.co
+<http://www.twister.net.co>
 
-Bitcoin Copyright (c) 2009-2013 Bitcoin Developers
-libtorrent Copyright (c) 2003 - 2007, Arvid Norberg
-twister Copyright (c) 2013 Miguel Freitas
+Bitcoin Copyright (c) 2009-2013 Bitcoin Developers  
+libtorrent Copyright (c) 2003 - 2007, Arvid Norberg  
+twister Copyright (c) 2013 Miguel Freitas  
 
 What is twister?
 ----------------
@@ -52,15 +52,14 @@ Therefore it is possible to run multiple twisterd instances at the same machine:
     $ twisterd -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 -rpcport=40001 addnode <external-ip>:30002 onetry
 
 Note: some features (like block generation and dht put/get) do now work unless
-there are at least two known nodes, like these two instances.
+the network has at least two nodes, like these two instances in the example above.
 
 Wire protocol
 -------------
 
 Bitcoin and libtorrent protocol signatures have been changed on purpose to
-make twister network incompatible. This avoids the so called "merge bug":
-
-http://blog.notdot.net/2008/6/Nearly-all-DHT-implementations-vulnerable-to-merge-bug
+make twister network incompatible. This avoids the so called 
+["merge bug"](http://blog.notdot.net/2008/6/Nearly-all-DHT-implementations-vulnerable-to-merge-bug).
 
 - Bitcoin signature changed from "f9 be b4 d9" to "f0 da bb d2".
 - Bitcoin port changed from 8333 to 28333.
@@ -71,17 +70,64 @@ http://blog.notdot.net/2008/6/Nearly-all-DHT-implementations-vulnerable-to-merge
 Quick JSON command examples
 ---------------------------
 
-To create a new user key and send it to the network:
-    ./twisterd createwalletuser somebody
-    ./twisterd sendnewusertransaction somebody
+In order to use JSON-RPC you must set user/password/port by either command
+line or configuration file. This is the same as in [bitcoin](https://en.bitcoin.it/wiki/Running_Bitcoin)
+except that twister config file is `/home/user/.twister/twister.conf`
+
+To create a new (local) user key:
+
+    ./twisterd createwalletuser myname
+
+This command returns the secret which can be used to recreate the key in a
+different computer (in order to access the account). The user should be
+encouraged to make a copy of this information, either by printing, snapshoting
+or even writing it down to a piece of paper.
+
+The newly created user only exists in the local database (wallet), so
+before the user is able to fully use the system (post messages), his public
+key must be propagated to the network:
+
+    ./twisterd sendnewusertransaction myname
+
+The above command may take a few seconds to run, depending on your CPU. This
+is normal.
 
 To create the first (1) public post:
-    ./twisterd newpostmsg somebody 1 "hello world"
 
-To add this user to the following list:
-    ./twisterd follow somebody '["somebody"]'
+    ./twisterd newpostmsg myname 1 "hello world"
 
-To get the last 5 posts from user we follow:
-    ./twisterd getposts 5 '[{"username":"somebody"}]'
+To add some users to the following list:
+
+    ./twisterd follow myname '["myname","myfriend"]'
+
+To get the last 5 posts from the users we follow:
+
+    ./twisterd getposts 5 '[{"username":"myname"},{"username":"myfriend"}]'
+
+To send a new (private) direct message:
+
+    ./twisterd newdirectmsg myname 2 myfriend "secret message"
+
+Notes for `newdirectmsg`:
+
+- The post number (2) follows the same numbering as `newpostmsg`, make
+sure they don't clash.
+
+- The recipient must be your follower.
+
+To setup your profile:
+
+    ./twisterd dhtput myname profile s '{"fullname":"My Name","bio":"just another user","location":"nowhere","url":"twister.net.co"}' myname 1
+
+Note: increase the revision number (the last parameter) whenever you want to
+update something using dhtput.
+
+To obtain the profile of another user:
+
+    ./twisterd dhtget myfriend profile s
+
+To obtain the full list of commands
+
+    ./twisterd help
 
 
