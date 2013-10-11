@@ -492,7 +492,7 @@ namespace libtorrent { namespace dht
 		if (match)
 		{
 			++match->count;
-            if (match->count >= 200)
+			if (match->count >= 1000)
 			{
 				if (now < match->limit)
 				{
@@ -504,7 +504,7 @@ namespace libtorrent { namespace dht
 							<< " count: " << match->count << " ]";
 					}
 #endif
-                    if (match->count == 200)
+                    if (match->count == 1000)
                     {
                         printf(" BANNING PEER [ ip: %s:%d ] time: %.3f ]\n",
                                ep.address().to_string().c_str(), ep.port(),
