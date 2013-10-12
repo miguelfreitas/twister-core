@@ -185,6 +185,7 @@ void ThreadMaintainDHTNodes()
     while(1) {
         MilliSleep(15000);
 
+        bool nodesAdded = false;
         if( ses ) {
             LOCK(cs_vNodes);
             vector<CAddress> vAddr = addrman.GetAddr();
@@ -193,30 +194,34 @@ void ThreadMaintainDHTNodes()
             if( (!ss.dht_nodes && totalNodesCandidates) ||
                 ss.dht_nodes < totalNodesCandidates / 2 ) {
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
-                BOOST_FOREACH(CNode* pnode, vNodes) {
-
-                    // if !fInbound we created this connection so ip is reachable
-                    if( !pnode->fInbound ) {
-                        std::string addr = pnode->addr.ToStringIP();
-                        int port = pnode->addr.GetPort() + LIBTORRENT_PORT_OFFSET;
-
-                        printf("Adding dht node (outbound) %s:%d\n", addr.c_str(), port);
-                        ses->add_dht_node(std::pair<std::string, int>(addr, port));
-                    } else if( !ss.dht_nodes /* last resort! */ ) {
-                        // can't use port number of inbound connectio, try standard port
-                        std::string addr = pnode->addr.ToStringIP();
-                        int port = Params().GetDefaultPort() + LIBTORRENT_PORT_OFFSET;
-
-                        printf("Adding dht node (inbound) %s:%d\n", addr.c_str(), port);
-                        ses->add_dht_node(std::pair<std::string, int>(addr, port));
-                    }
-                }
                 BOOST_FOREACH(const CAddress &a, vAddr) {
                     std::string addr = a.ToStringIP();
                     int port = a.GetPort() + LIBTORRENT_PORT_OFFSET;
                     printf("Adding dht node (addrman) %s:%d\n", addr.c_str(), port);
                     ses->add_dht_node(std::pair<std::string, int>(addr, port));
+                    nodesAdded = true;
                 }
+                BOOST_FOREACH(CNode* pnode, vNodes) {
+                    // if !fInbound we created this connection so ip is reachable.
+                    // we can't use port number of inbound connection, so try standard port.
+                    // only use inbound as last resort (if dht_nodes empty)
+                    if( !pnode->fInbound || !ss.dht_nodes ) {
+                        std::string addr = pnode->addr.ToStringIP();
+                        int port = (!pnode->fInbound) ? pnode->addr.GetPort() : Params().GetDefaultPort();
+                        port += LIBTORRENT_PORT_OFFSET;
+
+                        printf("Adding dht node (%sbound) %s:%d\n", (!pnode->fInbound) ? "out" : "in",
+                               addr.c_str(), port);
+                        ses->add_dht_node(std::pair<std::string, int>(addr, port));
+                        nodesAdded = true;
+                    }
+                }
+            }
+        }
+        if( nodesAdded ) {
+            LOCK(cs_twister);
+            BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
+                item.second.force_dht_announce();
             }
         }
     }
