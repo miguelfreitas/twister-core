@@ -161,21 +161,31 @@ void ThreadWaitExtIP()
     settings.anonymous_mode = false; // (false => send peer_id, avoid connecting to itself)
     ses->set_settings(settings);
 
+    printf("libtorrent + dht started\n");
 
-    boost::filesystem::path userDataPath = GetDataDir() / "user_data";
-    loadUserData(userDataPath.string(), m_users);
-    printf("loaded user_data for %zd users\n", m_users.size());
-
-    // now restart the user torrents (all m_following)
-    std::map<std::string,UserData>::const_iterator i;
-    for (i = m_users.begin(); i != m_users.end(); ++i) {
-        UserData const &data = i->second;
-        BOOST_FOREACH(string username, data.m_following) {
-            startTorrentUser(username);
-        }
+    // wait up to 10 seconds for dht nodes to be set
+    for( int i = 0; i < 10; i++ ) {
+        MilliSleep(1000);
+        session_status ss = ses->status();
+        if( ss.dht_nodes )
+            break;
     }
 
-    printf("libtorrent + dht started\n");
+    {
+        LOCK(cs_twister);
+        boost::filesystem::path userDataPath = GetDataDir() / "user_data";
+        loadUserData(userDataPath.string(), m_users);
+        printf("loaded user_data for %zd users\n", m_users.size());
+
+        // now restart the user torrents (all m_following)
+        std::map<std::string,UserData>::const_iterator i;
+        for (i = m_users.begin(); i != m_users.end(); ++i) {
+            UserData const &data = i->second;
+            BOOST_FOREACH(string username, data.m_following) {
+                startTorrentUser(username);
+            }
+        }
+    }
 }
 
 void ThreadMaintainDHTNodes()
@@ -183,7 +193,7 @@ void ThreadMaintainDHTNodes()
     RenameThread("maintain-dht-nodes");
 
     while(1) {
-        MilliSleep(15000);
+        MilliSleep(5000);
 
         bool nodesAdded = false;
         if( ses ) {
