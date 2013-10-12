@@ -954,6 +954,8 @@ Value newpostmsg(const Array& params, bool fHelp)
     // post to dht as well
     ses->dht_putData(strUsername, string("post")+strK, false,
                      v, strUsername, GetAdjustedTime(), 1);
+    ses->dht_putData(strUsername, string("status"), false,
+                     v, strUsername, GetAdjustedTime(), k);
 
     // is this a reply? notify
     if( strReplyN.length() ) {
