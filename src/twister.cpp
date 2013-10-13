@@ -382,30 +382,6 @@ void ThreadSessionAlerts()
     }
 }
 
-void encryptDecryptTest()
-{
-    CKey key1, key2;
-    key1.MakeNewKey(true);
-    key2.MakeNewKey(true);
-
-    string textIn("Encrypted with public key, decrypted with private key");
-    ecies_secure_t sec;
-
-    bool encrypted = key1.GetPubKey().Encrypt(textIn, sec);
-    printf("encrypted = %d [key %zd, mac %zd, orig %zd, body %zd]\n", encrypted,
-           sec.key.size(), sec.mac.size(), sec.orig, sec.body.size());
-
-    std::string textOut;
-    bool decrypt1 = key1.Decrypt(sec, textOut);
-    printf("decrypt1 = %d\n", decrypt1);
-    if( decrypt1 ) {
-        printf("textOut = '%s'\n", textOut.c_str());
-    }
-
-    bool decrypt2 = key2.Decrypt(sec, textOut);
-    printf("decrypt2 = %d\n", decrypt2);
-}
-
 void startSessionTorrent(boost::thread_group& threadGroup)
 {
     printf("startSessionTorrent (waiting for external IP)\n");
@@ -417,8 +393,6 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
     threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
-
-    encryptDecryptTest();
 }
 
 bool yes(libtorrent::torrent_status const&)
