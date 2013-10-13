@@ -913,8 +913,7 @@ namespace libtorrent
 	{
 		if( !m_picker ) return;
 
-		if( max_id < 0 )
-			max_id = m_picker->last_have();
+		max_id = std::min( max_id, m_picker->last_have() );
 
 		int piece_size = m_torrent_file->piece_size(0);
 

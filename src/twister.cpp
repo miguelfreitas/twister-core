@@ -1125,7 +1125,7 @@ Value getposts(const Array& params, bool fHelp)
     for( unsigned int u = 0; u < users.size(); u++ ) {
         Object user = users[u].get_obj();
         string strUsername;
-        int max_id = -1;
+        int max_id = std::numeric_limits<int>::max();
         int since_id = -1;
 
         for (Object::const_iterator i = user.begin(); i != user.end(); ++i) {
