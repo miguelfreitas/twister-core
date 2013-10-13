@@ -97,15 +97,14 @@ Value importprivkey(const Array& params, bool fHelp)
         if (pwalletMain->HaveKey(vchAddress))
             return Value::null;
 
+        pwalletMain->mapKeyMetadata[vchAddress] = CKeyMetadata(GetTime(), strUsername);
+
         if (!pwalletMain->AddKeyPubKey(key, pubkey))
             throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
 
-        pwalletMain->mapKeyMetadata[vchAddress].nCreateTime = GetTime();
-        pwalletMain->mapKeyMetadata[vchAddress].username = strUsername;
-
         if (fRescan) {
-            pwalletMain->ScanForWalletTransactions(pindexGenesisBlock, true);
-            pwalletMain->ReacceptWalletTransactions();
+            // [MF] TODO: rescan could have a different meaning, like rescaning all DM
+            // of already followed users.
         }
     }
 
