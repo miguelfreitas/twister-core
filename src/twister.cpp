@@ -1166,12 +1166,12 @@ Value getposts(const Array& params, bool fHelp)
     return ret;
 }
 
-Value getlocaldirectmessages(const Array& params, bool fHelp)
+Value getdirectmsgs(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "getlocaldirectmessages <localuser> <count_per_user> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]'\n"
-            "get decrypted direct messages sent/received by user <localuser>\n"
+            "getdirectmsgs <localuser> <count_per_user> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]'\n"
+            "get (locally stored) decrypted direct messages sent/received by user <localuser>\n"
             "max_id and since_id may be omited. up to <count_per_user> are returned for each remote user.");
 
     string strUsername = params[0].get_str();

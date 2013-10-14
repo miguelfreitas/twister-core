@@ -115,6 +115,20 @@ sure they don't clash.
 
 - The recipient must be your follower.
 
+To get the last 10 direct messages to/from remote user:
+
+    ./twisterd getdirectmsgs myname 10 '[{"username":"myfriend"}]'
+
+Notes for `getdirectmsgs`:
+
+- These direct message IDs (max_id, since_id etc) are not related to post
+numbers. The numbering is local and specific to this thread.
+
+- This function will return messages which have been successfully decrypted
+upon receiving or that have been sent by this same computer. A different
+computer, sharing the same account, will see the same received, but not the
+same sent messages.
+
 To setup your profile:
 
     ./twisterd dhtput myname profile s '{"fullname":"My Name","bio":"just another user","location":"nowhere","url":"twister.net.co"}' myname 1
