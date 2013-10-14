@@ -1,0 +1,42 @@
+- Take care of posts using older public key when key is replaced.
+
+notes: not very difficult, GetTransaction must receive a maximum block number to search the
+transaction (we get this from post["height"]). another txIndex should be set to speedup lookup
+(key in db includes the number of the block that changed tx so previous one can be found).
+pseudocode:
+   getTxIndex( key = "userX" ) => block h contains this tx;
+   while( h > max_h )
+        getTxIndex( "userX_h" ) => block h contains the previous tx
+
+- Count UTF8 chars in acceptSignedPost to proper limit the 140 characters.
+
+- Encrypt user_data (which contains all DMs)
+
+- Test wallet encrypt to see if it still works from original bitcoin implementation and what
+are the implications to our code.
+
+- Rescan directmessages after importing a privatekey (importprivkey)
+
+- Check libtorrent's limitation on the number of pieces (max_pieces in piece_picker.hpp = 1<<19)
+Since post number is constrained by max of 288 posts per day in average, that means we have 5 years
+to think about it (for the really heavy users).
+
+- Besides increasing the maximum number of pieces, a more pressing issue to save bandwidth and
+torrent download time would be to define the first piece to download/store locally. People don't
+need to maintain the entire post history for everybody they follow, they could just keep the last
+ones. This has to be implemented.
+
+- Move all crypto to javascript, store only encrypted version of the privatekey (which would be
+decrypted only in browser memory). getposts may obtain all DMs encrypted to browser, another
+newpostmsg needs to be provided to receive posts with signature field added.
+
+- Store a dht resource "publickey" containing not only the public key itself but also information
+needed to validate it by a lightweight client. That includes: block hash, block height and partial
+merkle tree inside that block. This resource propagation cannot be sent right after user
+registration for obvious reasons (no block yet, other nodes wouldn't accept the signed dht put).
+
+- Discuss and implement the acceptable level of spam per day (priorizing localization).
+
+-
+
+
