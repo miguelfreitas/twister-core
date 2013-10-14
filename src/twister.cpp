@@ -592,8 +592,8 @@ bool processReceivedDM(lazy_entry const* post)
 
                     LOCK(cs_twister);
                     // store this dm in memory list, but prevent duplicates
-                    std::list<StoredDirectMsg> &dmsFromToUser = m_users[item.second.username].m_directmsg[n];
-                    std::list<StoredDirectMsg>::const_iterator it;
+                    std::vector<StoredDirectMsg> &dmsFromToUser = m_users[item.second.username].m_directmsg[n];
+                    std::vector<StoredDirectMsg>::const_iterator it;
                     for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
                         if( stoDM.m_utcTime == (*it).m_utcTime &&
                             stoDM.m_text    == (*it).m_text ) {
@@ -1085,14 +1085,15 @@ Value newrtmsg(const Array& params, bool fHelp)
 
 Value getposts(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 2))
+    if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "getposts <count> [{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]\n"
+            "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [flags]\n"
             "get posts from users\n"
-            "max_id and since_id may be omited or -1");
+            "max_id and since_id may be omited");
 
     int count          = params[0].get_int();
     Array users        = params[1].get_array();
+    int flags          = (params.size() > 2) ? params[2].get_int() : USERPOST_FLAG_RT;
 
     std::multimap<int64,entry> postsByTime;
 
@@ -1108,11 +1109,12 @@ Value getposts(const Array& params, bool fHelp)
             if( i->name_ == "since_id" ) since_id = i->value_.get_int();
         }
 
+        LOCK(cs_twister);
         if( strUsername.size() && m_userTorrent.count(strUsername) &&
             m_userTorrent[strUsername].is_valid() ){
 
             std::vector<std::string> pieces;
-            m_userTorrent[strUsername].get_pieces(pieces, count, max_id, since_id, USERPOST_FLAG_RT);
+            m_userTorrent[strUsername].get_pieces(pieces, count, max_id, since_id, flags);
 
             BOOST_FOREACH(string const& piece, pieces) {
                 lazy_entry v;
@@ -1163,6 +1165,57 @@ Value getposts(const Array& params, bool fHelp)
 
     return ret;
 }
+
+Value getlocaldirectmessages(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw runtime_error(
+            "getlocaldirectmessages <localuser> <count_per_user> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]'\n"
+            "get decrypted direct messages sent/received by user <localuser>\n"
+            "max_id and since_id may be omited. up to <count_per_user> are returned for each remote user.");
+
+    string strUsername = params[0].get_str();
+    int count          = params[1].get_int();
+    Array remoteusers  = params[2].get_array();
+
+    Object ret;
+    for( unsigned int u = 0; u < remoteusers.size(); u++ ) {
+        Object remoteUser = remoteusers[u].get_obj();
+        string remoteUsername;
+        int max_id = std::numeric_limits<int>::max();
+        int since_id = -1;
+
+        for (Object::const_iterator i = remoteUser.begin(); i != remoteUser.end(); ++i) {
+            if( i->name_ == "username" ) remoteUsername = i->value_.get_str();
+            if( i->name_ == "max_id" ) max_id = i->value_.get_int();
+            if( i->name_ == "since_id" ) since_id = i->value_.get_int();
+        }
+
+        LOCK(cs_twister);
+        if( remoteUsername.size() && m_users.count(strUsername) &&
+            m_users[strUsername].m_directmsg.count(remoteUsername) ){
+            std::vector<StoredDirectMsg> &dmsFromToUser = m_users[strUsername].m_directmsg[remoteUsername];
+            max_id = std::min( max_id, (int)dmsFromToUser.size()-1);
+            since_id = std::max( since_id, max_id - count );
+
+            Array userMsgs;
+            for( int i = std::max(since_id+1,0); i <= max_id; i++) {
+                Object dmObj;
+                dmObj.push_back(Pair("id",i));
+                dmObj.push_back(Pair("time",dmsFromToUser.at(i).m_utcTime));
+                dmObj.push_back(Pair("text",dmsFromToUser.at(i).m_text));
+                dmObj.push_back(Pair("fromMe",dmsFromToUser.at(i).m_fromMe));
+                userMsgs.push_back(dmObj);
+            }
+            if( userMsgs.size() ) {
+                ret.push_back(Pair(remoteUsername,userMsgs));
+            }
+        }
+    }
+
+    return ret;
+}
+
 
 Value setspammsg(const Array& params, bool fHelp)
 {

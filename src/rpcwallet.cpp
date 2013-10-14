@@ -287,7 +287,7 @@ Value verifymessage(const Array& params, bool fHelp)
 
 void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong, Array& ret)
 {
-    bool fAllAccounts = (strAccount == string("*"));
+    //bool fAllAccounts = (strAccount == string("*"));
 
     // Sent
     //if ((fAllAccounts || strAccount == strSentAccount))

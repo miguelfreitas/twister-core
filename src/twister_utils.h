@@ -19,7 +19,7 @@ struct StoredDirectMsg {
 struct UserData {
     std::set<std::string> m_following;
     // m_directmsg key is the other username
-    std::map<std::string, std::list<StoredDirectMsg> > m_directmsg;
+    std::map<std::string, std::vector<StoredDirectMsg> > m_directmsg;
 };
 
 

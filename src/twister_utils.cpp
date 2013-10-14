@@ -148,7 +148,7 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
         if( udata.m_directmsg.size() ) {
             entry &dmDict = userData["dm"];
 
-            std::map<std::string, std::list<StoredDirectMsg> >::const_iterator j;
+            std::map<std::string, std::vector<StoredDirectMsg> >::const_iterator j;
             for (j = udata.m_directmsg.begin(); j != udata.m_directmsg.end(); ++j) {
                 entry &dmList = dmDict[j->first];
                 BOOST_FOREACH( StoredDirectMsg const &stoDm, j->second) {

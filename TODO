@@ -37,6 +37,7 @@ registration for obvious reasons (no block yet, other nodes wouldn't accept the 
 
 - Discuss and implement the acceptable level of spam per day (priorizing localization).
 
--
+- Implement the mention forwarding mechanism discussed in the paper so user don't need to do polling
+and can also be sure to receive all mentions.
 
 
