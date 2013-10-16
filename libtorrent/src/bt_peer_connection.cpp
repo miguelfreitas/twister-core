@@ -118,8 +118,8 @@ namespace libtorrent
 		, m_rc4_encrypted(false)
 		, m_sync_bytes_read(0)
 #endif
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		, m_sent_bitfield(false)
+#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		, m_in_constructor(true)
 		, m_sent_handshake(false)
 #endif
@@ -227,8 +227,8 @@ namespace libtorrent
 		if (m_state < read_packet_size) return;
 		boost::shared_ptr<torrent> t = associated_torrent().lock();
 		TORRENT_ASSERT(t);
-        if(!m_sent_bitfield)
-            write_bitfield();
+		if(!m_sent_bitfield)
+			write_bitfield();
 #ifndef TORRENT_DISABLE_DHT
 		if (m_supports_dht_port && m_ses.m_dht)
 			write_dht_port(m_ses.m_external_udp_port);
@@ -254,9 +254,7 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 		TORRENT_ASSERT(m_sent_handshake && !m_sent_bitfield);
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		m_sent_bitfield = true;
-#endif
 #ifdef TORRENT_VERBOSE_LOGGING
 		peer_log("==> HAVE_ALL");
 #endif
@@ -268,9 +266,7 @@ namespace libtorrent
 	{
 		INVARIANT_CHECK;
 		TORRENT_ASSERT(m_sent_handshake && !m_sent_bitfield);
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		m_sent_bitfield = true;
-#endif
 #ifdef TORRENT_VERBOSE_LOGGING
 		peer_log("==> HAVE_NONE");
 #endif
@@ -1958,9 +1954,7 @@ namespace libtorrent
 
 			// if we are super seeding, pretend to not have any piece
 			// and don't send a bitfield
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 			m_sent_bitfield = true;
-#endif
 
 			// bootstrap superseeding by sending two have message
 			superseed_piece(-1, t->get_piece_to_super_seed(get_bitfield()));
@@ -1985,9 +1979,7 @@ namespace libtorrent
 #ifdef TORRENT_VERBOSE_LOGGING
 			peer_log(" *** NOT SENDING BITFIELD");
 #endif
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 			m_sent_bitfield = true;
-#endif
 			return;
 		}
 	
@@ -2060,9 +2052,7 @@ namespace libtorrent
 		}
 		peer_log("==> BITFIELD [ %s ]", bitfield_string.c_str());
 #endif
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		m_sent_bitfield = true;
-#endif
 
 		send_buffer(msg, packet_size);
 

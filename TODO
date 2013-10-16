@@ -42,5 +42,11 @@ and can also be sure to receive all mentions.
 
 - Implement hashtag "storage-less" torrents for post distribution.
 
+- Define expiration policies to dht stored values. Currently all keys are refreshed every hour which,
+according to previous bittorrent research, would be enough to keep data available forever (with high
+probability). twister also persists keys to disk. As userbase increases, old post storage and
+unreliable multivalued keys should better expire. Since those posts include the height and time, a
+policy may me defined.
 
+-
 

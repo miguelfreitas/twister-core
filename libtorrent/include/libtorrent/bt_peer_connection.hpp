@@ -434,10 +434,10 @@ private:
 		boost::scoped_ptr<sha1_hash> m_sync_hash;
 #endif // #ifndef TORRENT_DISABLE_ENCRYPTION
 
-#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		// this is set to true when the client's
 		// bitfield is sent to this peer
 		bool m_sent_bitfield;
+#if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 
 		bool m_in_constructor;
 		
