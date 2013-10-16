@@ -215,11 +215,22 @@ POSSIBILITY OF SUCH DAMAGE.
 // ==== LINUX ===
 #elif defined __linux__
 #define TORRENT_LINUX
-#define TORRENT_USE_IFADDRS 1
+#ifdef __ANDROID__
+ #define TORRENT_USE_IFADDRS 0
+#else
+ #define TORRENT_USE_IFADDRS 1
+#endif
 #define TORRENT_USE_NETLINK 1
 #define TORRENT_USE_IFCONF 1
 #define TORRENT_HAS_SALEN 0
-#define TORRENT_USE_POSIX_MEMALIGN 1
+#ifdef __ANDROID__
+ #define TORRENT_USE_POSIX_MEMALIGN 0
+ #define TORRENT_USE_MEMALIGN 1
+ #define TORRENT_USE_ICONV 0
+ #define TORRENT_HAS_FALLOCATE 0
+#else
+ #define TORRENT_USE_POSIX_MEMALIGN 1
+#endif
 #if __amd64__ || __i386__
 #define TORRENT_USE_EXECINFO 1
 #endif
