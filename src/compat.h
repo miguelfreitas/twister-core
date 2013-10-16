@@ -18,7 +18,7 @@
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <net/if.h>
