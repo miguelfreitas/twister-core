@@ -10,6 +10,7 @@
 #define USERPOST_FLAG_RT 0x01
 #define USERPOST_FLAG_DM 0x02
 
+#define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY 2000
 
 class twister
 {
@@ -26,9 +27,11 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
 
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags);
 bool validatePostNumberForUser(std::string const &username, int k);
+bool usernameExists(std::string const &username);
 
 void receivedSpamMessage(std::string const &message, std::string const &user);
 
 int getBestHeight();
+bool shouldDhtResourceExpire(std::string resource, bool multi, int height);
 
 #endif // TWISTER_H

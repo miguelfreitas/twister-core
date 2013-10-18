@@ -41,6 +41,7 @@ static map<sha1_hash, alert_manager*> m_dhtgetMap;
 
 static CCriticalSection cs_twister;
 static map<std::string, bool> m_specialResources;
+static map<std::string, bool> m_noExpireResources; // bool is true if expected number after resource string
 static map<std::string, torrent_handle> m_userTorrent;
 
 static std::string m_preferredSpamLang = "[en]";
@@ -389,6 +390,11 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     m_specialResources["tracker"] = true;
     m_specialResources["swarm"] = true;
 
+    // these are the resources which shouldn't expire (true when numbering is expected)
+    m_noExpireResources["avatar"] = false;
+    m_noExpireResources["profile"] = false;
+    m_noExpireResources["following"] = true;
+
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
@@ -713,6 +719,15 @@ bool validatePostNumberForUser(std::string const &username, int k)
     return true;
 }
 
+bool usernameExists(std::string const &username)
+{
+    CTransaction txOut;
+    uint256 hashBlock;
+    uint256 userhash = SerializeHash(username);
+    return GetTransaction(userhash, txOut, hashBlock);
+}
+
+
 /*
 "userpost" :
 {
@@ -806,6 +821,43 @@ bool createDirectMessage(entry &dm, std::string const &to, std::string const &ms
 int getBestHeight()
 {
     return nBestHeight;
+}
+
+bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
+{
+    if ((height + BLOCK_AGE_TO_EXPIRE_DHT_ENTRY) < getBestHeight() ) {
+        if( multi ) {
+            printf("shouldDhtResourceExpire: expiring resource multi '%s'\n", resource.c_str());
+            return true;
+        }
+
+        std::string resourceBasic;
+        for(size_t i = 0; i < resource.size() && isalpha(resource.at(i)); i++) {
+            resourceBasic.push_back(resource.at(i));
+        }
+        int resourceNumber = -1;
+
+        if( resource.length() > resourceBasic.length() ) {
+            resourceNumber = atoi( resource.c_str() + resourceBasic.length() );
+        }
+
+        if( !m_noExpireResources.count(resourceBasic) ) {
+            // unknown resource. expire it.
+            printf("shouldDhtResourceExpire: expiring non-special resource '%s'\n", resource.c_str());
+        } else {
+            if( !m_noExpireResources[resourceBasic] && resourceNumber >= 0 ) {
+                // this resource admits no number. expire it!
+                printf("shouldDhtResourceExpire: expiring resource with unexpected numbering '%s'\n", resource.c_str());
+                return true;
+            }
+            if( m_noExpireResources[resourceBasic] && resourceNumber > 200 ) {
+                // try keeping a sane number here, otherwise expire it!
+                printf("shouldDhtResourceExpire: expiring resource with numbering too big '%s'\n", resource.c_str());
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void receivedSpamMessage(std::string const &message, std::string const &user)

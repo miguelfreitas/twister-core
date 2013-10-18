@@ -537,6 +537,49 @@ bool node_impl::refresh_storage() {
     return did_something;
 }
 
+bool node_impl::has_expired(dht_storage_item const& item) {
+    if (!verifySignature(item.p, item.sig_user, item.sig_p)) {
+        // invalid signature counts as expired
+        printf("node_impl::has_expired verifySignature failed\n");
+        return true;
+    }
+
+    lazy_entry arg_ent;
+    int pos;
+    error_code err;
+    // FIXME: optimize to avoid bdecode (store seq separated, etc)
+    int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), arg_ent, err, &pos, 10, 500);
+
+    const static key_desc_t msg_desc[] = {
+        {"v", lazy_entry::none_t, 0, 0},
+        {"seq", lazy_entry::int_t, 0, key_desc_t::optional},
+        {"time", lazy_entry::int_t, 0, 0},
+        {"height", lazy_entry::int_t, 0, 0},
+        {"target", lazy_entry::dict_t, 0, key_desc_t::parse_children},
+        {"n", lazy_entry::string_t, 0, 0},
+        {"r", lazy_entry::string_t, 0, 0},
+        {"t", lazy_entry::string_t, 0, 0},
+    };
+    enum {mk_v = 0, mk_seq, mk_time, mk_height,
+          mk_target, mk_n, mk_r, mk_t};
+
+    // attempt to parse the message
+    lazy_entry const* msg_keys[8];
+    char error_string[200];
+    if (!verify_message(&arg_ent, msg_desc, msg_keys, 8, error_string, sizeof(error_string)))
+    {
+        printf("node_impl::has_expired verify_message failed\n");
+        // parse error (how come?) counts as expired
+        return true;
+    }
+
+    bool multi = (msg_keys[mk_t]->string_value() == "m");
+    int height = msg_keys[mk_height]->int_value();
+    std::string resource = msg_keys[mk_r]->string_value();
+
+    return shouldDhtResourceExpire(resource, multi, height);
+}
+
 bool node_impl::save_storage(entry &save) const {
     bool did_something = false;
 
@@ -593,6 +636,10 @@ void node_impl::load_storage(entry const* e) {
             item.p = j->find_key("p")->string();
             item.sig_p = j->find_key("sig_p")->string();
             item.sig_user = j->find_key("sig_user")->string();
+
+            // just for printf for now
+            has_expired(item);
+
             to_add.push_back(item);
         }
         m_storage_table.insert(std::make_pair(target, to_add));
@@ -1149,6 +1196,18 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		if (!multi && msg_keys[mk_sig_user]->string_value() !=
 			      msg_keys[mk_n]->string_value() ) {
 			incoming_error(e, "only owner is allowed");
+			return;
+		}
+
+		/* we can't check username, otherwise we break hashtags etc.
+		if (multi && !usernameExists(msg_keys[mk_n]->string_value())) {
+			incoming_error(e, "unknown user for resource");
+			return;
+		}
+		*/
+
+		if (msg_keys[mk_r]->string_value().size() > 32) {
+			incoming_error(e, "resource name too big");
 			return;
 		}
 

@@ -47,6 +47,10 @@ according to previous bittorrent research, would be enough to keep data availabl
 probability). twister also persists keys to disk. As userbase increases, old post storage and
 unreliable multivalued keys should better expire. Since those posts include the height and time, a
 policy may me defined.
+=> Implemented shouldDhtResourceExpire() which is tested on initialization but not really used yet.
 
--
+- Check stored dht values if their signature is still valid before trying to refresh another node.
+Key pair might have changed and currently we receive a lot of errors from other nodes.
+
+
 
