@@ -4,10 +4,9 @@ export NDK_BASE=$NDK
 export SYSROOT=$NDK/platforms/android-9/arch-arm
 export BOOSTDIR=/home/miguel/android/Boost-for-Android/build/
 
-#make -j2
-#exit
-
-./configure --host=arm-linux-androideabi --enable-shared=no --enable-static=yes\
+if [ $1 == "configure" ]; then
+./configure --host=arm-linux-androideabi --enable-shared=no --enable-static=yes \
+ --enable-debug \
  CPPFLAGS="-I$SYSROOT/usr/include/ -I$BOOSTDIR/include \
  -I$NDK_BASE/sources/cxx-stl/gnu-libstdc++/4.6/include \
  -I$NDK_BASE/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/include \
@@ -17,3 +16,7 @@ export BOOSTDIR=/home/miguel/android/Boost-for-Android/build/
  $NDK_BASE/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/libgnustl_static.a" \
  LIBS="-lc" CFLAGS="-nostdlib" --prefix="$SYSROOT/usr" \
  --with-boost=$BOOSTDIR --with-boost-libdir=$BOOSTDIR/lib  && make -j2
+fi
+
+make -j2
+

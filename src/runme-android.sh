@@ -9,7 +9,10 @@ export CXX=arm-linux-androideabi-gcc
 export CXXFLAGS="-I$SYSROOT/usr/include/ -I$BOOSTDIR/include/boost-1_49 \
  -I$NDK_BASE/sources/cxx-stl/gnu-libstdc++/4.6/include \
  -I$NDK_BASE/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/include \
- -fexceptions -frtti -DHAVE_CXX_STDHEADERS -DANDROID"
+ -fexceptions -frtti -DHAVE_CXX_STDHEADERS -DANDROID -nostdlib \
+ -fno-use-cxa-atexit"
+export BOOST_LIB_SUFFIX=-gcc-mt-1_49
+export BDB_LIB_SUFFIX=-4.8
 
 make -f makefile.android -j2
 #make -j2
