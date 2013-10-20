@@ -308,10 +308,14 @@ string rfc1123Time()
     time_t now;
     time(&now);
     struct tm* now_gmt = gmtime(&now);
+#ifndef __ANDROID__
     string locale(setlocale(LC_TIME, NULL));
     setlocale(LC_TIME, "C"); // we want POSIX (aka "C") weekday/month strings
+#endif
     strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S +0000", now_gmt);
+#ifndef __ANDROID__
     setlocale(LC_TIME, locale.c_str());
+#endif
     return string(buffer);
 }
 
