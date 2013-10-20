@@ -1041,8 +1041,12 @@ boost::filesystem::path GetDefaultDataDir()
     fs::create_directory(pathRet);
     return pathRet / "Twister";
 #else
+ #ifdef __ANDROID__
+    return "/sdcard/twister";
+ #else
     // Unix
     return pathRet / ".twister";
+ #endif
 #endif
 #endif
 }
