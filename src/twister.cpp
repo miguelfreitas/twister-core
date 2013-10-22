@@ -1257,27 +1257,26 @@ Value getposts(const Array& params, bool fHelp)
 
     {
         LOCK(cs_twister);
-        if( m_receivedSpamMsgStr.length() ) {
-            // we must agree on an acceptable level here
-            // what about one every eight hours? (not cumulative)
-            if( GetAdjustedTime() > m_lastSpamTime + (8*3600) ) {
-                m_lastSpamTime = GetAdjustedTime();
+        // we must agree on an acceptable level here
+        // what about one every eight hours? (not cumulative)
+        if( m_receivedSpamMsgStr.length() && GetAdjustedTime() > m_lastSpamTime + (8*3600) ) {
+            m_lastSpamTime = GetAdjustedTime();
 
-                entry v;
-                entry &userpost = v["userpost"];
+            entry v;
+            entry &userpost = v["userpost"];
 
-                userpost["n"] = m_receivedSpamUserStr;
-                userpost["k"] = 1;
-                userpost["time"] = GetAdjustedTime();
-                userpost["height"] = getBestHeight();
+            userpost["n"] = m_receivedSpamUserStr;
+            userpost["k"] = 1;
+            userpost["time"] = GetAdjustedTime();
+            userpost["height"] = getBestHeight();
 
-                userpost["msg"] = m_receivedSpamMsgStr;
+            userpost["msg"] = m_receivedSpamMsgStr;
 
-                unsigned char vchSig[65];
-                RAND_bytes(vchSig,sizeof(vchSig));
-                v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
-                ret.insert(ret.begin(),entryToJson(v));
-            }
+            unsigned char vchSig[65];
+            RAND_bytes(vchSig,sizeof(vchSig));
+            v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
+            ret.insert(ret.begin(),entryToJson(v));
+
             m_receivedSpamMsgStr = "";
             m_receivedSpamUserStr = "";
         }
