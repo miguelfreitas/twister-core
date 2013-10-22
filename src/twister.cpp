@@ -585,9 +585,11 @@ bool processReceivedDM(lazy_entry const* post)
             } else {
                 std::string textOut;
                 if( key.Decrypt(sec, textOut) ) {
+                    /* this printf is good for debug, but bad for security.
                     printf("Received DM for user '%s' text = '%s'\n",
                            item.second.username.c_str(),
                            textOut.c_str());
+                    */
 
                     std::string n = post->dict_find_string_value("n");
 
