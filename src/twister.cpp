@@ -31,6 +31,7 @@ twister::twister()
 #include "libtorrent/aux_/session_impl.hpp"
 
 #define DEBUG_ACCEPT_POST 1
+#define DEBUG_EXPIRE_DHT_ITEM 1
 
 using namespace libtorrent;
 static session *ses = NULL;
@@ -47,7 +48,11 @@ static map<std::string, torrent_handle> m_userTorrent;
 static std::string m_preferredSpamLang = "[en]";
 static std::string m_receivedSpamMsgStr;
 static std::string m_receivedSpamUserStr;
+static int64       m_lastSpamTime = 0;
 static std::map<std::string,UserData> m_users;
+
+#define USER_DATA_FILE "user_data"
+#define GLOBAL_DATA_FILE "global_data"
 
 sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
 {
@@ -95,6 +100,47 @@ int lastPostKfromTorrent(std::string const &username)
     torrent_status status = m_userTorrent[username].status();
     return status.last_have;
 }
+
+int saveGlobalData(std::string const& filename)
+{
+    LOCK(cs_twister);
+    entry globalDict;
+
+    globalDict["preferredSpamLang"] = m_preferredSpamLang;
+    globalDict["receivedSpamMsg"]   = m_receivedSpamMsgStr;
+    globalDict["receivedSpamUser"]  = m_receivedSpamUserStr;
+    globalDict["lastSpamTime"]      = m_lastSpamTime;
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), globalDict);
+    return save_file(filename, buf);
+}
+
+int loadGlobalData(std::string const& filename)
+{
+    LOCK(cs_twister);
+    std::vector<char> in;
+    if (load_file(filename, in) == 0) {
+        lazy_entry userDict;
+        error_code ec;
+        if (lazy_bdecode(&in[0], &in[0] + in.size(), userDict, ec) == 0) {
+            if( userDict.type() != lazy_entry::dict_t ) goto data_error;
+
+            m_preferredSpamLang   = userDict.dict_find_string_value("preferredSpamLang");
+            m_receivedSpamMsgStr  = userDict.dict_find_string_value("receivedSpamMsg");
+            m_receivedSpamUserStr = userDict.dict_find_string_value("receivedSpamUser");
+            m_lastSpamTime        = userDict.dict_find_int_value("lastSpamTime");
+
+            return 0;
+        }
+    }
+    return -1;
+
+data_error:
+    printf("loadGlobalData: unexpected bencode type - global_data corrupt!\n");
+    return -2;
+}
+
 
 void ThreadWaitExtIP()
 {
@@ -172,9 +218,12 @@ void ThreadWaitExtIP()
             break;
     }
 
+    boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
+    loadGlobalData(globalDataPath.string());
+
     {
         LOCK(cs_twister);
-        boost::filesystem::path userDataPath = GetDataDir() / "user_data";
+        boost::filesystem::path userDataPath = GetDataDir() / USER_DATA_FILE;
         loadUserData(userDataPath.string(), m_users);
         printf("loaded user_data for %zd users\n", m_users.size());
 
@@ -448,18 +497,21 @@ void stopSessionTorrent()
             entry session_state;
             ses->save_state(session_state);
 
-	    std::vector<char> out;
-	    bencode(std::back_inserter(out), session_state);
-	    boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
-	    save_file(sesStatePath.string(), out);
+            std::vector<char> out;
+            bencode(std::back_inserter(out), session_state);
+            boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
+            save_file(sesStatePath.string(), out);
 
-	    delete ses;
-	    ses = NULL;
+            delete ses;
+            ses = NULL;
     }
+
+    boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
+    saveGlobalData(globalDataPath.string());
 
     if( m_users.size() ) {
         printf("saving user_data (followers and DMs)...\n");
-        boost::filesystem::path userDataPath = GetDataDir() / "user_data";
+        boost::filesystem::path userDataPath = GetDataDir() / USER_DATA_FILE;
         saveUserData(userDataPath.string(), m_users);
     }
 
@@ -585,9 +637,11 @@ bool processReceivedDM(lazy_entry const* post)
             } else {
                 std::string textOut;
                 if( key.Decrypt(sec, textOut) ) {
+                    /* this printf is good for debug, but bad for security.
                     printf("Received DM for user '%s' text = '%s'\n",
                            item.second.username.c_str(),
                            textOut.c_str());
+                    */
 
                     std::string n = post->dict_find_string_value("n");
 
@@ -827,7 +881,9 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
 {
     if ((height + BLOCK_AGE_TO_EXPIRE_DHT_ENTRY) < getBestHeight() ) {
         if( multi ) {
+#ifdef DEBUG_EXPIRE_DHT_ITEM
             printf("shouldDhtResourceExpire: expiring resource multi '%s'\n", resource.c_str());
+#endif
             return true;
         }
 
@@ -847,12 +903,16 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
         } else {
             if( !m_noExpireResources[resourceBasic] && resourceNumber >= 0 ) {
                 // this resource admits no number. expire it!
+#ifdef DEBUG_EXPIRE_DHT_ITEM
                 printf("shouldDhtResourceExpire: expiring resource with unexpected numbering '%s'\n", resource.c_str());
+#endif
                 return true;
             }
             if( m_noExpireResources[resourceBasic] && resourceNumber > 200 ) {
                 // try keeping a sane number here, otherwise expire it!
+#ifdef DEBUG_EXPIRE_DHT_ITEM
                 printf("shouldDhtResourceExpire: expiring resource with numbering too big '%s'\n", resource.c_str());
+#endif
                 return true;
             }
         }
@@ -863,8 +923,13 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
 void receivedSpamMessage(std::string const &message, std::string const &user)
 {
     LOCK(cs_twister);
-    if( !m_receivedSpamMsgStr.length() ||
-         (m_preferredSpamLang.length() && message.find(m_preferredSpamLang) != string::npos) ) {
+    bool hasSingleLangCode = (message.find("[") == message.rfind("["));
+    bool hasPreferredLang  = m_preferredSpamLang.length();
+    bool isSameLang        = hasPreferredLang && hasSingleLangCode &&
+                             message.find(m_preferredSpamLang) != string::npos;
+    bool currentlyEmpty    = !m_receivedSpamMsgStr.length();
+
+    if( currentlyEmpty || (isSameLang && rand() < (RAND_MAX/2)) ) {
         m_receivedSpamMsgStr = message;
         m_receivedSpamUserStr = user;
     }
@@ -1192,24 +1257,26 @@ Value getposts(const Array& params, bool fHelp)
 
     {
         LOCK(cs_twister);
-        if( m_receivedSpamMsgStr.length() ) {
-            // we must agree on an acceptable level here
-            if( rand() < (RAND_MAX/10) ) {
-                entry v;
-                entry &userpost = v["userpost"];
+        // we must agree on an acceptable level here
+        // what about one every eight hours? (not cumulative)
+        if( m_receivedSpamMsgStr.length() && GetAdjustedTime() > m_lastSpamTime + (8*3600) ) {
+            m_lastSpamTime = GetAdjustedTime();
 
-                userpost["n"] = m_receivedSpamUserStr;
-                userpost["k"] = 1;
-                userpost["time"] = GetAdjustedTime();
-                userpost["height"] = getBestHeight();
+            entry v;
+            entry &userpost = v["userpost"];
 
-                userpost["msg"] = m_receivedSpamMsgStr;
+            userpost["n"] = m_receivedSpamUserStr;
+            userpost["k"] = 1;
+            userpost["time"] = GetAdjustedTime();
+            userpost["height"] = getBestHeight();
 
-                unsigned char vchSig[65];
-                RAND_bytes(vchSig,sizeof(vchSig));
-                v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
-                ret.insert(ret.begin(),entryToJson(v));
-            }
+            userpost["msg"] = m_receivedSpamMsgStr;
+
+            unsigned char vchSig[65];
+            RAND_bytes(vchSig,sizeof(vchSig));
+            v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
+            ret.insert(ret.begin(),entryToJson(v));
+
             m_receivedSpamMsgStr = "";
             m_receivedSpamUserStr = "";
         }

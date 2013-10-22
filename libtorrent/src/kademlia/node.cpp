@@ -55,6 +55,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/rsa.hpp"
 
 #include "../../src/twister.h"
+//#define ENABLE_DHT_ITEM_EXPIRE
 
 namespace libtorrent { namespace dht
 {
@@ -502,6 +503,12 @@ bool node_impl::refresh_storage() {
         if( lsto.size() == 1 ) {
             dht_storage_item const& item = lsto.front();
 
+#ifdef ENABLE_DHT_ITEM_EXPIRE
+            if( has_expired(item) ) {
+                continue;
+            }
+#endif
+
             lazy_entry p;
             int pos;
             error_code err;
@@ -638,9 +645,14 @@ void node_impl::load_storage(entry const* e) {
             item.sig_user = j->find_key("sig_user")->string();
 
             // just for printf for now
-            has_expired(item);
-
-            to_add.push_back(item);
+            bool expired = has_expired(item);
+#ifdef ENABLE_DHT_ITEM_EXPIRE
+            if( !expired ) {
+#endif
+                to_add.push_back(item);
+#ifdef ENABLE_DHT_ITEM_EXPIRE
+            }
+#endif
         }
         m_storage_table.insert(std::make_pair(target, to_add));
     }
