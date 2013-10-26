@@ -180,7 +180,8 @@ LIBS+= \
  -Wl,-B$(LMODE2) \
  -Wl,-rpath-link=$(SYSROOT)/usr/lib/ -L$(SYSROOT)/usr/lib/ \
  -lssl -lcrypto -lstdc++ -lm -lgcc -nostdlib -lc \
- $(NDK_BASE)/platforms/android-9/arch-arm/usr/lib/crtbegin_dynamic.o
+ $(NDK_BASE)/platforms/android-9/arch-arm/usr/lib/crtbegin_dynamic.o \
+ $(NDK_BASE)/platforms/android-9/arch-arm/usr/lib/crtend_android.o
 
 # auto-generated dependencies:
 -include obj/*.P
