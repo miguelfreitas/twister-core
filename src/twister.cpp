@@ -206,6 +206,9 @@ void ThreadWaitExtIP()
     //settings.dht_announce_interval = 60; // test
     //settings.min_announce_interval = 60; // test
     settings.anonymous_mode = false; // (false => send peer_id, avoid connecting to itself)
+    // disable read cache => there is still some bug due to twister piece size changes
+    settings.use_read_cache = false;
+    settings.cache_size = 0;
     ses->set_settings(settings);
 
     printf("libtorrent + dht started\n");
