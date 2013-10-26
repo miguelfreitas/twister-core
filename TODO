@@ -39,6 +39,7 @@ merkle tree inside that block. This resource propagation cannot be sent right af
 registration for obvious reasons (no block yet, other nodes wouldn't accept the signed dht put).
 
 - Discuss and implement the acceptable level of spam per day (priorizing localization).
+DONE (except for the discussion part...)
 
 - Implement the mention forwarding mechanism discussed in the paper so user don't need to do polling
 and can also be sure to receive all mentions.
@@ -57,5 +58,11 @@ Key pair might have changed and currently we receive a lot of errors from other 
 
 - save_file() must truncate file.
 
--
+- Save lastk field to post so torrent-less navigation through posts is possible.
+
+- Implement dht-to-torrent gateway, the "swarm" resource (so poster may not need to be member
+of his own torrent)
+
+- Estimate number of online followers by quering the "tracker" resource (implement a value within
+this resource to report the number of torrent peers)
 
