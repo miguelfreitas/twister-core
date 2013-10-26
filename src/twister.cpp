@@ -450,17 +450,6 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     m_noExpireResources["status"] = SimpleNoExpire;
     m_noExpireResources["post"] = PostNoExpireRecent;
 
-
-    shouldDhtResourceExpire("post", false, 0);
-    shouldDhtResourceExpire("post0", false, 0);
-    shouldDhtResourceExpire("post01", false, 0);
-    shouldDhtResourceExpire("post1 ", false, 0);
-    shouldDhtResourceExpire("post1233", false, 0);
-    shouldDhtResourceExpire("avatar", false, 0);
-    shouldDhtResourceExpire("following", false, 0);
-    shouldDhtResourceExpire("following300", false, 0);
-
-
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
     threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
@@ -922,7 +911,6 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
                 }
                 if(i == resource.size()) {
                     resourceNumber = atoi( resource.c_str() + resourceBasic.length() );
-                    printf("shouldDhtResourceExpire: %s = %s + %d\n", resource.c_str(), resourceBasic.c_str(), resourceNumber);
                 }
             }
         }
