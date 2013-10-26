@@ -359,7 +359,7 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
             int nRet = select(hSocket + 1, NULL, &fdset, NULL, &timeout);
             if (nRet == 0)
             {
-                printf("connection timeout\n");
+                //printf("connection timeout\n");
                 closesocket(hSocket);
                 return false;
             }
@@ -393,7 +393,7 @@ bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRe
         else
 #endif
         {
-            printf("connect() failed: %i\n",WSAGetLastError());
+            //printf("connect() failed: %i\n",WSAGetLastError());
             closesocket(hSocket);
             return false;
         }
