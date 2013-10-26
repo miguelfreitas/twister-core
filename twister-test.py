@@ -3,7 +3,7 @@
 import os,sys,time
 
 ext_ip  = os.environ['EXTIP']
-twister = "../twister-qt-build-desktop/twisterd"
+twister = "./twisterd"
 
 cmd = sys.argv[1]
 n   = int(sys.argv[2])

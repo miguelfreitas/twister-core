@@ -208,7 +208,7 @@ bool find_data::invoke(observer_ptr o)
 
 	// im not going to ask trackers from myself
 	if( o->id() == m_node.nid() )
-		return true;
+		return false;
 
 	entry e;
 	e["z"] = "q";

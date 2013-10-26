@@ -41,6 +41,11 @@ Developers of either bitcoin or libtorrent are welcomed and will be granted
 immediate write-access to the repository (a small retribution for
 bastardizing their codebases).
 
+Compiling
+---------
+
+See `INSTALL`.
+
 Testing
 -------
 

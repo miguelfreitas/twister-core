@@ -852,7 +852,7 @@ void StartRPCThreads()
     }
 
     rpc_worker_group = new boost::thread_group();
-    for (int i = 0; i < GetArg("-rpcthreads", 4); i++)
+    for (int i = 0; i < GetArg("-rpcthreads", 10); i++)
         rpc_worker_group->create_thread(boost::bind(&asio::io_service::run, rpc_io_service));
 }
 
@@ -983,11 +983,23 @@ void ServiceConnection(AcceptedConnection *conn)
             std::vector<char> file_data;
             if( load_file(strURI.c_str(), file_data) == 0 ) {
                 std::string str(file_data.data(), file_data.size());
-                conn->stream() << HTTPReply(HTTP_OK, str, false, "text/html") << std::flush;
+                const char *contentType = "text/html";
+                if( strURI.find(".js") != std::string::npos )
+                    contentType = "text/javascript";
+                if( strURI.find(".css") != std::string::npos )
+                    contentType = "text/css";
+                if( strURI.find(".png") != std::string::npos )
+                    contentType = "image/png";
+                if( strURI.find(".ttf") != std::string::npos )
+                    contentType = "application/x-font-ttf";
+                if( strURI.find(".jpg") != std::string::npos ||
+                    strURI.find(".jpeg") != std::string::npos )
+                    contentType = "image/jpeg";
+                conn->stream() << HTTPReply(HTTP_OK, str, false, contentType) << std::flush;
             } else {
                 conn->stream() << HTTPReply(HTTP_NOT_FOUND, "", false) << std::flush;
             }
-            break;
+            continue;
         }
 
         // Check authorization

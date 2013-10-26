@@ -3283,6 +3283,9 @@ namespace libtorrent
 		for (std::set<void*>::iterator i = peers.begin()
 			, end(peers.end()); i != end; ++i)
 		{
+			// [MF] FIXME FIXME: BANNING BY FAILED HASH DISABLED - READ TODO!
+			continue;
+
 			policy::peer* p = static_cast<policy::peer*>(*i);
 			if (p == 0) continue;
 			TORRENT_ASSERT(p->in_use);
@@ -3337,7 +3340,7 @@ namespace libtorrent
 
 				if (p->connection)
 				{
-#ifdef TORRENT_LOGGING
+#if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
 					debug_log("*** BANNING PEER: \"%s\" Too many corrupt pieces"
 						, print_endpoint(p->ip()).c_str());
 #endif

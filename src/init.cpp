@@ -726,6 +726,11 @@ bool AppInit2(boost::thread_group& threadGroup)
                     strLoadError = _("Corrupted block database detected");
                     break;
                 }
+
+                if( mapBlockIndex.size() > 1000 && nBestHeight == 0 ) {
+                    strLoadError = _("mapBlockIndex detected but nBestHeight still zero, trying to repair (reindex)");
+                    break;
+                }
             } catch(std::exception &e) {
                 strLoadError = _("Error opening block database");
                 break;
@@ -738,7 +743,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             // first suggest a reindex
             if (!fReset) {
                 /*bool fRet =*/ uiInterface.ThreadSafeMessageBox(
-                    strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
+                    strLoadError + ".\n\n" + _("Do you want to rebuild the block database now? (assuming YES)"),
                     "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
                 if (true /* [MF] fRet*/) {
                     fReindex = true;
