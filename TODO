@@ -8,6 +8,9 @@ pseudocode:
    while( h > max_h )
         getTxIndex( "userX_h" ) => block h contains the previous tx
 
+- Until old public key is properly used, disable banning torrent peers due to bad piece hashes.
+note: torrent.cpp line 3286 (function piece_failed), iteration to ban peers is disabled (continue).
+
 - Count UTF8 chars in acceptSignedPost to proper limit the 140 characters.
 
 - Encrypt user_data (which contains all DMs)
@@ -52,5 +55,7 @@ policy may me defined.
 - Check stored dht values if their signature is still valid before trying to refresh another node.
 Key pair might have changed and currently we receive a lot of errors from other nodes.
 
+- save_file() must truncate file.
 
+-
 
