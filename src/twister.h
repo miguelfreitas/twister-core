@@ -10,7 +10,9 @@
 #define USERPOST_FLAG_RT 0x01
 #define USERPOST_FLAG_DM 0x02
 
-#define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY 2000
+#define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY (2016)   // about 2 weeks
+#define BLOCK_AGE_TO_EXPIRE_DHT_POSTS (4320*6) // about 6 months
+
 
 class twister
 {

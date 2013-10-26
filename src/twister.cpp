@@ -42,7 +42,8 @@ static map<sha1_hash, alert_manager*> m_dhtgetMap;
 
 static CCriticalSection cs_twister;
 static map<std::string, bool> m_specialResources;
-static map<std::string, bool> m_noExpireResources; // bool is true if expected number after resource string
+enum ExpireResType { SimpleNoExpire, NumberedNoExpire, PostNoExpireRecent };
+static map<std::string, ExpireResType> m_noExpireResources;
 static map<std::string, torrent_handle> m_userTorrent;
 
 static std::string m_preferredSpamLang = "[en]";
@@ -442,10 +443,22 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     m_specialResources["tracker"] = true;
     m_specialResources["swarm"] = true;
 
-    // these are the resources which shouldn't expire (true when numbering is expected)
-    m_noExpireResources["avatar"] = false;
-    m_noExpireResources["profile"] = false;
-    m_noExpireResources["following"] = true;
+    // these are the resources which shouldn't expire
+    m_noExpireResources["avatar"] = SimpleNoExpire;
+    m_noExpireResources["profile"] = SimpleNoExpire;
+    m_noExpireResources["following"] = NumberedNoExpire;
+    m_noExpireResources["status"] = SimpleNoExpire;
+    m_noExpireResources["post"] = PostNoExpireRecent;
+
+
+    shouldDhtResourceExpire("post", false, 0);
+    shouldDhtResourceExpire("post0", false, 0);
+    shouldDhtResourceExpire("post01", false, 0);
+    shouldDhtResourceExpire("post1 ", false, 0);
+    shouldDhtResourceExpire("post1233", false, 0);
+    shouldDhtResourceExpire("avatar", false, 0);
+    shouldDhtResourceExpire("following", false, 0);
+    shouldDhtResourceExpire("following300", false, 0);
 
 
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
@@ -890,31 +903,63 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
             return true;
         }
 
+        // extract basic resource string (without numbering)
         std::string resourceBasic;
         for(size_t i = 0; i < resource.size() && isalpha(resource.at(i)); i++) {
             resourceBasic.push_back(resource.at(i));
         }
-        int resourceNumber = -1;
 
+        int resourceNumber = -1;
         if( resource.length() > resourceBasic.length() ) {
-            resourceNumber = atoi( resource.c_str() + resourceBasic.length() );
+            // make sure it is a valid number following (all digits)
+            if( resource.at(resourceBasic.length()) == '0' &&
+                resource.size() > resourceBasic.length() + 1 ){
+                // leading zeros not allowed
+            } else {
+                size_t i;
+                for(i = resourceBasic.length(); i < resource.size() &&
+                    isdigit(resource.at(i)); i++) {
+                }
+                if(i == resource.size()) {
+                    resourceNumber = atoi( resource.c_str() + resourceBasic.length() );
+                    printf("shouldDhtResourceExpire: %s = %s + %d\n", resource.c_str(), resourceBasic.c_str(), resourceNumber);
+                }
+            }
         }
 
         if( !m_noExpireResources.count(resourceBasic) ) {
             // unknown resource. expire it.
+#ifdef DEBUG_EXPIRE_DHT_ITEM
             printf("shouldDhtResourceExpire: expiring non-special resource '%s'\n", resource.c_str());
+#endif
+            return true;
         } else {
-            if( !m_noExpireResources[resourceBasic] && resourceNumber >= 0 ) {
+            if( m_noExpireResources[resourceBasic] == SimpleNoExpire &&
+                resource.length() > resourceBasic.length() ) {
                 // this resource admits no number. expire it!
 #ifdef DEBUG_EXPIRE_DHT_ITEM
                 printf("shouldDhtResourceExpire: expiring resource with unexpected numbering '%s'\n", resource.c_str());
 #endif
                 return true;
             }
-            if( m_noExpireResources[resourceBasic] && resourceNumber > 200 ) {
+            if( m_noExpireResources[resourceBasic] == NumberedNoExpire &&
+                (resourceNumber < 0 || resourceNumber > 200) ) {
                 // try keeping a sane number here, otherwise expire it!
 #ifdef DEBUG_EXPIRE_DHT_ITEM
-                printf("shouldDhtResourceExpire: expiring resource with numbering too big '%s'\n", resource.c_str());
+                printf("shouldDhtResourceExpire: expiring numbered resource with no sane number '%s'\n", resource.c_str());
+#endif
+                return true;
+            }
+            if( m_noExpireResources[resourceBasic] == PostNoExpireRecent && resourceNumber < 0 ) {
+#ifdef DEBUG_EXPIRE_DHT_ITEM
+                printf("shouldDhtResourceExpire: expiring post with invalid numbering '%s'\n", resource.c_str());
+#endif
+                return true;
+            }
+            if( m_noExpireResources[resourceBasic] == PostNoExpireRecent &&
+                (height + BLOCK_AGE_TO_EXPIRE_DHT_POSTS) < getBestHeight() ) {
+#ifdef DEBUG_EXPIRE_DHT_ITEM
+                printf("shouldDhtResourceExpire: expiring old post resource '%s'\n", resource.c_str());
 #endif
                 return true;
             }
