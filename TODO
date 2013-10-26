@@ -58,7 +58,7 @@ Key pair might have changed and currently we receive a lot of errors from other 
 
 - save_file() must truncate file.
 
-- Save lastk field to post so torrent-less navigation through posts is possible.
+- Save lastk field to post so torrent-less navigation through posts is possible. => DONE
 
 - Implement dht-to-torrent gateway, the "swarm" resource (so poster may not need to be member
 of his own torrent)

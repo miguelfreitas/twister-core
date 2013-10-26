@@ -1024,6 +1024,34 @@ Value dhtget(const Array& params, bool fHelp)
     return ret;
 }
 
+int findLastPublicPostLocalUser( std::string strUsername )
+{
+    int lastk = -1;
+
+    LOCK(cs_twister);
+    if( strUsername.size() && m_userTorrent.count(strUsername) &&
+        m_userTorrent[strUsername].is_valid() ){
+
+        std::vector<std::string> pieces;
+        int max_id = std::numeric_limits<int>::max();
+        int since_id = -1;
+        m_userTorrent[strUsername].get_pieces(pieces, 1, max_id, since_id, USERPOST_FLAG_RT);
+
+        if( pieces.size() ) {
+            string const& piece = pieces.front();
+            lazy_entry v;
+            int pos;
+            error_code ec;
+            if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
+                lazy_entry const* post = v.dict_find_dict("userpost");
+                lastk = post->dict_find_int_value("k",-1);
+            }
+        }
+    }
+    return lastk;
+}
+
+
 Value newpostmsg(const Array& params, bool fHelp)
 {
     if (fHelp || (params.size() != 3 && params.size() != 5))
@@ -1047,6 +1075,11 @@ Value newpostmsg(const Array& params, bool fHelp)
     }
 
     entry v;
+    // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
+    int lastk = findLastPublicPostLocalUser(strUsername);
+    if( lastk >= 0 )
+        v["userpost"]["lastk"] = lastk;
+
     if( !createSignedUserpost(v, strUsername, k, strMsg,
                          NULL, NULL, NULL,
                          strReplyN, replyK) )
@@ -1166,6 +1199,11 @@ Value newrtmsg(const Array& params, bool fHelp)
     entry const *sig_rt= vrt.find_key("sig_userpost");
 
     entry v;
+    // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
+    int lastk = findLastPublicPostLocalUser(strUsername);
+    if( lastk >= 0 )
+        v["userpost"]["lastk"] = lastk;
+
     if( !createSignedUserpost(v, strUsername, k, "",
                               rt, sig_rt, NULL,
                               std::string(""), 0) )
