@@ -2057,25 +2057,25 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 		if (!m_ses.m_dht) return;
-        if (!m_name) return;
+		if (!m_name) return;
 		if (!should_announce_dht()) return;
 
 		TORRENT_ASSERT(m_allow_peers);
 
-		// [MF] use m_dht->announce with myself=false to update dht tracker with other peers
+		// [MF] use m_dht->announce with myself=false to update dht tracker with peers we know
 		{
-		    policy::const_iterator i = get_policy().begin_peer();
-		    policy::const_iterator end = get_policy().end_peer();
-		    for (; i != end; ++i)
-		    {
-			policy::peer const* p = *i;
+			policy::const_iterator i = get_policy().begin_peer();
+			policy::const_iterator end = get_policy().end_peer();
+			for (; i != end; ++i) {
+				policy::peer const* p = *i;
 
-			if( p->connectable && !p->banned ) {
+				if( p->connectable && !p->banned &&
+					int(p->failcount) < settings().max_failcount ) {
 						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false
 						  , boost::bind(&nop));
+				}
 			}
-		    }
 		}
 
 #ifdef TORRENT_USE_OPENSSL
