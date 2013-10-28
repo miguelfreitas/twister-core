@@ -2069,7 +2069,7 @@ namespace libtorrent
 			for (; i != end; ++i) {
 				policy::peer const* p = *i;
 
-				if( p->connectable && !p->banned &&
+				if( p->connectable && !p->banned && p->last_connected &&
 					int(p->failcount) < settings().max_failcount ) {
 						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false
