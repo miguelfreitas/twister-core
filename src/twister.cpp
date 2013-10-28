@@ -249,14 +249,16 @@ void ThreadMaintainDHTNodes()
     while(1) {
         MilliSleep(5000);
 
+        session_status ss = ses->status();
+        int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
+
         if( ses ) {
             LOCK(cs_vNodes);
             vector<CAddress> vAddr = addrman.GetAddr();
-            session_status ss = ses->status();
             int totalNodesCandidates = (int)(vNodes.size() + vAddr.size());
-            if( (!ss.dht_nodes && totalNodesCandidates) ||
-                ss.dht_nodes < totalNodesCandidates / 2 ) {
+            if( (!dht_nodes && totalNodesCandidates) ||
+                dht_nodes < totalNodesCandidates / 2 ) {
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 BOOST_FOREACH(const CAddress &a, vAddr) {
                     std::string addr = a.ToStringIP();
@@ -269,7 +271,7 @@ void ThreadMaintainDHTNodes()
                     // if !fInbound we created this connection so ip is reachable.
                     // we can't use port number of inbound connection, so try standard port.
                     // only use inbound as last resort (if dht_nodes empty)
-                    if( !pnode->fInbound || !ss.dht_nodes ) {
+                    if( !pnode->fInbound || !dht_nodes ) {
                         std::string addr = pnode->addr.ToStringIP();
                         int port = (!pnode->fInbound) ? pnode->addr.GetPort() : Params().GetDefaultPort();
                         port += LIBTORRENT_PORT_OFFSET;
@@ -283,9 +285,18 @@ void ThreadMaintainDHTNodes()
             }
         }
         if( nodesAdded ) {
-            LOCK(cs_twister);
-            BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
-                item.second.force_dht_announce();
+            MilliSleep(5000);
+            ss = ses->status();
+            if( ss.dht_nodes > dht_nodes ) {
+                // new nodes were added to dht: force updating peers from dht so torrents may start faster
+                LOCK(cs_twister);
+                BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
+                    item.second.force_dht_announce();
+                }
+            } else {
+                // nodes added but dht ignored them, so they are probably duplicated.
+                // we sleep a bit as a punishment :-)
+                MilliSleep(30000);
             }
         }
     }
