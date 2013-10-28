@@ -206,10 +206,6 @@ bool find_data::invoke(observer_ptr o)
 		return false;
 	}
 
-	// im not going to ask trackers from myself
-	if( o->id() == m_node.nid() )
-		return false;
-
 	entry e;
 	e["z"] = "q";
 	e["q"] = "getData"; // "getPeers"
