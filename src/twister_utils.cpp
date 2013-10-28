@@ -137,8 +137,8 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
     for (i = users.begin(); i != users.end(); ++i) {
         UserData const &udata = i->second;
 
-        entry &userData = userDict[i->first];
         if( udata.m_following.size() ) {
+            entry &userData = userDict[i->first];
             entry &followingList = userData["following"];
             BOOST_FOREACH( std::string const &n, udata.m_following) {
                 followingList.list().push_back(n);
@@ -146,6 +146,7 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
         }
 
         if( udata.m_directmsg.size() ) {
+            entry &userData = userDict[i->first];
             entry &dmDict = userData["dm"];
 
             std::map<std::string, std::vector<StoredDirectMsg> >::const_iterator j;
