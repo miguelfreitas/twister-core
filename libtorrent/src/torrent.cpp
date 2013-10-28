@@ -2069,8 +2069,9 @@ namespace libtorrent
 			for (; i != end; ++i) {
 				policy::peer const* p = *i;
 
-				if( p->connectable && !p->banned && p->last_connected &&
-					int(p->failcount) < settings().max_failcount ) {
+				bool connect_recently = !p->banned && int(p->failcount) < settings().max_failcount &&
+						p->last_connected && (m_ses.session_time() - p->last_connected) < (4*3600);
+				if( p->connectable && ( p->connection || connect_recently) ) {
 						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false
 						  , boost::bind(&nop));
