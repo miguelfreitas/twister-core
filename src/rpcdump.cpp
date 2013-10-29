@@ -230,15 +230,16 @@ Value dumppubkey(const Array& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "dumppubkey <username>\n"
-            "Returns the public key corresponding to <username>.");
+            "Returns the public key corresponding to <username> (empty if user doesn't exist)");
 
     string strUsername = params[0].get_str();
 
     CPubKey pubkey;
     bool gotKey = getUserPubKey(strUsername, pubkey);
 
-    if( !gotKey )
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Username not found");
+    if( !gotKey ) {
+        return "";
+    }
 
     string strPubkey = string( reinterpret_cast<const char *>(pubkey.begin()), pubkey.size());
     return strPubkey;
