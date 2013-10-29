@@ -1278,6 +1278,8 @@ Value newrtmsg(const Array& params, bool fHelp)
     // post to dht as well
     ses->dht_putData(strUsername, string("post")+strK, false,
                      v, strUsername, GetAdjustedTime(), 1);
+    ses->dht_putData(strUsername, string("status"), false,
+                     v, strUsername, GetAdjustedTime(), k);
 
     // notification to keep track of RTs of the original post
     if( rt ) {
