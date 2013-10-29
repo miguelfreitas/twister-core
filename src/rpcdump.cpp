@@ -9,6 +9,7 @@
 #include "bitcoinrpc.h"
 #include "ui_interface.h"
 #include "base58.h"
+#include "twister.h"
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/lexical_cast.hpp>
@@ -67,9 +68,9 @@ std::string DecodeDumpString(const std::string &str) {
 
 Value importprivkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
-            "importprivkey <bitcoinprivkey> <username> [rescan=true]\n"
+            "importprivkey <bitcoinprivkey> <username> [rescan=true] [allow_new_user=false]\n"
             "Adds a private key (as returned by dumpprivkey) to your wallet.");
 
     string strSecret = params[0].get_str();
@@ -80,10 +81,23 @@ Value importprivkey(const Array& params, bool fHelp)
     if (params.size() > 2)
         fRescan = params[2].get_bool();
 
+    bool fAllowNewUser = false;
+    if (params.size() > 3)
+        fAllowNewUser = params[3].get_bool();
+
     CBitcoinSecret vchSecret;
     bool fGood = vchSecret.SetString(strSecret);
 
     if (!fGood) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
+
+    if( !fAllowNewUser ) {
+        CTransaction txOut;
+        uint256 hashBlock;
+        uint256 userhash = SerializeHash(strUsername);
+        if( !GetTransaction(userhash, txOut, hashBlock) ) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "User must exist (or allow_new_user flag must be set)");
+        }
+    }
 
     CKey key = vchSecret.GetKey();
     CPubKey pubkey = key.GetPubKey();
@@ -209,6 +223,25 @@ Value dumpprivkey(const Array& params, bool fHelp)
     if (!pwalletMain->GetKey(keyID, vchSecret))
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for username " + strUsername + " is not known");
     return CBitcoinSecret(vchSecret).ToString();
+}
+
+Value dumppubkey(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "dumppubkey <username>\n"
+            "Returns the public key corresponding to <username>.");
+
+    string strUsername = params[0].get_str();
+
+    CPubKey pubkey;
+    bool gotKey = getUserPubKey(strUsername, pubkey);
+
+    if( !gotKey )
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Username not found");
+
+    string strPubkey = string( reinterpret_cast<const char *>(pubkey.begin()), pubkey.size());
+    return strPubkey;
 }
 
 

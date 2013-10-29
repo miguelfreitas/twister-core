@@ -1552,7 +1552,7 @@ Value listusernamespartial(const Array& params, bool fHelp)
 {
     if (fHelp || (params.size() < 2 || params.size() > 3))
         throw runtime_error(
-            "listusernamespartial <username_starts_with> <count> [exact_match]\n"
+            "listusernamespartial <username_starts_with> <count> [exact_match=false]\n"
             "get list of usernames starting with");
 
     string userStartsWith = params[0].get_str();

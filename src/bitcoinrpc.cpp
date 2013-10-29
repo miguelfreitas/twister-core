@@ -230,6 +230,7 @@ static const CRPCCommand vRPCCommands[] =
     { "submitblock",            &submitblock,            false,     false },
     { "listsinceblock",         &listsinceblock,         false,     false },
     { "dumpprivkey",            &dumpprivkey,            true,      false },
+    { "dumppubkey",             &dumppubkey,             false,     false },
     { "dumpwallet",             &dumpwallet,             true,      false },
     { "importprivkey",          &importprivkey,          false,     false },
     { "importwallet",           &importwallet,           false,     false },
@@ -1241,6 +1242,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "lockunspent"            && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "lockunspent"            && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
+    if (strMethod == "importprivkey"          && n > 3) ConvertTo<bool>(params[3]);
     if (strMethod == "verifychain"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "verifychain"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "dhtput"                 && n > 3) ConvertToValue(params[3]);

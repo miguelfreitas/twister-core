@@ -23,6 +23,7 @@ public:
 void startSessionTorrent(boost::thread_group& threadGroup);
 void stopSessionTorrent();
 
+bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey);
 std::string createSignature(std::string const &strMessage, CKeyID &keyID);
 std::string createSignature(std::string const &strMessage, std::string const &strUsername);
 bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign);
