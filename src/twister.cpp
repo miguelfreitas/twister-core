@@ -258,7 +258,7 @@ void ThreadMaintainDHTNodes()
             vector<CAddress> vAddr = addrman.GetAddr();
             int totalNodesCandidates = (int)(vNodes.size() + vAddr.size());
             if( (!dht_nodes && totalNodesCandidates) ||
-                dht_nodes < totalNodesCandidates / 2 ) {
+                (dht_nodes < 5 && totalNodesCandidates > 10) ) {
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 BOOST_FOREACH(const CAddress &a, vAddr) {
                     std::string addr = a.ToStringIP();
