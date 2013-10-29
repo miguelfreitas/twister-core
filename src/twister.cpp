@@ -1548,13 +1548,16 @@ Value getlasthave(const Array& params, bool fHelp)
 
 Value listusernamespartial(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 2))
+    if (fHelp || (params.size() < 2 || params.size() > 3))
         throw runtime_error(
-            "listusernamespartial <username_starts_with> <count>\n"
+            "listusernamespartial <username_starts_with> <count> [exact_match]\n"
             "get list of usernames starting with");
 
     string userStartsWith = params[0].get_str();
     size_t count          = params[1].get_int();
+    bool   exact_match    = false;
+    if( params.size() > 2 )
+        exact_match       = params[2].get_bool();
 
     set<string> retStrings;
 
@@ -1564,6 +1567,8 @@ Value listusernamespartial(const Array& params, bool fHelp)
         BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata) {
             LOCK(cs_twister);
             BOOST_FOREACH(const string &user, m_users[item.second.username].m_following) {
+                if( exact_match && userStartsWith.size() != user.size() )
+                    break;
                 int toCompare = std::min( userStartsWith.size(), user.size() );
                 if( memcmp( user.data(), userStartsWith.data(), toCompare ) == 0 )
                     retStrings.insert( user );
@@ -1582,6 +1587,8 @@ Value listusernamespartial(const Array& params, bool fHelp)
         BOOST_FOREACH(const CTransaction&tx, block.vtx) {
             if( !tx.IsSpamMessage() ) {
                 string txUsername = tx.userName.ExtractSmallString();
+                if( exact_match && userStartsWith.size() != txUsername.size() )
+                    break;
                 int toCompare = std::min( userStartsWith.size(), txUsername.size() );
                 if( memcmp( txUsername.data(), userStartsWith.data(), toCompare ) == 0 )
                     retStrings.insert( txUsername );
