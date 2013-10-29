@@ -170,6 +170,7 @@ namespace libtorrent
 		void read_piece(int piece) const;
 		void get_pieces(std::vector<std::string> &pieces, int count, int max_id, int since_id, uint32_t filter_flags) const;
 		bool have_piece(int piece) const;
+		void recheck_pieces(uint32_t piece_flags) const;
 
 		void get_full_peer_list(std::vector<peer_list_entry>& v) const;
 		void get_peer_info(std::vector<peer_info>& v) const;

@@ -653,11 +653,10 @@ bool processReceivedDM(lazy_entry const* post)
             } else {
                 std::string textOut;
                 if( key.Decrypt(sec, textOut) ) {
-                    /* this printf is good for debug, but bad for security.
+                    // this printf is good for debug, but bad for security.
                     printf("Received DM for user '%s' text = '%s'\n",
                            item.second.username.c_str(),
                            textOut.c_str());
-                    */
 
                     std::string n = post->dict_find_string_value("n");
 
@@ -958,7 +957,8 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
             if( m_noExpireResources[resourceBasic] == PostNoExpireRecent &&
                 (height + BLOCK_AGE_TO_EXPIRE_DHT_POSTS) < getBestHeight() ) {
 #ifdef DEBUG_EXPIRE_DHT_ITEM
-                printf("shouldDhtResourceExpire: expiring old post resource '%s'\n", resource.c_str());
+                printf("shouldDhtResourceExpire: expiring old post resource '%s' (height %d cur %d)\n",
+                       resource.c_str(), height, getBestHeight());
 #endif
                 return true;
             }
@@ -1594,3 +1594,33 @@ Value listusernamespartial(const Array& params, bool fHelp)
     return ret;
 }
 
+Value rescandirectmsgs(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "rescandirectmsgs <username>\n"
+            "rescan all streams of users we follow for new and old directmessages");
+
+    string localUser = params[0].get_str();
+
+    std::set<std::string> following;
+    {
+        LOCK(cs_twister);
+        following = m_users[localUser].m_following;
+    }
+
+    BOOST_FOREACH(string username, following) {
+        torrent_handle torrent;
+
+        {
+            LOCK(cs_twister);
+            if( username.size() && m_userTorrent.count(username) )
+                torrent = m_userTorrent[username];
+        }
+        if( torrent.is_valid() ){
+            torrent.recheck_pieces(USERPOST_FLAG_DM);
+        }
+    }
+
+    return Value();
+}

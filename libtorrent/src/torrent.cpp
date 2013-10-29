@@ -3073,6 +3073,30 @@ namespace libtorrent
 			m_picker->set_piece_priority(i, 6);
 	}
 
+	void on_disk_read_recheck_piece_complete(int ret, disk_io_job const& j, peer_request r)
+	{
+		// [MF] FIXME: implement cond_wakeup here so that recheck_pieces would wait
+	}
+
+	void torrent::recheck_pieces(uint32_t piece_flags)
+	{
+		TORRENT_ASSERT(m_ses.is_network_thread());
+		TORRENT_ASSERT(m_picker);
+
+		for( int i = 0; i <= last_have(); i++) {
+			if( m_picker->have_piece(i) && m_picker->post_flags(i) == piece_flags ) {
+				peer_request r;
+				r.piece = i;
+				r.start = 0;
+				r.length = torrent_file().piece_size(i);
+
+				filesystem().async_read_and_hash(r,
+				    boost::bind(&on_disk_read_recheck_piece_complete
+						, _1, _2, r), 1);
+			}
+		}
+	}
+
 	void torrent::we_have(int index, boost::uint32_t post_flags)
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
