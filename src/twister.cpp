@@ -653,10 +653,11 @@ bool processReceivedDM(lazy_entry const* post)
             } else {
                 std::string textOut;
                 if( key.Decrypt(sec, textOut) ) {
-                    // this printf is good for debug, but bad for security.
+                    /* this printf is good for debug, but bad for security.
                     printf("Received DM for user '%s' text = '%s'\n",
                            item.second.username.c_str(),
                            textOut.c_str());
+                    */
 
                     std::string n = post->dict_find_string_value("n");
 
@@ -668,10 +669,14 @@ bool processReceivedDM(lazy_entry const* post)
                     LOCK(cs_twister);
                     // store this dm in memory list, but prevent duplicates
                     std::vector<StoredDirectMsg> &dmsFromToUser = m_users[item.second.username].m_directmsg[n];
-                    std::vector<StoredDirectMsg>::const_iterator it;
+                    std::vector<StoredDirectMsg>::iterator it;
                     for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
                         if( stoDM.m_utcTime == (*it).m_utcTime &&
                             stoDM.m_text    == (*it).m_text ) {
+                            break;
+                        }
+                        if( stoDM.m_utcTime < (*it).m_utcTime ) {
+                            dmsFromToUser.insert(it, stoDM);
                             break;
                         }
                     }
