@@ -72,3 +72,6 @@ messages.
 
 - Define and enforce html directory to serve from. Do installation scripts.
 
+- Don't accept dht "post"+k if k violates the validatePostNumberForUser() rule.
+
+
