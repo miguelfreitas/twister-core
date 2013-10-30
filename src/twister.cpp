@@ -1569,9 +1569,11 @@ Value listusernamespartial(const Array& params, bool fHelp)
         BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata) {
             LOCK(cs_twister);
             BOOST_FOREACH(const string &user, m_users[item.second.username].m_following) {
-                if( exact_match && userStartsWith.size() != user.size() )
-                    break;
-                int toCompare = std::min( userStartsWith.size(), user.size() );
+                if( (exact_match && userStartsWith.size() != user.size()) ||
+                    userStartsWith.size() > user.size() ) {
+                    continue;
+                }
+                int toCompare = userStartsWith.size();
                 if( memcmp( user.data(), userStartsWith.data(), toCompare ) == 0 )
                     retStrings.insert( user );
                 if( retStrings.size() >= count )
@@ -1589,9 +1591,11 @@ Value listusernamespartial(const Array& params, bool fHelp)
         BOOST_FOREACH(const CTransaction&tx, block.vtx) {
             if( !tx.IsSpamMessage() ) {
                 string txUsername = tx.userName.ExtractSmallString();
-                if( exact_match && userStartsWith.size() != txUsername.size() )
-                    break;
-                int toCompare = std::min( userStartsWith.size(), txUsername.size() );
+                if( (exact_match && userStartsWith.size() != txUsername.size()) ||
+                    userStartsWith.size() > txUsername.size() ) {
+                    continue;
+                }
+                int toCompare = userStartsWith.size();
                 if( memcmp( txUsername.data(), userStartsWith.data(), toCompare ) == 0 )
                     retStrings.insert( txUsername );
                 if( retStrings.size() >= count )
