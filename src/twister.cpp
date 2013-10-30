@@ -70,7 +70,7 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
 torrent_handle startTorrentUser(std::string const &username)
 {
     LOCK(cs_twister);
-    if( !m_userTorrent.count(username) ) {
+    if( !m_userTorrent.count(username) && usernameExists(username) ) {
         sha1_hash ih = dhtTargetHash(username, "tracker", "m");
 
         printf("adding torrent for [%s,tracker]\n", username.c_str());
