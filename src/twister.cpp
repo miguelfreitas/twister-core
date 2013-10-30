@@ -111,6 +111,12 @@ int saveGlobalData(std::string const& filename)
     globalDict["receivedSpamMsg"]   = m_receivedSpamMsgStr;
     globalDict["receivedSpamUser"]  = m_receivedSpamUserStr;
     globalDict["lastSpamTime"]      = m_lastSpamTime;
+    globalDict["sendSpamMsg"]       = strSpamMessage;
+    globalDict["sendSpamUser"]      = strSpamUser;
+    globalDict["generate"]          = GetBoolArg("-gen", false);
+    int genproclimit = GetArg("-genproclimit", -1);
+    if( genproclimit > 0 )
+        globalDict["genproclimit"]  = genproclimit;
 
     std::vector<char> buf;
     bencode(std::back_inserter(buf), globalDict);
@@ -131,6 +137,20 @@ int loadGlobalData(std::string const& filename)
             m_receivedSpamMsgStr  = userDict.dict_find_string_value("receivedSpamMsg");
             m_receivedSpamUserStr = userDict.dict_find_string_value("receivedSpamUser");
             m_lastSpamTime        = userDict.dict_find_int_value("lastSpamTime");
+            string sendSpamMsg    = userDict.dict_find_string_value("sendSpamMsg");
+            if( sendSpamMsg.size() ) strSpamMessage = sendSpamMsg;
+            string sendSpamUser   = userDict.dict_find_string_value("sendSpamUser");
+            if( sendSpamUser.size() ) strSpamUser = sendSpamUser;
+            bool generate         = userDict.dict_find_int_value("generate");
+            int genproclimit      = userDict.dict_find_int_value("genproclimit");
+
+            if( generate ) {
+                Array params;
+                params.push_back( generate );
+                if( genproclimit > 0 )
+                    params.push_back( genproclimit );
+                setgenerate(params, false);
+            }
 
             return 0;
         }
