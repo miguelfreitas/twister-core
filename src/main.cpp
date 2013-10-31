@@ -3530,6 +3530,8 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
       if( pwalletMain->vchDefaultKey.IsValid() ) {
         keyID = pwalletMain->vchDefaultKey.GetID();
         strUsername = pwalletMain->mapKeyMetadata[keyID].username;
+      } else {
+        strUsername = "nobody";
       }
     }
     printf("CreateSpamMsgTx: keyId = %s\n", keyID.ToString().c_str() );
