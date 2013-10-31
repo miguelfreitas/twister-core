@@ -520,7 +520,6 @@ void stopSessionTorrent()
                 // save_resume_data will generate an alert when it's done
                 st.handle.save_resume_data();
                 ++num_outstanding_resume_data;
-                printf("\r%d  ", num_outstanding_resume_data);
             }
             printf("\nwaiting for resume data [%d]\n", num_outstanding_resume_data);
             while (num_outstanding_resume_data > 0)
