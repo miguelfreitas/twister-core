@@ -14,6 +14,7 @@ libtorrent's.
 1) Start with libtorrent:
 
 $ cd libtorrent
+$ ./bootstrap.sh
 $ ./configure --enable-logging --enable-debug --enable-dht
 
 Note1: 64-bit systems may need "--with-boost-libdir=/usr/lib64"

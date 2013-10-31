@@ -255,8 +255,6 @@ static const CRPCCommand vRPCCommands[] =
     { "getfollowing",           &getfollowing,           false,     true },
     { "getlasthave",            &getlasthave,            false,     true },
     { "listusernamespartial",   &listusernamespartial,   false,     true },
-    { "getdefaultuser",         &getdefaultuser,         false,     true },
-    { "setdefaultuser",         &setdefaultuser,         false,     true },
     { "rescandirectmsgs",       &rescandirectmsgs,       false,     true },
 };
 
