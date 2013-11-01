@@ -913,7 +913,8 @@ void JSONRequest::parse(const Value& valRequest)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
     if (strMethod != "getwork" && strMethod != "getblocktemplate" &&
-        strMethod != "getlasthave")
+        strMethod != "getlasthave" &&
+        strMethod != "getinfo" && strMethod != "getbestblockhash" && strMethod != "getblock")
         printf("ThreadRPCServer method=%s\n", strMethod.c_str());
 
     // Parse params
