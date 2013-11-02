@@ -72,7 +72,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <unistd.h>
 #include <fcntl.h> // for F_LOG2PHYS
 #include <sys/types.h>
+#ifndef __ANDROID__
 #include <sys/statvfs.h>
+#else
+#define statvfs statfs
+#define fstatvfs fstatfs
+#include <sys/vfs.h>
+#endif
 #include <errno.h>
 #include <dirent.h>
 
@@ -112,12 +118,14 @@ static int my_fallocate(int fd, int mode, loff_t offset, loff_t len)
 
 #undef _FILE_OFFSET_BITS
 
+#ifndef __ANDROID__
 // make sure the _FILE_OFFSET_BITS define worked
 // on this platform. It's supposed to make file
 // related functions support 64-bit offsets.
 // this test makes sure lseek() returns a type
 // at least 64 bits wide
 BOOST_STATIC_ASSERT(sizeof(lseek(0, 0, 0)) >= 8);
+#endif
 
 #endif // posix part
 

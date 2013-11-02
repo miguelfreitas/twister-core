@@ -23,7 +23,9 @@
 #include <netdb.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#ifndef __ANDROID__
 #include <ifaddrs.h>
+#endif
 #endif
 
 typedef u_int SOCKET;
