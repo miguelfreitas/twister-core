@@ -2057,25 +2057,26 @@ namespace libtorrent
 	{
 		TORRENT_ASSERT(m_ses.is_network_thread());
 		if (!m_ses.m_dht) return;
-        if (!m_name) return;
+		if (!m_name) return;
 		if (!should_announce_dht()) return;
 
 		TORRENT_ASSERT(m_allow_peers);
 
-		// [MF] use m_dht->announce with myself=false to update dht tracker with other peers
+		// [MF] use m_dht->announce with myself=false to update dht tracker with peers we know
 		{
-		    policy::const_iterator i = get_policy().begin_peer();
-		    policy::const_iterator end = get_policy().end_peer();
-		    for (; i != end; ++i)
-		    {
-			policy::peer const* p = *i;
+			policy::const_iterator i = get_policy().begin_peer();
+			policy::const_iterator end = get_policy().end_peer();
+			for (; i != end; ++i) {
+				policy::peer const* p = *i;
 
-			if( p->connectable && !p->banned ) {
+				bool connect_recently = !p->banned && int(p->failcount) < settings().max_failcount &&
+						p->last_connected && (m_ses.session_time() - p->last_connected) < (4*3600);
+				if( p->connectable && ( p->connection || connect_recently) ) {
 						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false
 						  , boost::bind(&nop));
+				}
 			}
-		    }
 		}
 
 #ifdef TORRENT_USE_OPENSSL
@@ -3070,6 +3071,30 @@ namespace libtorrent
 			m_picker->set_piece_priority(i, 7);
 		else if (have_after || have_before)
 			m_picker->set_piece_priority(i, 6);
+	}
+
+	void on_disk_read_recheck_piece_complete(int ret, disk_io_job const& j, peer_request r)
+	{
+		// [MF] FIXME: implement cond_wakeup here so that recheck_pieces would wait
+	}
+
+	void torrent::recheck_pieces(uint32_t piece_flags)
+	{
+		TORRENT_ASSERT(m_ses.is_network_thread());
+		TORRENT_ASSERT(m_picker);
+
+		for( int i = 0; i <= last_have(); i++) {
+			if( m_picker->have_piece(i) && m_picker->post_flags(i) == piece_flags ) {
+				peer_request r;
+				r.piece = i;
+				r.start = 0;
+				r.length = torrent_file().piece_size(i);
+
+				filesystem().async_read_and_hash(r,
+				    boost::bind(&on_disk_read_recheck_piece_complete
+						, _1, _2, r), 1);
+			}
+		}
 	}
 
 	void torrent::we_have(int index, boost::uint32_t post_flags)

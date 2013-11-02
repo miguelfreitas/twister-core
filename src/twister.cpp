@@ -69,8 +69,10 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
 
 torrent_handle startTorrentUser(std::string const &username)
 {
+    bool userInTxDb = usernameExists(username); // keep this outside cs_twister to avoid deadlock
+
     LOCK(cs_twister);
-    if( !m_userTorrent.count(username) ) {
+    if( !m_userTorrent.count(username) && userInTxDb ) {
         sha1_hash ih = dhtTargetHash(username, "tracker", "m");
 
         printf("adding torrent for [%s,tracker]\n", username.c_str());
@@ -111,6 +113,12 @@ int saveGlobalData(std::string const& filename)
     globalDict["receivedSpamMsg"]   = m_receivedSpamMsgStr;
     globalDict["receivedSpamUser"]  = m_receivedSpamUserStr;
     globalDict["lastSpamTime"]      = m_lastSpamTime;
+    globalDict["sendSpamMsg"]       = strSpamMessage;
+    globalDict["sendSpamUser"]      = strSpamUser;
+    globalDict["generate"]          = GetBoolArg("-gen", false);
+    int genproclimit = GetArg("-genproclimit", -1);
+    if( genproclimit > 0 )
+        globalDict["genproclimit"]  = genproclimit;
 
     std::vector<char> buf;
     bencode(std::back_inserter(buf), globalDict);
@@ -131,6 +139,20 @@ int loadGlobalData(std::string const& filename)
             m_receivedSpamMsgStr  = userDict.dict_find_string_value("receivedSpamMsg");
             m_receivedSpamUserStr = userDict.dict_find_string_value("receivedSpamUser");
             m_lastSpamTime        = userDict.dict_find_int_value("lastSpamTime");
+            string sendSpamMsg    = userDict.dict_find_string_value("sendSpamMsg");
+            if( sendSpamMsg.size() ) strSpamMessage = sendSpamMsg;
+            string sendSpamUser   = userDict.dict_find_string_value("sendSpamUser");
+            if( sendSpamUser.size() ) strSpamUser = sendSpamUser;
+            bool generate         = userDict.dict_find_int_value("generate");
+            int genproclimit      = userDict.dict_find_int_value("genproclimit");
+
+            if( generate ) {
+                Array params;
+                params.push_back( generate );
+                if( genproclimit > 0 )
+                    params.push_back( genproclimit );
+                setgenerate(params, false);
+            }
 
             return 0;
         }
@@ -249,14 +271,16 @@ void ThreadMaintainDHTNodes()
     while(1) {
         MilliSleep(5000);
 
+        session_status ss = ses->status();
+        int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
+
         if( ses ) {
             LOCK(cs_vNodes);
             vector<CAddress> vAddr = addrman.GetAddr();
-            session_status ss = ses->status();
             int totalNodesCandidates = (int)(vNodes.size() + vAddr.size());
-            if( (!ss.dht_nodes && totalNodesCandidates) ||
-                ss.dht_nodes < totalNodesCandidates / 2 ) {
+            if( (!dht_nodes && totalNodesCandidates) ||
+                (dht_nodes < 5 && totalNodesCandidates > 10) ) {
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 BOOST_FOREACH(const CAddress &a, vAddr) {
                     std::string addr = a.ToStringIP();
@@ -269,7 +293,7 @@ void ThreadMaintainDHTNodes()
                     // if !fInbound we created this connection so ip is reachable.
                     // we can't use port number of inbound connection, so try standard port.
                     // only use inbound as last resort (if dht_nodes empty)
-                    if( !pnode->fInbound || !ss.dht_nodes ) {
+                    if( !pnode->fInbound || !dht_nodes ) {
                         std::string addr = pnode->addr.ToStringIP();
                         int port = (!pnode->fInbound) ? pnode->addr.GetPort() : Params().GetDefaultPort();
                         port += LIBTORRENT_PORT_OFFSET;
@@ -283,9 +307,18 @@ void ThreadMaintainDHTNodes()
             }
         }
         if( nodesAdded ) {
-            LOCK(cs_twister);
-            BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
-                item.second.force_dht_announce();
+            MilliSleep(5000);
+            ss = ses->status();
+            if( ss.dht_nodes > dht_nodes ) {
+                // new nodes were added to dht: force updating peers from dht so torrents may start faster
+                LOCK(cs_twister);
+                BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
+                    item.second.force_dht_announce();
+                }
+            } else {
+                // nodes added but dht ignored them, so they are probably duplicated.
+                // we sleep a bit as a punishment :-)
+                MilliSleep(30000);
             }
         }
     }
@@ -489,7 +522,6 @@ void stopSessionTorrent()
                 // save_resume_data will generate an alert when it's done
                 st.handle.save_resume_data();
                 ++num_outstanding_resume_data;
-                printf("\r%d  ", num_outstanding_resume_data);
             }
             printf("\nwaiting for resume data [%d]\n", num_outstanding_resume_data);
             while (num_outstanding_resume_data > 0)
@@ -658,10 +690,14 @@ bool processReceivedDM(lazy_entry const* post)
                     LOCK(cs_twister);
                     // store this dm in memory list, but prevent duplicates
                     std::vector<StoredDirectMsg> &dmsFromToUser = m_users[item.second.username].m_directmsg[n];
-                    std::vector<StoredDirectMsg>::const_iterator it;
+                    std::vector<StoredDirectMsg>::iterator it;
                     for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
                         if( stoDM.m_utcTime == (*it).m_utcTime &&
                             stoDM.m_text    == (*it).m_text ) {
+                            break;
+                        }
+                        if( stoDM.m_utcTime < (*it).m_utcTime ) {
+                            dmsFromToUser.insert(it, stoDM);
                             break;
                         }
                     }
@@ -947,7 +983,8 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
             if( m_noExpireResources[resourceBasic] == PostNoExpireRecent &&
                 (height + BLOCK_AGE_TO_EXPIRE_DHT_POSTS) < getBestHeight() ) {
 #ifdef DEBUG_EXPIRE_DHT_ITEM
-                printf("shouldDhtResourceExpire: expiring old post resource '%s'\n", resource.c_str());
+                printf("shouldDhtResourceExpire: expiring old post resource '%s' (height %d cur %d)\n",
+                       resource.c_str(), height, getBestHeight());
 #endif
                 return true;
             }
@@ -1262,6 +1299,8 @@ Value newrtmsg(const Array& params, bool fHelp)
     // post to dht as well
     ses->dht_putData(strUsername, string("post")+strK, false,
                      v, strUsername, GetAdjustedTime(), 1);
+    ses->dht_putData(strUsername, string("status"), false,
+                     v, strUsername, GetAdjustedTime(), k);
 
     // notification to keep track of RTs of the original post
     if( rt ) {
@@ -1532,13 +1571,16 @@ Value getlasthave(const Array& params, bool fHelp)
 
 Value listusernamespartial(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 2))
+    if (fHelp || (params.size() < 2 || params.size() > 3))
         throw runtime_error(
-            "listusernamespartial <username_starts_with> <count>\n"
+            "listusernamespartial <username_starts_with> <count> [exact_match=false]\n"
             "get list of usernames starting with");
 
     string userStartsWith = params[0].get_str();
     size_t count          = params[1].get_int();
+    bool   exact_match    = false;
+    if( params.size() > 2 )
+        exact_match       = params[2].get_bool();
 
     set<string> retStrings;
 
@@ -1548,7 +1590,11 @@ Value listusernamespartial(const Array& params, bool fHelp)
         BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata) {
             LOCK(cs_twister);
             BOOST_FOREACH(const string &user, m_users[item.second.username].m_following) {
-                int toCompare = std::min( userStartsWith.size(), user.size() );
+                if( (exact_match && userStartsWith.size() != user.size()) ||
+                    userStartsWith.size() > user.size() ) {
+                    continue;
+                }
+                int toCompare = userStartsWith.size();
                 if( memcmp( user.data(), userStartsWith.data(), toCompare ) == 0 )
                     retStrings.insert( user );
                 if( retStrings.size() >= count )
@@ -1566,7 +1612,11 @@ Value listusernamespartial(const Array& params, bool fHelp)
         BOOST_FOREACH(const CTransaction&tx, block.vtx) {
             if( !tx.IsSpamMessage() ) {
                 string txUsername = tx.userName.ExtractSmallString();
-                int toCompare = std::min( userStartsWith.size(), txUsername.size() );
+                if( (exact_match && userStartsWith.size() != txUsername.size()) ||
+                    userStartsWith.size() > txUsername.size() ) {
+                    continue;
+                }
+                int toCompare = userStartsWith.size();
                 if( memcmp( txUsername.data(), userStartsWith.data(), toCompare ) == 0 )
                     retStrings.insert( txUsername );
                 if( retStrings.size() >= count )
@@ -1583,3 +1633,33 @@ Value listusernamespartial(const Array& params, bool fHelp)
     return ret;
 }
 
+Value rescandirectmsgs(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "rescandirectmsgs <username>\n"
+            "rescan all streams of users we follow for new and old directmessages");
+
+    string localUser = params[0].get_str();
+
+    std::set<std::string> following;
+    {
+        LOCK(cs_twister);
+        following = m_users[localUser].m_following;
+    }
+
+    BOOST_FOREACH(string username, following) {
+        torrent_handle torrent;
+
+        {
+            LOCK(cs_twister);
+            if( username.size() && m_userTorrent.count(username) )
+                torrent = m_userTorrent[username];
+        }
+        if( torrent.is_valid() ){
+            torrent.recheck_pieces(USERPOST_FLAG_DM);
+        }
+    }
+
+    return Value();
+}

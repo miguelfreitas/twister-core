@@ -230,6 +230,7 @@ static const CRPCCommand vRPCCommands[] =
     { "submitblock",            &submitblock,            false,     false },
     { "listsinceblock",         &listsinceblock,         false,     false },
     { "dumpprivkey",            &dumpprivkey,            true,      false },
+    { "dumppubkey",             &dumppubkey,             false,     false },
     { "dumpwallet",             &dumpwallet,             true,      false },
     { "importprivkey",          &importprivkey,          false,     false },
     { "importwallet",           &importwallet,           false,     false },
@@ -254,8 +255,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getfollowing",           &getfollowing,           false,     true },
     { "getlasthave",            &getlasthave,            false,     true },
     { "listusernamespartial",   &listusernamespartial,   false,     true },
-    { "getdefaultuser",         &getdefaultuser,         false,     true },
-    { "setdefaultuser",         &setdefaultuser,         false,     true },
+    { "rescandirectmsgs",       &rescandirectmsgs,       false,     true },
 };
 
 CRPCTable::CRPCTable()
@@ -917,7 +917,8 @@ void JSONRequest::parse(const Value& valRequest)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
     if (strMethod != "getwork" && strMethod != "getblocktemplate" &&
-        strMethod != "getlasthave")
+        strMethod != "getlasthave" &&
+        strMethod != "getinfo" && strMethod != "getbestblockhash" && strMethod != "getblock")
         printf("ThreadRPCServer method=%s\n", strMethod.c_str());
 
     // Parse params
@@ -1244,6 +1245,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "lockunspent"            && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "lockunspent"            && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
+    if (strMethod == "importprivkey"          && n > 3) ConvertTo<bool>(params[3]);
     if (strMethod == "verifychain"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "verifychain"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "dhtput"                 && n > 3) ConvertToValue(params[3]);
@@ -1261,6 +1263,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "follow"                 && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "unfollow"               && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "listusernamespartial"   && n > 2) ConvertTo<bool>(params[2]);
 
     return params;
 }

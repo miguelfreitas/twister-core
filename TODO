@@ -66,3 +66,8 @@ of his own torrent)
 - Estimate number of online followers by quering the "tracker" resource (implement a value within
 this resource to report the number of torrent peers)
 
+- Define and enforce html directory to serve from. Do installation scripts.
+
+- Don't accept dht "post"+k if k violates the validatePostNumberForUser() rule.
+
+

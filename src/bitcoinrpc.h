@@ -146,6 +146,7 @@ extern json_spirit::Value addnode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getaddednodeinfo(const json_spirit::Array& params, bool fHelp);
 
 extern json_spirit::Value dumpprivkey(const json_spirit::Array& params, bool fHelp); // in rpcdump.cpp
+extern json_spirit::Value dumppubkey(const json_spirit::Array& params, bool fHelp); // in rpcdump.cpp
 extern json_spirit::Value importprivkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value dumpwallet(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importwallet(const json_spirit::Array& params, bool fHelp);
@@ -206,7 +207,6 @@ extern json_spirit::Value unfollow(const json_spirit::Array& params, bool fHelp)
 extern json_spirit::Value getfollowing(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getlasthave(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listusernamespartial(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value getdefaultuser(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value setdefaultuser(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value rescandirectmsgs(const json_spirit::Array& params, bool fHelp);
 
 #endif

@@ -846,6 +846,12 @@ namespace libtorrent
 		return r;
 	}
 
+	void torrent_handle::recheck_pieces(uint32_t piece_flags) const
+	{
+		INVARIANT_CHECK;
+		TORRENT_SYNC_CALL1(recheck_pieces, piece_flags);
+	}
+
 	storage_interface* torrent_handle::get_storage_impl() const
 	{
 		INVARIANT_CHECK;

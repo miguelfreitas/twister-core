@@ -425,10 +425,45 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
 {
     // Basic checks that don't depend on any context
     if (tx.IsSpamMessage()) {
-      if (tx.message.size() > MAX_SPAM_MSG_SIZE)
-          return state.DoS(100, error("CheckTransaction() : spam message too big"));
-      // [MF] TODO: check message signature
-      // [MF] Problem: registration of this user may be in the block itself, better check later.
+        string spamMsg = tx.message.ExtractPushDataString(0);
+        if (!spamMsg.size())
+            return state.DoS(100, error("CheckTransaction() : invalid or empty spam message"));
+        if (spamMsg.size() > MAX_SPAM_MSG_SIZE)
+            return state.DoS(100, error("CheckTransaction() : spam message too big"));
+
+        string spamUser = tx.userName.ExtractPushDataString(0);
+        if( spamUser != "nobody" ) {
+            string strSign = tx.userName.ExtractPushDataString(1);
+            if (!strSign.size())
+                return state.DoS(100, error("CheckTransaction() : spam signature missing"));
+            vector<unsigned char> vchSig((const unsigned char*)strSign.data(),
+                                         (const unsigned char*)strSign.data() + strSign.size());
+
+            CPubKey pubkey;
+            CTransaction txPubKey;
+            uint256 hashBlock;
+            uint256 userhash = SerializeHash(spamUser);
+            if( !GetTransaction(userhash, txPubKey, hashBlock) )
+                return state.DoS(100, error("CheckTransaction() : spam signed by unknown user"));
+
+            std::vector< std::vector<unsigned char> > vData;
+            if( !txPubKey.pubKey.ExtractPushData(vData) || vData.size() < 1 )
+                return state.DoS(100, error("CheckTransaction() : spam signed with broken pubkey"));
+
+            pubkey = CPubKey(vData[0]);
+
+            // compute message hash for signature checking
+            CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+            ss << strMessageMagic;
+            ss << tx.message;
+
+            CPubKey pubkeyRec;
+            if (!pubkeyRec.RecoverCompact(ss.GetHash(), vchSig))
+                return state.DoS(100, error("CheckTransaction() : RecoverCompact failed for spammsg"));
+
+            if (pubkeyRec.GetID() != pubkey.GetID())
+                return state.DoS(100, error("CheckTransaction() : spam signature verification failed"));
+        }
     } else {
       if (tx.userName.empty())
           return state.DoS(10, error("CheckTransaction() : username empty"));
@@ -1713,11 +1748,10 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     if( pblock->vtx[0].IsSpamMessage() ) {
         string msg = pblock->vtx[0].message.ExtractPushDataString(0);
         string user = pblock->vtx[0].userName.ExtractPushDataString(0);
-        // [MF] FIXME: validate user properly
-        if( msg.length() <= 140 ) {
-            printf("ProcessBlock: msg='%s' user='%s'\n", msg.c_str(), user.c_str());
-            receivedSpamMessage(msg, user);
-        }
+
+        // SpamMessage was already validated in CheckBlock => CheckTransation
+        printf("ProcessBlock: msg='%s' user='%s'\n", msg.c_str(), user.c_str());
+        receivedSpamMessage(msg, user);
     }
     return true;
 }
@@ -3492,10 +3526,12 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
     std::string strUsername = strSpamUser;
 
     CKeyID keyID;
-    if( !pwalletMain->GetKeyIdFromUsername(strSpamUser, keyID) ) {
+    if( strSpamUser != "nobody" && !pwalletMain->GetKeyIdFromUsername(strSpamUser, keyID) ) {
       if( pwalletMain->vchDefaultKey.IsValid() ) {
         keyID = pwalletMain->vchDefaultKey.GetID();
         strUsername = pwalletMain->mapKeyMetadata[keyID].username;
+      } else {
+        strUsername = "nobody";
       }
     }
     printf("CreateSpamMsgTx: keyId = %s\n", keyID.ToString().c_str() );
@@ -3533,6 +3569,10 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
     txNew.userName += CScript() << salt;
     txNew.pubKey.clear(); // pubKey will be updated to include extranonce
     txNew.nNonce = 0; // no update needed for spamMessage's nonce.
+
+    CValidationState state;
+    bool ret = CheckTransaction(txNew, state);
+    printf("CheckTransaction returned %d\n", ret );
 
     return true;
 }

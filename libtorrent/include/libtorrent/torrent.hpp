@@ -523,6 +523,8 @@ namespace libtorrent
 			return m_picker->have_piece(index);
 		}
 
+		void recheck_pieces(uint32_t piece_flags);
+
 		// called when we learn that we have a piece
 		// only once per piece
 		void we_have(int index, boost::uint32_t post_flags);

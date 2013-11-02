@@ -153,6 +153,10 @@ Value listwalletusers(const Array& params, bool fHelp)
     return ret;
 }
 
+/* [mf] no use for setting/getting defaultuser, it just adds confusion.
+   all commands should receive user as parameter (including the user for spammsg).
+*/
+#if 0
 Value setdefaultuser(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -199,7 +203,7 @@ Value getdefaultuser(const Array& params, bool fHelp)
 
     return username;
 }
-
+#endif
 
 Value signmessage(const Array& params, bool fHelp)
 {

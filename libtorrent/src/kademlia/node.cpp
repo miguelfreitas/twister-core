@@ -1179,13 +1179,11 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
 
 //#ifdef TORRENT_DHT_VERBOSE_LOGGING
-		std::string target_str(targetbuf.first,targetbuf.second);
-		printf("PUT target: %s = {%s,%s,%s} = '%s'\n"
-			, to_hex(target.to_string()).c_str()
+		printf("PUT target={%s,%s,%s} from=%s:%d\n"
 			, msg_keys[mk_n]->string_value().c_str()
 			, msg_keys[mk_r]->string_value().c_str()
 			, msg_keys[mk_t]->string_value().c_str()
-			, target_str.c_str());
+			, m.addr.address().to_string().c_str(), m.addr.port());
 //#endif
 
 		// verify the write-token. tokens are only valid to write to
@@ -1359,13 +1357,11 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		if (msg_keys[mk_justtoken] && msg_keys[mk_justtoken]->int_value() != 0) justtoken = true;
 
 //#ifdef TORRENT_DHT_VERBOSE_LOGGING
-		std::string target_str(targetbuf.first,targetbuf.second);
-		printf("GET target: %s = {%s,%s,%s} = '%s'\n"
-			, to_hex(target.to_string()).c_str()
+		printf("GET target={%s,%s,%s} from=%s:%d\n"
 			, msg_keys[mk_n]->string_value().c_str()
 			, msg_keys[mk_r]->string_value().c_str()
 			, msg_keys[mk_t]->string_value().c_str()
-			, target_str.c_str());
+			, m.addr.address().to_string().c_str(), m.addr.port());
 //#endif
 		reply["token"] = generate_token(m.addr, target.to_string().c_str());
 
