@@ -978,7 +978,12 @@ void ServiceConnection(AcceptedConnection *conn)
 
         if (strURI != "/") {
             std::vector<char> file_data;
-            if( load_file(strURI.c_str(), file_data) == 0 ) {
+            std::string fname = strURI;
+            size_t qMarkIdx = fname.find('?');
+            if( qMarkIdx != string::npos ) {
+                fname.resize(qMarkIdx);
+            }
+            if( load_file(fname.c_str(), file_data) == 0 ) {
                 std::string str(file_data.data(), file_data.size());
                 const char *contentType = "text/html";
                 if( strURI.find(".js") != std::string::npos )
