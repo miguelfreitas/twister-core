@@ -105,7 +105,8 @@ node_impl::node_impl(alert_dispatcher* alert_disp
 	, m_table(m_id, 8, settings)
 	, m_rpc(m_id, m_table, sock, observer)
 	, m_last_tracker_tick(time_now())
-    , m_last_storage_refresh(time_now())
+	, m_next_storage_refresh(time_now())
+	, m_last_refreshed_item()
 	, m_post_alert(alert_disp)
 	, m_sock(sock)
 {
@@ -482,23 +483,25 @@ void node_impl::tick()
 		refresh(target, boost::bind(&nop));
 
     ptime now = time_now();
-    if (now - m_last_storage_refresh > minutes(60)) {
-        m_last_storage_refresh = now;
+    if (now > m_next_storage_refresh ) {
         refresh_storage();
     }
 }
 
 bool node_impl::refresh_storage() {
     bool did_something = false;
-
-    if( m_storage_table.size() == 0 )
-        return did_something;
-
-    printf("node dht: refreshing storage...\n");
+    bool refresh_next_item = false;
+    int num_refreshable = 0;
 
     for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
     {
+        if( i->first == m_last_refreshed_item ) {
+            refresh_next_item = true;
+            num_refreshable++;
+            continue;
+        }
+
         dht_storage_list_t const& lsto = i->second;
         if( lsto.size() == 1 ) {
             dht_storage_item const& item = lsto.front();
@@ -522,25 +525,45 @@ bool node_impl::refresh_storage() {
 
             // refresh only signed single posts
             if( !multi ) {
-                printf("refresh dht storage: [%s,%s,%s]\n",
-                       username.c_str(),
-                       resource.c_str(),
-                       target->dict_find_string_value("t").c_str());
+                num_refreshable++;
 
-                entry entryP;
-                entryP = p; // lazy to non-lazy
+                if( refresh_next_item ) {
+                    refresh_next_item = false;
+                    m_last_refreshed_item = i->first;
 
-                // search for nodes with ids close to id or with peers
-                // for info-hash id. then send putData to them.
-                boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
-                                                             boost::bind(&nop),
-                                                             boost::bind(&putData_fun, _1, boost::ref(*this),
-                                                                         entryP, item.sig_p, item.sig_user), true));
-                ta->start();
-                did_something = true;
+                    printf("node dht: refreshing storage: [%s,%s,%s]\n",
+                           username.c_str(),
+                           resource.c_str(),
+                           target->dict_find_string_value("t").c_str());
+
+                    entry entryP;
+                    entryP = p; // lazy to non-lazy
+
+                    // search for nodes with ids close to id or with peers
+                    // for info-hash id. then send putData to them.
+                    boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+                                                                 boost::bind(&nop),
+                                                                 boost::bind(&putData_fun, _1, boost::ref(*this),
+                                                                             entryP, item.sig_p, item.sig_user), true));
+                    ta->start();
+                    did_something = true;
+                }
             }
         }
     }
+
+    if( !did_something && m_storage_table.size() ) {
+        m_last_refreshed_item = m_storage_table.begin()->first;
+    }
+
+    if( num_refreshable ) {
+        m_next_storage_refresh = minutes(60) / num_refreshable + time_now();
+    } else {
+        m_next_storage_refresh = minutes(1) + time_now();
+    }
+
+    printf("node dht: next storage refresh in %d seconds\n", (m_next_storage_refresh - time_now())/1000000 );
+
     return did_something;
 }
 
