@@ -1249,7 +1249,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
-		if (msg_keys[mk_height]->int_value() > getBestHeight() && getBestHeight()) {
+		if (msg_keys[mk_height]->int_value() > getBestHeight() && getBestHeight() > 0) {
 			incoming_error(e, "height > getBestHeight");
 			return;
 		}
