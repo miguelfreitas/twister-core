@@ -182,6 +182,11 @@ void ThreadWaitExtIP()
         MilliSleep(500);
     }
 
+    // delay libtorrent initialization until we have valid blocks
+    while( getBestHeight() <= 0 ) {
+        MilliSleep(500);
+    }
+
     error_code ec;
     int listen_port = GetListenPort() + LIBTORRENT_PORT_OFFSET;
     std::string bind_to_interface = "";
@@ -267,6 +272,10 @@ void ThreadWaitExtIP()
 void ThreadMaintainDHTNodes()
 {
     RenameThread("maintain-dht-nodes");
+
+    while(!ses) {
+        MilliSleep(200);
+    }
 
     while(1) {
         MilliSleep(5000);
@@ -745,7 +754,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 } else if( !validatePostNumberForUser(username, k) ) {
                     sprintf(errbuf,"too much posts from user '%s' rejecting post",
                             username.c_str());
-                } else if( height < 0 || (height > getBestHeight() && getBestHeight()) ) {
+                } else if( height < 0 || (height > getBestHeight() && getBestHeight() > 0) ) {
                     sprintf(errbuf,"post from future not accepted (height: %d > %d)",
                             height, getBestHeight());
                 } else if( msg.size() && msg.size() > 140 ) {
@@ -808,7 +817,7 @@ bool validatePostNumberForUser(std::string const &username, int k)
 
     if( k < 0 )
         return false;
-    if( getBestHeight() && k > 2*(getBestHeight() - pblockindex->nHeight) + 20)
+    if( getBestHeight() > 0 && k > 2*(getBestHeight() - pblockindex->nHeight) + 20)
         return false;
 
     return true;

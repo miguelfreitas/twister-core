@@ -727,7 +727,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                     break;
                 }
 
-                if( mapBlockIndex.size() > 1000 && nBestHeight == 0 ) {
+                if( mapBlockIndex.size() > 1000 && nBestHeight <= 0 ) {
                     strLoadError = _("mapBlockIndex detected but nBestHeight still zero, trying to repair (reindex)");
                     break;
                 }

@@ -85,7 +85,7 @@ void dht_get_observer::reply(msg const& m)
 	}
 
 	// look for peers
-	lazy_entry const* n = r->dict_find_list("values");
+	lazy_entry const* n = r->dict_find_list("data");
 	if (n)
 	{
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
