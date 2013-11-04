@@ -1404,8 +1404,8 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			if (i != m_storage_table.end())
 			{
 				hasData = true;
-				reply["values"] = entry::list_type();
-				entry::list_type &values = reply["values"].list();
+				reply["data"] = entry::list_type();
+				entry::list_type &values = reply["data"].list();
 
 				dht_storage_list_t const& lsto = i->second;
 				for (dht_storage_list_t::const_iterator j = lsto.begin()
