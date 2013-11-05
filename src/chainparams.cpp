@@ -46,20 +46,21 @@ public:
         //   vMerkleTree: 4a5e1e
         const char* pszTimestamp = "The Times 09/Jul/2013 Globo caught bribing Receita Federal employee to rob R$615M worth tax evasion documents.";
         CTransaction txNew;
-        txNew.message = CScript() << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+        txNew.message = CScript() << string(pszTimestamp);
+        txNew.userName = CScript() << string("nobody");
         txNew.nNonce  = 0; // spamMessage is not required to show POW to ease "extranonce" support
         genesis.vtx.push_back(txNew);
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 1;
         genesis.nHeight  = 0;
-        genesis.nTime    = 1373331180;
+        genesis.nTime    = 1383612321;
         //genesis.nBits    = 0x1d00ffff;
         genesis.nBits    = 0x1d7fffff;
-        genesis.nNonce   = 636561156;
+        genesis.nNonce   = 1353330432;
 
         hashGenesisBlock = genesis.GetHash();
-        assert(hashGenesisBlock == uint256("0x000000792bc5674af6fa5c006149d78c47265f7e03d2ca7f5a094b2475ef1328"));
+        assert(hashGenesisBlock == uint256("0000001d5eb70d639089eb9b31a4175aa906d6824aae78a9b450ab71de5e6e12"));
 
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed.twister.net.co"));
 

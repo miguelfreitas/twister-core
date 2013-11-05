@@ -93,8 +93,7 @@ Value importprivkey(const Array& params, bool fHelp)
     if( !fAllowNewUser ) {
         CTransaction txOut;
         uint256 hashBlock;
-        uint256 userhash = SerializeHash(strUsername);
-        if( !GetTransaction(userhash, txOut, hashBlock) ) {
+        if( !GetTransaction(strUsername, txOut, hashBlock) ) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "User must exist (or allow_new_user flag must be set)");
         }
     }

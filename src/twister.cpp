@@ -404,8 +404,7 @@ void ThreadSessionAlerts()
                                 // check if user exists
                                 CTransaction txOut;
                                 uint256 hashBlock;
-                                uint256 userhash = SerializeHash(n->string());
-                                if( !GetTransaction(userhash, txOut, hashBlock) ) {
+                                if( !GetTransaction(n->string(), txOut, hashBlock) ) {
                                     printf("Special Resource but username is unknown - ignoring\n");
                                 } else {
                                         // now we do our own search to make sure we are really close to this target
@@ -621,8 +620,7 @@ bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey)
     if( !pubkey.IsValid() ) {
       CTransaction txOut;
       uint256 hashBlock;
-      uint256 userhash = SerializeHash(strUsername);
-      if( !GetTransaction(userhash, txOut, hashBlock) ) {
+      if( !GetTransaction(strUsername, txOut, hashBlock) ) {
           //printf("getUserPubKey: user unknown '%s'\n", strUsername.c_str());
           return false;
       }
@@ -807,8 +805,7 @@ bool validatePostNumberForUser(std::string const &username, int k)
 {
     CTransaction txOut;
     uint256 hashBlock;
-    uint256 userhash = SerializeHash(username);
-    if( !GetTransaction(userhash, txOut, hashBlock) ) {
+    if( !GetTransaction(username, txOut, hashBlock) ) {
         printf("validatePostNumberForUser: username is unknown\n");
         return false;
     }
@@ -827,8 +824,7 @@ bool usernameExists(std::string const &username)
 {
     CTransaction txOut;
     uint256 hashBlock;
-    uint256 userhash = SerializeHash(username);
-    return GetTransaction(userhash, txOut, hashBlock);
+    return GetTransaction(username, txOut, hashBlock);
 }
 
 

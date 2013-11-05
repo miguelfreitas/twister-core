@@ -182,9 +182,9 @@ bool IsInitialBlockDownload();
 /** Format a string that describes several potential problems detected by the core */
 std::string GetWarnings(std::string strFor);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
-bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock, bool fAllowSlow = false);
+bool GetTransaction(const std::string &username, CTransaction &tx, uint256 &hashBlock, int maxHeight = -1);
 /** Verify duplicate or replacement transactions */
-bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement);
+bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement, int maxHeight = -1);
 /** Connect/disconnect blocks until pindexNew is the new tip of the active block chain */
 bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew);
 /** Find the best known block, and make it the tip of the block chain */
@@ -275,7 +275,7 @@ bool CheckUsername(const std::string &userName, CValidationState &state);
 bool DoTxProofOfWork(CTransaction& tx);
 
 // Context-independent validity checks
-bool CheckTransaction(const CTransaction& tx, CValidationState& state);
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, int maxHeight = -1);
 
 /** Check for standard transaction types
     @return True if all outputs (scriptPubKeys) use only standard transaction forms

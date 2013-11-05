@@ -335,7 +335,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
         CTransaction tx2;
         uint256 hashBlock2;
 
-        if( GetTransaction(GetUsernameHash(), tx2, hashBlock2) && hashBlock2 != uint256() ) {
+        if( GetTransaction(GetUsername(), tx2, hashBlock2) && hashBlock2 != uint256() ) {
             std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock2);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex *pindex = (*mi).second;
@@ -421,7 +421,7 @@ bool DoTxProofOfWork(CTransaction& tx)
 }
 
 // [MF] check tx consistency and pow, not duplicated id.
-bool CheckTransaction(const CTransaction& tx, CValidationState &state)
+bool CheckTransaction(const CTransaction& tx, CValidationState &state, int maxHeight)
 {
     // Basic checks that don't depend on any context
     if (tx.IsSpamMessage()) {
@@ -442,8 +442,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
             CPubKey pubkey;
             CTransaction txPubKey;
             uint256 hashBlock;
-            uint256 userhash = SerializeHash(spamUser);
-            if( !GetTransaction(userhash, txPubKey, hashBlock) )
+            if( !GetTransaction(spamUser, txPubKey, hashBlock, maxHeight) )
                 return state.DoS(100, error("CheckTransaction() : spam signed by unknown user"));
 
             std::vector< std::vector<unsigned char> > vData;
@@ -518,7 +517,8 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
 
     {
         // do we already have it?
-        if( pblocktree->HaveTxIndex(tx.GetUsernameHash()) &&
+        uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
+        if( pblocktree->HaveTxIndex(txid) &&
             // duplicate should be discarded but replacement is allowed.
             !verifyDuplicateOrReplacementTx(tx, false, true) ) {
             return false;
@@ -666,24 +666,21 @@ bool CWalletTx::AcceptWalletTransaction()
 
 
 // Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock
-bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow)
+bool GetTransaction(const std::string &username, CTransaction &txOut, uint256 &hashBlock, int maxHeight)
 {
+    if( maxHeight < 0 )
+        maxHeight = nBestHeight;
     {
         LOCK(cs_main);
-        {
-            /* [MF] don't look in mempool anymore - userhash must be written to some block.
-            LOCK(mempool.cs);
-            if (mempool.exists(userhash)) // and btw mempool is not indexed by userhash anymore!
-            {
-                txOut = mempool.lookup(userhash);
-                return true;
-            }
-            */
-        }
 
-        if (fTxIndex) {
+        assert(fTxIndex);
+
+        int height = -1;
+        do {
+            uint256 txid = SerializeHash(make_pair(username,height));
+
             CDiskTxPos postx;
-            if (pblocktree->ReadTxIndex(userhash, postx)) {
+            if (pblocktree->ReadTxIndex(txid, postx)) {
                 CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
                 CBlockHeader header;
                 try {
@@ -694,21 +691,29 @@ bool GetTransaction(const uint256 &userhash, CTransaction &txOut, uint256 &hashB
                     return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
                 }
                 hashBlock = header.GetHash();
-                if (txOut.GetUsernameHash() != userhash)
+                if (txOut.GetUsername() != username)
                     return error("%s() : txid mismatch", __PRETTY_FUNCTION__);
-                return true;
+                if (header.nHeight > maxHeight) {
+                    printf("GetTransaction: %s height: %d blkHeight: %d maxHeight: %d\n",
+                           username.c_str(), height, header.nHeight, maxHeight);
+                    height = header.nHeight-1;
+                } else {
+                    return true;
+                }
+            } else {
+                break;
             }
-        }
+        } while( height > 0 && height <= maxHeight );
     }
 
     return false;
 }
 
-bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement)
+bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement, int maxHeight)
 {
     CTransaction oldTx;
     uint256 hashBlock;
-    if( GetTransaction( tx.GetUsernameHash(), oldTx, hashBlock) ) {
+    if( GetTransaction( tx.GetUsername(), oldTx, hashBlock, maxHeight) ) {
         if( checkDuplicate && oldTx.GetHash() == tx.GetHash() ) {
             return true;
         }
@@ -1072,8 +1077,20 @@ bool DisconnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex
     for (int i = block.vtx.size() - 1; i >= 1; i--) {
         const CTransaction &tx = block.vtx[i];
 
-        if( !fJustCheck )
-          pblocktree->EraseTxIndex(tx.GetUsernameHash());
+        if( !fJustCheck ) {
+          uint256 oldTxid = SerializeHash(make_pair(tx.GetUsername(),block.nHeight-1));
+          CDiskTxPos oldPos;
+          if( pblocktree->ReadTxIndex(oldTxid, oldPos) ) {
+              printf("DisconnectBlock: restoring old txid user: %s height: %d\n",
+                     tx.GetUsername().c_str(), block.nHeight);
+
+              uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
+              std::vector<std::pair<uint256, CDiskTxPos> > vPos;
+              vPos.push_back(std::make_pair(txid, oldPos));
+              if (!pblocktree->WriteTxIndex(vPos))
+                  return state.Abort(_("Failed to write transaction index"));
+          }
+        }
     }
 
     // move best block pointer to prevout block
@@ -1129,14 +1146,15 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
         CTransaction &tx = block.vtx[i];
 
-        if( pblocktree->HaveTxIndex(block.vtx[i].GetUsernameHash()) ) {
+        uint256 txid = SerializeHash(make_pair(block.vtx[i].GetUsername(),-1));
+        if( pblocktree->HaveTxIndex(txid) ) {
             /* We have index for this username, which is not allowed, except:
              * 1) same transaction. this shouldn't happen but it does if twisterd terminates badly.
              *    explanation: TxIndex seems to get out-of-sync with block chain, so it may try to
              *    reconnect blocks which transactions are already written to the tx index.
              * 2) possibly a key replacement. check if new key is signed by the old one.
              */
-            if( !verifyDuplicateOrReplacementTx(tx, true, true) ) {
+            if( !verifyDuplicateOrReplacementTx(tx, true, true, block.nHeight) ) {
                 // not the same, not replacement => error!
                 return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
             }
@@ -1156,7 +1174,16 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
         CTxUndo txundo;
         if (!tx.IsSpamMessage()) {
             blockundo.vtxundo.push_back(txundo);
-            vPos.push_back(std::make_pair(tx.GetUsernameHash(), pos));
+            uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
+            vPos.push_back(std::make_pair(txid, pos));
+
+            CDiskTxPos oldPos;
+            if( pblocktree->ReadTxIndex(txid, oldPos) && pos != oldPos ) {
+                printf("ConnectBlock: save old txid user: %s height: %d\n",
+                       tx.GetUsername().c_str(), block.nHeight);
+                uint256 oldTxid = SerializeHash(make_pair(tx.GetUsername(),block.nHeight-1));
+                vPos.push_back(std::make_pair(oldTxid, oldPos));
+            }
         }
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }
@@ -1189,10 +1216,9 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
             return state.Abort(_("Failed to write block index"));
     }
 
-    if (fTxIndex) {
-        if (!pblocktree->WriteTxIndex(vPos))
-            return state.Abort(_("Failed to write transaction index"));
-    }
+    assert(fTxIndex);
+    if (!pblocktree->WriteTxIndex(vPos))
+        return state.Abort(_("Failed to write transaction index"));
 
     // add this block to the view's block chain
     assert(view.SetBestBlock(pindex));
@@ -1548,7 +1574,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
 
     // Check transactions (consistency, not duplicated id)
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
-        if (!CheckTransaction(tx, state))
+        if (!CheckTransaction(tx, state, block.nHeight))
             return error("CheckBlock() : CheckTransaction failed");
 
     // Build the merkle tree already. We need it anyway later, and it makes the
@@ -2035,7 +2061,7 @@ bool static LoadBlockIndexDB()
     bool readTxIndex;
     pblocktree->ReadFlag("txindex", readTxIndex);
     printf("LoadBlockIndexDB(): transaction index %s\n", readTxIndex ? "enabled" : "disabled");
-    //assert( readTxIndex ); // always true in twister
+    assert( readTxIndex ); // always true in twister
 
     // Load hashBestChain pointer to end of best chain
     pindexBest = pcoinsTip->GetBestBlock();
@@ -3572,7 +3598,7 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
 
     CValidationState state;
     bool ret = CheckTransaction(txNew, state);
-    printf("CheckTransaction returned %d\n", ret );
+    printf("CreateSpamMsgTx: CheckTransaction returned %d\n", ret );
 
     return true;
 }
@@ -3629,7 +3655,8 @@ CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
                 continue;
 
             // This should never happen; all transactions in the memory are new
-            if( pblocktree->HaveTxIndex(tx.GetUsernameHash()) ) {
+            uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
+            if( pblocktree->HaveTxIndex(txid) ) {
                 if( !verifyDuplicateOrReplacementTx(tx, false, true) ) {
                     printf("ERROR: mempool transaction already exists\n");
                     if (fDebug) assert("mempool transaction already exists" == 0);

@@ -7,6 +7,7 @@ pseudocode:
    getTxIndex( key = "userX" ) => block h contains this tx;
    while( h > max_h )
         getTxIndex( "userX_h" ) => block h contains the previous tx
+=> GetTransation: new parameter maxHeight done!
 
 - Until old public key is properly used, disable banning torrent peers due to bad piece hashes.
 note: torrent.cpp line 3286 (function piece_failed), iteration to ban peers is disabled (continue).

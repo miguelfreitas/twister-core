@@ -215,6 +215,7 @@ public:
     }
 
     uint256 GetHash() const;
+    std::string GetUsername() const;
     uint256 GetUsernameHash() const;
 
     bool IsSpamMessage() const

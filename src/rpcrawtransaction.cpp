@@ -122,7 +122,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
             "with information about transaction.");
 
     //uint256 hash = ParseHashV(params[0], "parameter 1");
-    uint256 hash = SerializeHash(params[0].get_str());
+    std::string username = params[0].get_str();
 
     bool fVerbose = false;
     if (params.size() > 1)
@@ -130,7 +130,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock, true))
+    if (!GetTransaction(username, tx, hashBlock))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -227,7 +227,7 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     bool fHave = false;
     uint256 hashBlock;
     CTransaction tx2;
-    fHave = GetTransaction(tx.GetUsernameHash(), tx2, hashBlock);
+    fHave = GetTransaction(tx.GetUsername(), tx2, hashBlock);
 
     // treat replacement as !fHave
     if( fHave && verifyDuplicateOrReplacementTx(tx, false, true) ) {
@@ -283,8 +283,7 @@ Value sendnewusertransaction(const Array& params, bool fHelp)
   // [MF] prevent redoing POW and resending an existing transaction
   CTransaction txOut;
   uint256 hashBlock;
-  uint256 userhash = SerializeHash(strUsername);
-  bool userInTxIndex = GetTransaction(userhash, txOut, hashBlock);
+  bool userInTxIndex = GetTransaction(strUsername, txOut, hashBlock);
   if( !replaceKey && userInTxIndex )
       throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in tx database");
   if( replaceKey && !userInTxIndex )

@@ -114,12 +114,9 @@ Value createwalletuser(const Array& params, bool fHelp)
     if( !keyInWallet && replaceKey )
       throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: replacekey given but old key not in wallet");
 
-    uint256 userhash = SerializeHash(strUsername);
-    printf("createwalletuser: usernamehash(%s) = %s\n", strUsername.c_str(), userhash.GetHex().c_str());
-
     CTransaction txOut;
     uint256 hashBlock;
-    if( GetTransaction(userhash, txOut, hashBlock) && !replaceKey )
+    if( GetTransaction(strUsername, txOut, hashBlock) && !replaceKey )
         throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username exists in tx database");
 
     if( replaceKey && !pwalletMain->MoveKeyForReplacement(strUsername) )
@@ -259,8 +256,7 @@ Value verifymessage(const Array& params, bool fHelp)
     if( !pubkey.IsValid() ) {
       CTransaction txOut;
       uint256 hashBlock;
-      uint256 userhash = SerializeHash(strUsername);
-      if( !GetTransaction(userhash, txOut, hashBlock) )
+      if( !GetTransaction(strUsername, txOut, hashBlock) )
           throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: this username does not exist in tx database");
 
       std::vector< std::vector<unsigned char> > vData;
