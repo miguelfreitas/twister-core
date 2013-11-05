@@ -184,7 +184,7 @@ std::string GetWarnings(std::string strFor);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const std::string &username, CTransaction &tx, uint256 &hashBlock, int maxHeight = -1);
 /** Verify duplicate or replacement transactions */
-bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement, int maxHeight = -1);
+bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement, int maxHeight = -1, bool removeOrphan = false);
 /** Connect/disconnect blocks until pindexNew is the new tip of the active block chain */
 bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew);
 /** Find the best known block, and make it the tip of the block chain */

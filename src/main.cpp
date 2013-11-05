@@ -709,7 +709,7 @@ bool GetTransaction(const std::string &username, CTransaction &txOut, uint256 &h
     return false;
 }
 
-bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement, int maxHeight)
+bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool checkReplacement, int maxHeight, bool removeOrphan)
 {
     CTransaction oldTx;
     uint256 hashBlock;
@@ -739,6 +739,14 @@ bool verifyDuplicateOrReplacementTx(CTransaction &tx, bool checkDuplicate, bool 
                 // good signature. key replacement allowed.
                 return true;
             }
+        }
+    } else if (removeOrphan) {
+        // check if (user,-1) exists in txindex and remove it
+        // return true to count as duplicate/replacement
+        uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
+        if( pblocktree->HaveTxIndex(txid) ) {
+            pblocktree->EraseTxIndex(txid);
+            return true;
         }
     }
     return false;
@@ -1154,7 +1162,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
              *    reconnect blocks which transactions are already written to the tx index.
              * 2) possibly a key replacement. check if new key is signed by the old one.
              */
-            if( !verifyDuplicateOrReplacementTx(tx, true, true, block.nHeight) ) {
+            if( !verifyDuplicateOrReplacementTx(tx, true, true, block.nHeight, true) ) {
                 // not the same, not replacement => error!
                 return state.DoS(100, error("ConnectBlock() : tried to overwrite transaction"));
             }
