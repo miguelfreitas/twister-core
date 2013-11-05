@@ -559,7 +559,7 @@ bool node_impl::refresh_storage() {
     if( num_refreshable ) {
         m_next_storage_refresh = minutes(60) / num_refreshable + time_now();
     } else {
-        m_next_storage_refresh = minutes(1) + time_now();
+        m_next_storage_refresh = minutes(10) + time_now();
     }
 
     printf("node dht: next storage refresh in %d seconds\n", (m_next_storage_refresh - time_now())/1000000 );
