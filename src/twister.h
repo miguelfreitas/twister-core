@@ -23,10 +23,10 @@ public:
 void startSessionTorrent(boost::thread_group& threadGroup);
 void stopSessionTorrent();
 
-bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey);
+bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey, int maxHeight = -1);
 std::string createSignature(std::string const &strMessage, CKeyID &keyID);
 std::string createSignature(std::string const &strMessage, std::string const &strUsername);
-bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign);
+bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign, int maxHeight = -1);
 
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags);
 bool validatePostNumberForUser(std::string const &username, int k);

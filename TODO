@@ -1,17 +1,3 @@
-- Take care of posts using older public key when key is replaced.
-
-notes: not very difficult, GetTransaction must receive a maximum block number to search the
-transaction (we get this from post["height"]). another txIndex should be set to speedup lookup
-(key in db includes the number of the block that changed tx so previous one can be found).
-pseudocode:
-   getTxIndex( key = "userX" ) => block h contains this tx;
-   while( h > max_h )
-        getTxIndex( "userX_h" ) => block h contains the previous tx
-=> GetTransation: new parameter maxHeight done!
-
-- Until old public key is properly used, disable banning torrent peers due to bad piece hashes.
-note: torrent.cpp line 3286 (function piece_failed), iteration to ban peers is disabled (continue).
-
 - Count UTF8 chars in acceptSignedPost to proper limit the 140 characters.
 
 - Encrypt user_data (which contains all DMs)

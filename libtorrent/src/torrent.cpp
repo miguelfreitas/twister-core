@@ -3308,9 +3308,6 @@ namespace libtorrent
 		for (std::set<void*>::iterator i = peers.begin()
 			, end(peers.end()); i != end; ++i)
 		{
-			// [MF] FIXME FIXME: BANNING BY FAILED HASH DISABLED - READ TODO!
-			continue;
-
 			policy::peer* p = static_cast<policy::peer*>(*i);
 			if (p == 0) continue;
 			TORRENT_ASSERT(p->in_use);

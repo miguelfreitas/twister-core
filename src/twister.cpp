@@ -606,44 +606,33 @@ std::string createSignature(std::string const &strMessage, std::string const &st
 }
 
 
-bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey)
+bool getUserPubKey(std::string const &strUsername, CPubKey &pubkey, int maxHeight)
 {
-    {
-      CKeyID keyID;
-      if( pwalletMain->GetKeyIdFromUsername(strUsername, keyID) ) {
-        if( !pwalletMain->GetPubKey(keyID, pubkey) ) {
-            // error? should not have failed.
-        }
-      }
+    CTransaction txOut;
+    uint256 hashBlock;
+    if( !GetTransaction(strUsername, txOut, hashBlock, maxHeight) ) {
+        //printf("getUserPubKey: user unknown '%s'\n", strUsername.c_str());
+        return false;
     }
 
+    std::vector< std::vector<unsigned char> > vData;
+    if( !txOut.pubKey.ExtractPushData(vData) || vData.size() < 1 ) {
+        printf("getUserPubKey: broken pubkey for user '%s'\n", strUsername.c_str());
+        return false;
+    }
+    pubkey = CPubKey(vData[0]);
     if( !pubkey.IsValid() ) {
-      CTransaction txOut;
-      uint256 hashBlock;
-      if( !GetTransaction(strUsername, txOut, hashBlock) ) {
-          //printf("getUserPubKey: user unknown '%s'\n", strUsername.c_str());
-          return false;
-      }
-
-      std::vector< std::vector<unsigned char> > vData;
-      if( !txOut.pubKey.ExtractPushData(vData) || vData.size() < 1 ) {
-          printf("getUserPubKey: broken pubkey for user '%s'\n", strUsername.c_str());
-          return false;
-      }
-      pubkey = CPubKey(vData[0]);
-      if( !pubkey.IsValid() ) {
-          printf("getUserPubKey: invalid pubkey for user '%s'\n", strUsername.c_str());
-          return false;
-      }
+        printf("getUserPubKey: invalid pubkey for user '%s'\n", strUsername.c_str());
+        return false;
     }
     return true;
 }
 
 
-bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign)
+bool verifySignature(std::string const &strMessage, std::string const &strUsername, std::string const &strSign, int maxHeight)
 {
     CPubKey pubkey;
-    if( !getUserPubKey(strUsername, pubkey) ) {
+    if( !getUserPubKey(strUsername, pubkey, maxHeight) ) {
       printf("verifySignature: no pubkey for user '%s'\n", strUsername.c_str());
       return false;
     }
@@ -761,7 +750,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                     std::pair<char const*, int> postbuf = post->data_section();
                     ret = verifySignature(
                             std::string(postbuf.first,postbuf.second),
-                            username, sig);
+                            username, sig, height);
                     if( !ret ) {
                         sprintf(errbuf,"bad post signature");
                     } else {
@@ -771,11 +760,12 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                         if( rt ) {
                             if( flags ) (*flags) |= USERPOST_FLAG_RT;
                             std::string username_rt = rt->dict_find_string_value("n");
+                            int height_rt = rt->dict_find_int_value("height",-1);
 
                             std::pair<char const*, int> rtbuf = rt->data_section();
                             ret = verifySignature(
                                     std::string(rtbuf.first,rtbuf.second),
-                                    username_rt, sig_rt);
+                                    username_rt, sig_rt, height_rt);
                             if( !ret ) {
                                 sprintf(errbuf,"bad RT signature");
                             }
