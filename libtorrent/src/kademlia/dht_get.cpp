@@ -125,8 +125,34 @@ void dht_get_observer::reply(msg const& m)
 			values_list.push_back(entry());
 			values_list.back() = *e;
 		}
-        //printf("dht_get::reply from %s:%d with %d entries\n", m.addr.address().to_string().c_str(), m.addr.port(), values_list.size());
+	//printf("dht_get::reply from %s:%d with %d entries\n", m.addr.address().to_string().c_str(), m.addr.port(), values_list.size());
 		static_cast<dht_get*>(m_algorithm.get())->got_data(values_list);
+	} else {
+		// special case for trackers (non-signed content)
+		// pretend it is a normal dht resource to the caller
+		dht_get *dget( static_cast<dht_get*>(m_algorithm.get()) );
+		if( dget->m_targetResource == "tracker" && dget->m_multi ) {
+			int followers = r->dict_find_int_value("followers");
+			if( followers ) {
+				entry::dictionary_type v;
+				v["followers"] = followers;
+
+				entry::dictionary_type target;
+				target["n"] = dget->m_targetUser;
+				target["r"] = dget->m_targetResource;
+				target["t"] = dget->m_multi ? "m" : "s";
+
+				entry::dictionary_type p;
+				p["target"] = target;
+				p["v"] = v;
+
+				entry::dictionary_type e;
+				e["p"] = p;
+				entry::list_type values_list;
+				values_list.push_back(e);
+				dget->got_data(values_list);
+			}
+		}
 	}
 
 	// look for nodes

@@ -93,7 +93,7 @@ namespace libtorrent { namespace dht
 		entry state() const;
 
 		void announce(std::string const& trackerName, sha1_hash const& ih
-			, address addr, int listen_port, bool seed, bool myself
+			, address addr, int listen_port, bool seed, bool myself, int list_peers
 			, boost::function<void(std::vector<tcp::endpoint> const&)> f);
 
 		void putData(std::string const &username, std::string const &resource, bool multi,
