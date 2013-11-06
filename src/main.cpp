@@ -1599,6 +1599,15 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     if (uniqueTx.size() != block.vtx.size())
         return state.DoS(100, error("CheckBlock() : duplicate transaction"));
 
+    // Check duplicate usernames within the same block
+    set<uint256> uniqueUsers;
+    for (unsigned int i = 1; i < block.vtx.size(); i++) {
+        uniqueUsers.insert(block.vtx[i].GetUsernameHash());
+    }
+    if (uniqueUsers.size() != block.vtx.size()-1)
+        return state.DoS(100, error("CheckBlock() : duplicate username"));
+
+
     // Check merkle root
     if (fCheckMerkleRoot && block.hashMerkleRoot != block.BuildMerkleTree())
         return state.DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"));
