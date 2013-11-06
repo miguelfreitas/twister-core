@@ -252,20 +252,26 @@ void ThreadWaitExtIP()
     boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
     loadGlobalData(globalDataPath.string());
 
+    std::set<std::string> torrentsToStart;
     {
         LOCK(cs_twister);
         boost::filesystem::path userDataPath = GetDataDir() / USER_DATA_FILE;
         loadUserData(userDataPath.string(), m_users);
         printf("loaded user_data for %zd users\n", m_users.size());
 
-        // now restart the user torrents (all m_following)
+        // add all user torrents to a std::set (all m_following)
         std::map<std::string,UserData>::const_iterator i;
         for (i = m_users.begin(); i != m_users.end(); ++i) {
             UserData const &data = i->second;
             BOOST_FOREACH(string username, data.m_following) {
-                startTorrentUser(username);
+                torrentsToStart.insert(username);
             }
         }
+
+    }
+    // now restart the user torrents
+    BOOST_FOREACH(string username, torrentsToStart) {
+        startTorrentUser(username);
     }
 }
 
