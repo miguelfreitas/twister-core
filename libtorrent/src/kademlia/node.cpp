@@ -55,7 +55,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/rsa.hpp"
 
 #include "../../src/twister.h"
-//#define ENABLE_DHT_ITEM_EXPIRE
+#define ENABLE_DHT_ITEM_EXPIRE
 
 namespace libtorrent { namespace dht
 {
