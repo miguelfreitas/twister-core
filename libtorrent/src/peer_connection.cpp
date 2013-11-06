@@ -2185,7 +2185,8 @@ namespace libtorrent
 				TORRENT_ASSERT(m_download_queue.front().block == b);
 				m_download_queue.front().not_wanted = true;
 			}
-			m_outstanding_bytes += r.length;
+			if( r.length > 0 )
+				m_outstanding_bytes += r.length;
 		}
 	}
 
@@ -3271,6 +3272,7 @@ namespace libtorrent
 
 			TORRENT_ASSERT(verify_piece(t->to_req(block.block)));
 			m_download_queue.push_back(block);
+			TORRENT_ASSERT(block_size >= 0);
 			m_outstanding_bytes += block_size;
 #if !defined TORRENT_DISABLE_INVARIANT_CHECKS && defined TORRENT_DEBUG
 			check_invariant();
