@@ -3318,6 +3318,7 @@ namespace libtorrent
 					TORRENT_ASSERT(block_size <= t->block_size());
 
 					r.length += block_size;
+					TORRENT_ASSERT(block_size >= 0);
 					m_outstanding_bytes += block_size;
 #if !defined TORRENT_DISABLE_INVARIANT_CHECKS && defined TORRENT_DEBUG
 					check_invariant();
