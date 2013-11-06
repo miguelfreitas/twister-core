@@ -164,11 +164,12 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
     }
 
     std::vector<char> buf;
-    if( users.size() ) {
+    if( userDict.type() == entry::dictionary_t ) {
         bencode(std::back_inserter(buf), userDict);
+        return save_file(filename, buf);
+    } else {
+        return 0;
     }
-
-    return save_file(filename, buf);
 }
 
 
