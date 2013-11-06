@@ -556,13 +556,18 @@ bool node_impl::refresh_storage() {
         m_last_refreshed_item = m_storage_table.begin()->first;
     }
 
+    time_duration sleepToRefresh;
     if( num_refreshable ) {
-        m_next_storage_refresh = minutes(60) / num_refreshable + time_now();
+        sleepToRefresh = minutes(60) / num_refreshable;
     } else {
-        m_next_storage_refresh = minutes(10) + time_now();
+        sleepToRefresh = minutes(10);
     }
+    m_next_storage_refresh = time_now() + sleepToRefresh;
 
-    printf("node dht: next storage refresh in %d seconds\n", (m_next_storage_refresh - time_now())/1000000 );
+#ifndef __ANDROID__
+    printf("node dht: next storage refresh in %d seconds\n",
+           static_cast<int>(sleepToRefresh/1000000) );
+#endif
 
     return did_something;
 }
