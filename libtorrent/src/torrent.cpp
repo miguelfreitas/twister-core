@@ -2073,7 +2073,7 @@ namespace libtorrent
 						p->last_connected && (m_ses.session_time() - p->last_connected) < (4*3600);
 				if( p->connectable && ( p->connection || connect_recently) ) {
 						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
-						  , p->address(), p->port, p->seed, false
+						  , p->address(), p->port, p->seed, false, m_policy.num_peers()
 						  , boost::bind(&nop));
 				}
 			}
@@ -2086,8 +2086,8 @@ namespace libtorrent
 #endif
 
 		boost::weak_ptr<torrent> self(shared_from_this());
-        m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
-			, m_ses.external_address().external_address(address_v4()), port, is_seed(), true
+		m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
+			, m_ses.external_address().external_address(address_v4()), port, is_seed(), true, m_policy.num_peers()
 			, boost::bind(&torrent::on_dht_announce_response_disp, self, _1));
 	}
 

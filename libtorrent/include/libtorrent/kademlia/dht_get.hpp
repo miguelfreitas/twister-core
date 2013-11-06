@@ -98,6 +98,8 @@ private:
 	bool m_done:1;
 	bool m_got_data:1;
 	bool m_justToken:1;
+
+	friend class dht_get_observer;
 };
 
 class dht_get_observer : public observer

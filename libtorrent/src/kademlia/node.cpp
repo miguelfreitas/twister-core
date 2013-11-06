@@ -400,7 +400,7 @@ void node_impl::add_node(udp::endpoint node)
 	m_rpc.invoke(e, node, o);
 }
 
-void node_impl::announce(std::string const& trackerName, sha1_hash const& info_hash, address addr, int listen_port, bool seed, bool myself
+void node_impl::announce(std::string const& trackerName, sha1_hash const& info_hash, address addr, int listen_port, bool seed, bool myself, int list_peers
 	, boost::function<void(std::vector<tcp::endpoint> const&)> f)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
@@ -410,7 +410,7 @@ void node_impl::announce(std::string const& trackerName, sha1_hash const& info_h
 
 	// [MF] is_unspecified() is not always available. never mind.
 	//if( !addr.is_unspecified() ) {
-		add_peer( trackerName, info_hash, addr, listen_port, seed );
+		add_peer( trackerName, info_hash, addr, listen_port, seed, list_peers );
 	//}
 
 	// do not announce other peers, just add them to our local m_map.
@@ -762,6 +762,7 @@ void node_impl::lookup_peers(sha1_hash const& info_hash, int prefix, entry& repl
 	torrent_entry const& v = i->second;
 
 	if (!v.name.empty()) reply["n"] = v.name;
+	reply["followers"] = v.list_peers;
 
 	if (scrape)
 	{
@@ -803,7 +804,7 @@ void node_impl::lookup_peers(sha1_hash const& info_hash, int prefix, entry& repl
 	return;
 }
 
-void node_impl::add_peer(std::string const &name, sha1_hash const& info_hash, address addr, int port, bool seed)
+void node_impl::add_peer(std::string const &name, sha1_hash const& info_hash, address addr, int port, bool seed, int list_peers)
 {
 	torrent_entry& v = m_map[info_hash];
 
@@ -814,6 +815,7 @@ void node_impl::add_peer(std::string const &name, sha1_hash const& info_hash, ad
 		v.name = name;
 		if (v.name.size() > 50) v.name.resize(50);
 	}
+	if (list_peers) v.list_peers = list_peers;
 
 	peer_entry peer;
 	peer.addr = tcp::endpoint(addr, port);
@@ -1144,7 +1146,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		}
 
 		add_peer( msg_keys[3] ? msg_keys[3]->string_value() : std::string(), info_hash,
-				  m.addr.address(), port, msg_keys[4] && msg_keys[4]->int_value());
+				  m.addr.address(), port, msg_keys[4] && msg_keys[4]->int_value(), 0);
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 		++g_announces;

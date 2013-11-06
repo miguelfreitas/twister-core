@@ -112,6 +112,7 @@ struct torrent_entry
 {
 	std::string name;
 	std::set<peer_entry> peers;
+	int list_peers; // number of known peers (copied from torrent status)
 };
 
 struct dht_storage_item
@@ -215,7 +216,7 @@ public:
 #endif
 
 	void announce(std::string const& trackerName, sha1_hash const& info_hash
-		, address addr, int listen_port, bool seed, bool myself
+		, address addr, int listen_port, bool seed, bool myself, int list_peers
 		, boost::function<void(std::vector<tcp::endpoint> const&)> f);
 
 	void putData(std::string const &username, std::string const &resource, bool multi,
@@ -268,7 +269,7 @@ protected:
 
 	void lookup_peers(sha1_hash const& info_hash, int prefix, entry& reply
 		, bool noseed, bool scrape) const;
-	void add_peer(std::string const& name, sha1_hash const& info_hash, address addr, int port, bool seed);
+	void add_peer(std::string const& name, sha1_hash const& info_hash, address addr, int port, bool seed, int list_peers);
 
 	dht_settings const& m_settings;
 	
