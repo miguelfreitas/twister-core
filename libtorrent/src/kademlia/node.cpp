@@ -35,6 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <boost/bind.hpp>
 #include <boost/function/function1.hpp>
+//#include <boost/date_time/posix_time/time_formatters_limited.hpp>
 
 #include "libtorrent/io.hpp"
 #include "libtorrent/bencode.hpp"
@@ -564,10 +565,10 @@ bool node_impl::refresh_storage() {
     }
     m_next_storage_refresh = time_now() + sleepToRefresh;
 
-#ifndef __ANDROID__
-    printf("node dht: next storage refresh in %d seconds\n",
-           static_cast<int>(sleepToRefresh/1000000) );
-#endif
+/*
+    printf("node dht: next storage refresh in %s\n",
+           boost::posix_time::to_simple_string(sleepToRefresh).c_str() );
+*/
 
     return did_something;
 }
