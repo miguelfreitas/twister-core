@@ -1219,11 +1219,12 @@ Value newpostmsg(const Array& params, bool fHelp)
 
     // split and look for mentions and hashtags
     vector<string> tokens;
-    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t"),
+    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t.,:/?!"),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
             string word = token.substr(1);
+            boost::algorithm::to_lower(word);
             if( token.at(0) == '#') {
                 ses->dht_putData(word, "hashtag", true,
                                  v, strUsername, GetAdjustedTime(), 0);
