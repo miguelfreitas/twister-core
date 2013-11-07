@@ -35,6 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/config.hpp"
 #include "libtorrent/size_type.hpp"
+#include "libtorrent/union_endpoint.hpp"
 #include <vector>
 
 namespace libtorrent
@@ -66,6 +67,7 @@ namespace libtorrent
 		int num_replacements;
 		// number of seconds since last activity
 		int last_active;
+		union_endpoint random_node;
 	};
 
 	struct utp_status
