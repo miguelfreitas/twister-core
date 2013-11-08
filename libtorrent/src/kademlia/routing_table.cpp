@@ -91,6 +91,10 @@ void routing_table::status(session_status& s) const
 		b.num_nodes = i->live_nodes.size();
 		b.num_replacements = i->replacements.size();
 		b.last_active = total_seconds(now - i->last_active);
+		if( b.num_nodes ) {
+			int randNode = rand() % b.num_nodes;
+			b.random_node = i->live_nodes[randNode].endpoint;
+		}
 		s.dht_routing_table.push_back(b);
 	}
 }

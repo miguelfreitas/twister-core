@@ -183,11 +183,6 @@ void ThreadWaitExtIP()
         MilliSleep(500);
     }
 
-    // delay libtorrent initialization until we have valid blocks
-    while( getBestHeight() <= 0 ) {
-        MilliSleep(500);
-    }
-
     error_code ec;
     int listen_port = GetListenPort() + LIBTORRENT_PORT_OFFSET;
     std::string bind_to_interface = "";
@@ -199,6 +194,9 @@ void ThreadWaitExtIP()
             , alert::dht_notification
             , ipStr.size() ? ipStr.c_str() : NULL
             , std::make_pair(listen_port, listen_port));
+
+    // session will be paused until we have an up-to-date blockchain
+    ses->pause();
 
     std::vector<char> in;
     boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
@@ -276,6 +274,12 @@ void ThreadWaitExtIP()
     }
 }
 
+bool isBlockChainUptodate() {
+    if( !pindexBest )
+        return false;
+    return (pindexBest->GetBlockTime() > GetTime() - 1 * 60 * 60);
+}
+
 void ThreadMaintainDHTNodes()
 {
     RenameThread("maintain-dht-nodes");
@@ -285,16 +289,16 @@ void ThreadMaintainDHTNodes()
     }
 
     while(1) {
-        MilliSleep(5000);
-
         session_status ss = ses->status();
         int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
+        int vNodesSize = 0;
 
         if( ses ) {
             LOCK(cs_vNodes);
+            vNodesSize = vNodes.size();
             vector<CAddress> vAddr = addrman.GetAddr();
-            int totalNodesCandidates = (int)(vNodes.size() + vAddr.size());
+            int totalNodesCandidates = (int)(vNodesSize + vAddr.size());
             if( (!dht_nodes && totalNodesCandidates) ||
                 (dht_nodes < 5 && totalNodesCandidates > 10) ) {
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
@@ -322,8 +326,21 @@ void ThreadMaintainDHTNodes()
                 }
             }
         }
+
+        if( ses->is_paused() ) {
+            if( vNodesSize && isBlockChainUptodate() ) {
+                printf("BlockChain is now up-to-date: unpausing libtorrent session\n");
+                ses->resume();
+            }
+        } else {
+            if( !vNodesSize || !isBlockChainUptodate() ) {
+                printf("Outdated BlockChain detected: pausing libtorrent session\n");
+                ses->pause();
+            }
+        }
+
         if( nodesAdded ) {
-            MilliSleep(5000);
+            MilliSleep(2000);
             ss = ses->status();
             if( ss.dht_nodes > dht_nodes ) {
                 // new nodes were added to dht: force updating peers from dht so torrents may start faster
@@ -331,12 +348,27 @@ void ThreadMaintainDHTNodes()
                 BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
                     item.second.force_dht_announce();
                 }
-            } else {
-                // nodes added but dht ignored them, so they are probably duplicated.
-                // we sleep a bit as a punishment :-)
-                MilliSleep(30000);
             }
         }
+
+        if( !vNodesSize && dht_nodes ) {
+            printf("ThreadMaintainDHTNodes: registration network is down, trying to add nodes from DHT...\n");
+            for( size_t i = 0; i < ss.dht_routing_table.size(); i++ ) {
+                dht_routing_bucket &bucket = ss.dht_routing_table[i];
+                if( bucket.num_nodes ) {
+                    printf("DHT bucket [%zd] random node = %s:%d\n", i,
+                           bucket.random_node.address().to_string().c_str(),
+                           bucket.random_node.port);
+                    char nodeStr[64];
+                    sprintf(nodeStr,"%s:%d", bucket.random_node.address().to_string().c_str(),
+                            bucket.random_node.port - LIBTORRENT_PORT_OFFSET);
+                    CAddress addr;
+                    ConnectNode(addr, nodeStr);
+                }
+            }
+        }
+
+        MilliSleep(5000);
     }
 }
 
@@ -1188,11 +1220,12 @@ Value newpostmsg(const Array& params, bool fHelp)
 
     // split and look for mentions and hashtags
     vector<string> tokens;
-    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t"),
+    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t.,:/?!"),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
             string word = token.substr(1);
+            boost::algorithm::to_lower(word);
             if( token.at(0) == '#') {
                 ses->dht_putData(word, "hashtag", true,
                                  v, strUsername, GetAdjustedTime(), 0);
