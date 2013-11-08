@@ -46,6 +46,7 @@ enum ExpireResType { SimpleNoExpire, NumberedNoExpire, PostNoExpireRecent };
 static map<std::string, ExpireResType> m_noExpireResources;
 static map<std::string, torrent_handle> m_userTorrent;
 
+static CCriticalSection cs_spamMsg;
 static std::string m_preferredSpamLang = "[en]";
 static std::string m_receivedSpamMsgStr;
 static std::string m_receivedSpamUserStr;
@@ -996,7 +997,7 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height)
 
 void receivedSpamMessage(std::string const &message, std::string const &user)
 {
-    LOCK(cs_twister);
+    LOCK(cs_spamMsg);
     bool hasSingleLangCode = (message.find("[") == message.rfind("["));
     bool hasPreferredLang  = m_preferredSpamLang.length();
     bool isSameLang        = hasPreferredLang && hasSingleLangCode &&
@@ -1370,7 +1371,7 @@ Value getposts(const Array& params, bool fHelp)
     }
 
     {
-        LOCK(cs_twister);
+        LOCK(cs_spamMsg);
         // we must agree on an acceptable level here
         // what about one every eight hours? (not cumulative)
         if( m_receivedSpamMsgStr.length() && GetAdjustedTime() > m_lastSpamTime + (8*3600) ) {
@@ -1460,7 +1461,7 @@ Value setspammsg(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     string strMsg      = params[1].get_str();
 
-    LOCK(cs_twister);
+    LOCK(cs_main);
     strSpamUser    = strUsername;
     strSpamMessage = strMsg;
 
@@ -1475,7 +1476,7 @@ Value getspammsg(const Array& params, bool fHelp)
             "get spam message attached to generated blocks");
 
     Array ret;
-    LOCK(cs_twister);
+    LOCK(cs_main);
     ret.push_back(strSpamUser);
     ret.push_back(strSpamMessage);
 
