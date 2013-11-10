@@ -82,7 +82,7 @@ bool GetLocal(CService &addr, const CNetAddr *paddrPeer = NULL);
 bool IsReachable(const CNetAddr &addr);
 void SetReachable(enum Network net, bool fFlag = true);
 CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
-
+void AddDNSandRunThread(std::string strDNS);
 
 extern bool fDiscover;
 extern uint64 nLocalServices;

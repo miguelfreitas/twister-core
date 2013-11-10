@@ -1174,10 +1174,16 @@ void MapPort(bool)
 
 
 
-void ThreadDNSAddressSeed()
+void _ThreadDNSAddressSeed(const char *strDNS)
 {
-    const vector<CDNSSeedData> &vSeeds = Params().DNSSeeds();
+    vector<CDNSSeedData> vSeeds = Params().DNSSeeds();
     int found = 0;
+
+    if( strDNS ) {
+        printf("ThreadDNSAddressSeed: %s\n", strDNS);
+        vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData(strDNS, strDNS));
+    }
 
     printf("Loading addresses from DNS seeds (could take a while)\n");
 
@@ -1203,10 +1209,24 @@ void ThreadDNSAddressSeed()
     }
 
     printf("%d addresses found from DNS seeds\n", found);
+
+    if( strDNS ) {
+        delete [] strDNS;
+    }
 }
 
+void ThreadDNSAddressSeed()
+{
+    _ThreadDNSAddressSeed(NULL);
+}
 
-
+void AddDNSandRunThread(std::string strDNS)
+{
+    boost::thread_group threadGroup;
+    char *strCopyOfDNS = new char [strDNS.length()+1];
+    strcpy(strCopyOfDNS, strDNS.c_str());
+    threadGroup.create_thread(boost::bind(_ThreadDNSAddressSeed, strCopyOfDNS));
+}
 
 
 

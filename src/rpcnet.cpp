@@ -110,6 +110,20 @@ Value addnode(const Array& params, bool fHelp)
     return Value::null;
 }
 
+Value adddnsseed(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1 )
+        throw runtime_error(
+            "adddnsseed <seeder>\n"
+            "Add a different DNS <seeder> to obtain node list from.");
+
+    string strDNS = params[0].get_str();
+    AddDNSandRunThread(strDNS);
+
+    return Value::null;
+}
+
+
 Value getaddednodeinfo(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
