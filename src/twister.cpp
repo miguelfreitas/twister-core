@@ -280,6 +280,42 @@ bool isBlockChainUptodate() {
     return (pindexBest->GetBlockTime() > GetTime() - 1 * 60 * 60);
 }
 
+bool yes(libtorrent::torrent_status const&)
+{ return true; }
+
+void saveTorrentResumeData()
+{
+    if( ses ){
+            printf("saving resume data\n");
+            std::vector<torrent_status> temp;
+            ses->get_torrent_status(&temp, &yes, 0);
+            for (std::vector<torrent_status>::iterator i = temp.begin();
+                i != temp.end(); ++i)
+            {
+                torrent_status& st = *i;
+                if (!st.handle.is_valid())
+                {
+                    printf("  skipping, invalid handle\n");
+                    continue;
+                }
+                if (!st.has_metadata)
+                {
+                    printf("  skipping %s, no metadata\n", st.name.c_str());
+                    continue;
+                }
+                if (!st.need_save_resume)
+                {
+                    printf("  skipping %s, resume file up-to-date\n", st.name.c_str());
+                    continue;
+                }
+
+                // save_resume_data will generate an alert when it's done
+                st.handle.save_resume_data();
+                ++num_outstanding_resume_data;
+            }
+    }
+}
+
 void ThreadMaintainDHTNodes()
 {
     RenameThread("maintain-dht-nodes");
@@ -287,6 +323,8 @@ void ThreadMaintainDHTNodes()
     while(!ses) {
         MilliSleep(200);
     }
+
+    int64 lastSaveResumeTime = GetTime();
 
     while(1) {
         session_status ss = ses->status();
@@ -366,6 +404,12 @@ void ThreadMaintainDHTNodes()
                     ConnectNode(addr, nodeStr);
                 }
             }
+        }
+
+        // periodically save resume data. if daemon crashes we don't lose everything.
+        if( GetTime() > lastSaveResumeTime + 15 * 60 ) {
+            lastSaveResumeTime = GetTime();
+            saveTorrentResumeData();
         }
 
         MilliSleep(5000);
@@ -535,41 +579,13 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
 }
 
-bool yes(libtorrent::torrent_status const&)
-{ return true; }
-
 void stopSessionTorrent()
 {
     if( ses ){
             ses->pause();
 
-            printf("saving resume data\n");
-            std::vector<torrent_status> temp;
-            ses->get_torrent_status(&temp, &yes, 0);
-            for (std::vector<torrent_status>::iterator i = temp.begin();
-                i != temp.end(); ++i)
-            {
-                torrent_status& st = *i;
-                if (!st.handle.is_valid())
-                {
-                    printf("  skipping, invalid handle\n");
-                    continue;
-                }
-                if (!st.has_metadata)
-                {
-                    printf("  skipping %s, no metadata\n", st.name.c_str());
-                    continue;
-                }
-                if (!st.need_save_resume)
-                {
-                    printf("  skipping %s, resume file up-to-date\n", st.name.c_str());
-                    continue;
-                }
+            saveTorrentResumeData();
 
-                // save_resume_data will generate an alert when it's done
-                st.handle.save_resume_data();
-                ++num_outstanding_resume_data;
-            }
             printf("\nwaiting for resume data [%d]\n", num_outstanding_resume_data);
             while (num_outstanding_resume_data > 0)
             {
