@@ -981,14 +981,16 @@ void ServiceConnection(AcceptedConnection *conn)
         // Read HTTP message headers and body
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
-        if (strURI != "/") {
-            std::vector<char> file_data;
-            std::string fname = strURI;
+        if (strURI != "/" && strURI.find("..") == std::string::npos ) {
+            filesystem::path pathFile = filesystem::path(GetDataDir()) / "html" / strURI;
+            std::string fname = pathFile.string();
             size_t qMarkIdx = fname.find('?');
             if( qMarkIdx != string::npos ) {
                 fname.resize(qMarkIdx);
             }
-            if( load_file(fname.c_str(), file_data) == 0 ) {
+
+            std::vector<char> file_data;
+            if( load_file( fname.c_str(), file_data) == 0 ) {
                 std::string str(file_data.data(), file_data.size());
                 const char *contentType = "text/html";
                 if( strURI.find(".js") != std::string::npos )
@@ -1004,6 +1006,7 @@ void ServiceConnection(AcceptedConnection *conn)
                     contentType = "image/jpeg";
                 conn->stream() << HTTPReply(HTTP_OK, str, false, contentType) << std::flush;
             } else {
+                printf("ServiceConnection: file %s not found\n", fname.c_str());
                 conn->stream() << HTTPReply(HTTP_NOT_FOUND, "", false) << std::flush;
             }
             continue;
