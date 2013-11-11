@@ -1085,6 +1085,20 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
     return path;
 }
 
+boost::filesystem::path GetHTMLDir()
+{
+    namespace fs = boost::filesystem;
+    fs::path path;
+
+    if (mapArgs.count("-htmldir")) {
+        path = fs::system_complete(mapArgs["-htmldir"]);
+    } else {
+        path = GetDataDir() / "html";
+    }
+
+    return path;
+}
+
 boost::filesystem::path GetConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-conf", "twister.conf"));

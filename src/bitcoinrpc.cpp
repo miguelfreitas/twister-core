@@ -982,7 +982,7 @@ void ServiceConnection(AcceptedConnection *conn)
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
         if (strURI != "/" && strURI.find("..") == std::string::npos ) {
-            filesystem::path pathFile = filesystem::path(GetDataDir()) / "html" / strURI;
+            filesystem::path pathFile = filesystem::path(GetHTMLDir()) / strURI;
             std::string fname = pathFile.string();
             size_t qMarkIdx = fname.find('?');
             if( qMarkIdx != string::npos ) {
