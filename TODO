@@ -57,4 +57,5 @@ this resource to report the number of torrent peers)
 
 - Don't accept dht "post"+k if k violates the validatePostNumberForUser() rule.
 
+- Implement -secdatadir= parameter to store sensitive data (wallet, dm) in a separated dir.
 
