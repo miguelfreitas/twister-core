@@ -11,6 +11,7 @@
 #include "init.h"
 #include "base58.h"
 #include "main.h"
+#include "twister.h"
 
 using namespace std;
 using namespace boost;
@@ -77,6 +78,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("blocks",        (int)nBestHeight));
     obj.push_back(Pair("timeoffset",    (boost::int64_t)GetTimeOffset()));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
+    obj.push_back(Pair("dht_nodes",     getDhtNodes()));
     obj.push_back(Pair("addrman_total", (int)addrman.size()));
     obj.push_back(Pair("addrman_get",   (int)addrman.GetAddr().size()));
     obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));

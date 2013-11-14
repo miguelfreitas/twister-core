@@ -316,6 +316,14 @@ void saveTorrentResumeData()
     }
 }
 
+int getDhtNodes()
+{
+    if( !ses )
+        return 0;
+    session_status ss = ses->status();
+    return ss.dht_nodes;
+}
+
 void ThreadMaintainDHTNodes()
 {
     RenameThread("maintain-dht-nodes");
@@ -325,20 +333,25 @@ void ThreadMaintainDHTNodes()
     }
 
     int64 lastSaveResumeTime = GetTime();
+    int   lastTotalNodesCandidates = 0;
 
     while(1) {
         session_status ss = ses->status();
         int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
         int vNodesSize = 0;
-
-        if( ses ) {
+        {
             LOCK(cs_vNodes);
             vNodesSize = vNodes.size();
+        }
+
+        if( !ses->is_paused() ) {
             vector<CAddress> vAddr = addrman.GetAddr();
             int totalNodesCandidates = (int)(vNodesSize + vAddr.size());
-            if( (!dht_nodes && totalNodesCandidates) ||
-                (dht_nodes < 5 && totalNodesCandidates > 10) ) {
+            if( ((!dht_nodes && totalNodesCandidates) ||
+                 (dht_nodes < 5 && totalNodesCandidates > 10)) &&
+                 totalNodesCandidates != lastTotalNodesCandidates ) {
+                lastTotalNodesCandidates = totalNodesCandidates;
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 BOOST_FOREACH(const CAddress &a, vAddr) {
                     std::string addr = a.ToStringIP();
@@ -347,6 +360,7 @@ void ThreadMaintainDHTNodes()
                     ses->add_dht_node(std::pair<std::string, int>(addr, port));
                     nodesAdded = true;
                 }
+                LOCK(cs_vNodes);
                 BOOST_FOREACH(CNode* pnode, vNodes) {
                     // if !fInbound we created this connection so ip is reachable.
                     // we can't use port number of inbound connection, so try standard port.

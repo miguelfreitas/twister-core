@@ -37,4 +37,6 @@ void receivedSpamMessage(std::string const &message, std::string const &user);
 int getBestHeight();
 bool shouldDhtResourceExpire(std::string resource, bool multi, int height);
 
+int getDhtNodes();
+
 #endif // TWISTER_H
