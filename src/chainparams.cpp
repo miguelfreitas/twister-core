@@ -63,6 +63,7 @@ public:
         assert(hashGenesisBlock == uint256("0000001d5eb70d639089eb9b31a4175aa906d6824aae78a9b450ab71de5e6e12"));
 
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed.twister.net.co"));
+        vSeeds.push_back(CDNSSeedData("twister.net.co", "seed2.twister.net.co"));
 
         base58Prefixes[PUBKEY_ADDRESS] = 0;
         base58Prefixes[SCRIPT_ADDRESS] = 5;
