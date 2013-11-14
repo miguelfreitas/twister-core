@@ -811,7 +811,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos)
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits))
+    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits))
         return error("ReadBlockFromDisk(CBlock&, CDiskBlockPos&) : errors in block header");
 
     return true;
@@ -1566,7 +1566,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         return state.DoS(100, error("CheckBlock() : size limits failed"));
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits))
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits))
         return state.DoS(50, error("CheckBlock() : proof of work failed"));
 
     // Check timestamp
@@ -3783,7 +3783,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 
 bool CheckWork(CBlock* pblock, CWallet& wallet)
 {
-    uint256 hash = pblock->GetHash();
+    uint256 hash = pblock->GetPoWHash();
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
     if (hash > hashTarget)
@@ -3830,46 +3830,30 @@ void GenesisMiner()
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
-        // Pre-build hash buffers
-        //
-        char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
-        char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
-        char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
-
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
-
-        unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12 + 4);
-
-        //
         // Search
         //
         uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-        uint256 hashbuf[2];
-        uint256& hash = *alignup<16>(hashbuf);
+        uint256 hash;
         loop
         {
             unsigned int nHashesDone = 0;
-            unsigned int nNonceFound;
-            // Crypto++ SHA256
-            nNonceFound = ScanHash_CryptoPP(pmidstate, pdata + 64, phash1,
-                                            (char*)&hash, nHashesDone);
+
+            do {
+                pblock->nNonce++;
+                hash = pblock->GetPoWHash();
+            } while( hash > hashTarget &&
+                     (pblock->nNonce & 0xffff) != 0 );
+            nHashesDone = 0xffff+1;
 
             // Check if something found
-            if (nNonceFound != (unsigned int) -1)
+            if (hash <= hashTarget)
             {
-                for (unsigned int i = 0; i < sizeof(hash)/4; i++)
-                    ((unsigned int*)&hash)[i] = ByteReverse(((unsigned int*)&hash)[i]);
-
-                if (hash <= hashTarget)
-                {
-                    // Found a solution
-                    pblock->nNonce = ByteReverse(nNonceFound);
-                    assert(hash == pblock->GetHash());
-                    printf("genesishash: %s\n", pblock->GetHash().ToString().c_str());
-                    printf("merkle: %s\n", pblock->hashMerkleRoot.ToString().c_str());
-                    printf("nonce: %d\n", pblock->nNonce);
-                    exit(0);
-                }
+                // Found a solution
+                printf("genesishash: %s\n", pblock->GetHash().ToString().c_str());
+                printf("genesisPOWhash: %s\n", pblock->GetPoWHash().ToString().c_str());
+                printf("merkle: %s\n", pblock->hashMerkleRoot.ToString().c_str());
+                printf("nonce: %d\n", pblock->nNonce);
+                exit(0);
             }
 
             // Meter hashes/sec
@@ -3903,7 +3887,7 @@ void GenesisMiner()
 
             // Check for stop or if block needs to be rebuilt
             boost::this_thread::interruption_point();
-            if (nBlockNonce >= 0xffff0000)
+            if (pblock->nNonce >= 0xffff0000)
                 break;
         }
 }
@@ -3943,58 +3927,36 @@ void static BitcoinMiner(CWallet *pwallet)
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
-        // Pre-build hash buffers
-        //
-        char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
-        char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
-        char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
-
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
-
-        unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4 + 4);
-        unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8 + 4);
-        unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12 + 4);
-
-
-        //
         // Search
         //
         int64 nStart = GetTime();
         uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-        uint256 hashbuf[2];
-        uint256& hash = *alignup<16>(hashbuf);
+        uint256 hash;
         loop
         {
             unsigned int nHashesDone = 0;
-            unsigned int nNonceFound;
 
-            // Crypto++ SHA256
-            nNonceFound = ScanHash_CryptoPP(pmidstate, pdata + 64, phash1,
-                                            (char*)&hash, nHashesDone);
+            do {
+                pblock->nNonce++;
+                hash = pblock->GetPoWHash();
+            } while( hash > hashTarget &&
+                     (pblock->nNonce & 0xffff) != 0 );
+            nHashesDone = 0xffff+1;
 
             // Check if something found
-            if (nNonceFound != (unsigned int) -1)
+            if (hash <= hashTarget)
             {
-                for (unsigned int i = 0; i < sizeof(hash)/4; i++)
-                    ((unsigned int*)&hash)[i] = ByteReverse(((unsigned int*)&hash)[i]);
+                // Found a solution
+                SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                CheckWork(pblock, *pwalletMain);
+                SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
-                if (hash <= hashTarget)
-                {
-                    // Found a solution
-                    pblock->nNonce = ByteReverse(nNonceFound);
-                    assert(hash == pblock->GetHash());
+                // In regression test mode, stop mining after a block is found. This
+                // allows developers to controllably generate a block on demand.
+                if (Params().NetworkID() == CChainParams::REGTEST)
+                    throw boost::thread_interrupted();
 
-                    SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                    CheckWork(pblock, *pwalletMain);
-                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
-
-                    // In regression test mode, stop mining after a block is found. This
-                    // allows developers to controllably generate a block on demand.
-                    if (Params().NetworkID() == CChainParams::REGTEST)
-                        throw boost::thread_interrupted();
-
-                    break;
-                }
+                break;
             }
 
             // Meter hashes/sec
@@ -4030,7 +3992,7 @@ void static BitcoinMiner(CWallet *pwallet)
             boost::this_thread::interruption_point();
             if (vNodes.empty() && Params().NetworkID() != CChainParams::REGTEST)
                 break;
-            if (nBlockNonce >= 0xffff0000)
+            if (pblock->nNonce >= 0xffff0000)
                 break;
             if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                 break;
@@ -4039,11 +4001,9 @@ void static BitcoinMiner(CWallet *pwallet)
 
             // Update nTime every few seconds
             UpdateTime(*pblock, pindexPrev);
-            nBlockTime = ByteReverse(pblock->nTime);
             if (TestNet())
             {
                 // Changing pblock->nTime can change work required on testnet:
-                nBlockBits = ByteReverse(pblock->nBits);
                 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
             }
         }

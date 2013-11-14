@@ -8,6 +8,7 @@
 #include "uint256.h"
 #include "serialize.h"
 #include "script.h"
+#include "scrypt.h"
 
 #include <stdio.h>
 
@@ -528,6 +529,13 @@ public:
         CBlockHeader::SetNull();
         vtx.clear();
         vMerkleTree.clear();
+    }
+
+    uint256 GetPoWHash() const
+    {
+        uint256 thash;
+        scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
+        return thash;
     }
 
     CBlockHeader GetBlockHeader() const

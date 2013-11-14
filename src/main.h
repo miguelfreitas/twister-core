@@ -756,7 +756,7 @@ public:
 
     bool CheckIndex() const
     {
-        return CheckProofOfWork(GetBlockHash(), nBits);
+        return CheckProofOfWork(CBlock(GetBlockHeader()).GetPoWHash(), nBits);
     }
 
     enum { nMedianTimeSpan=11 };

@@ -54,13 +54,13 @@ public:
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
         genesis.nVersion = 1;
         genesis.nHeight  = 0;
-        genesis.nTime    = 1383612321;
+        genesis.nTime    = 1384394255;
         //genesis.nBits    = 0x1d00ffff;
-        genesis.nBits    = 0x1d7fffff;
-        genesis.nNonce   = 1353330432;
+        genesis.nBits    = 0x1f03ffff;
+        genesis.nNonce   = 2934;
 
         hashGenesisBlock = genesis.GetHash();
-        assert(hashGenesisBlock == uint256("0000001d5eb70d639089eb9b31a4175aa906d6824aae78a9b450ab71de5e6e12"));
+        assert(hashGenesisBlock == uint256("9915158279673d101912be80f25c20627f1dd8bf5231e7c46bfec5ed19737f44"));
 
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed.twister.net.co"));
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed2.twister.net.co"));

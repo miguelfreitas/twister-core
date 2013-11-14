@@ -252,7 +252,7 @@ void scrypt_1024_1_1_256_sp_generic(const char *input, char *output, char *scrat
 
 	V = (uint32_t *)(((uintptr_t)(scratchpad) + 63) & ~ (uintptr_t)(63));
 	
-	PBKDF2_SHA256((const uint8_t *)input, 80, (const uint8_t *)input, 80, 1, B, 128);
+    PBKDF2_SHA256((const uint8_t *)input, 84, (const uint8_t *)input, 84, 1, B, 128);
 
 	for (k = 0; k < 32; k++)
 		X[k] = le32dec(&B[4 * k]);
@@ -273,7 +273,7 @@ void scrypt_1024_1_1_256_sp_generic(const char *input, char *output, char *scrat
 	for (k = 0; k < 32; k++)
 		le32enc(&B[4 * k], X[k]);
 
-	PBKDF2_SHA256((const uint8_t *)input, 80, B, 128, 1, (uint8_t *)output, 32);
+    PBKDF2_SHA256((const uint8_t *)input, 84, B, 128, 1, (uint8_t *)output, 32);
 }
 
 #if defined(USE_SSE2)
