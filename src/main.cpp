@@ -703,7 +703,7 @@ bool GetTransaction(const std::string &username, CTransaction &txOut, uint256 &h
             } else {
                 break;
             }
-        } while( height > 0 && height <= maxHeight );
+        } while( height > 0 && height >= maxHeight );
     }
 
     return false;
