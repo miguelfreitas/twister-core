@@ -230,14 +230,17 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == Params().HashGenesisBlock())
                     pindexGenesisBlock = pindexNew;
 
-                if (!pindexNew->CheckIndex())
+                if (!pindexNew->CheckIndex()) {
+                    delete pcursor;
                     return error("LoadBlockIndex() : CheckIndex failed: %s", pindexNew->ToString().c_str());
+                }
 
                 pcursor->Next();
             } else {
                 break; // if shutdown requested or finished loading block index
             }
         } catch (std::exception &e) {
+            delete pcursor;
             return error("%s() : deserialize error", __PRETTY_FUNCTION__);
         }
     }
