@@ -96,13 +96,22 @@ torrent_handle startTorrentUser(std::string const &username)
     return m_userTorrent[username];
 }
 
-int lastPostKfromTorrent(std::string const &username)
+int torrentLastHave(std::string const &username)
 {
     if( !m_userTorrent.count(username) )
         return -1;
 
     torrent_status status = m_userTorrent[username].status();
     return status.last_have;
+}
+
+int torrentNumPieces(std::string const &username)
+{
+    if( !m_userTorrent.count(username) )
+        return -1;
+
+    torrent_status status = m_userTorrent[username].status();
+    return status.num_pieces;
 }
 
 int saveGlobalData(std::string const& filename)
@@ -1628,7 +1637,25 @@ Value getlasthave(const Array& params, bool fHelp)
     Object ret;
     LOCK(cs_twister);
     BOOST_FOREACH(string username, m_users[localUser].m_following) {
-        ret.push_back(Pair(username,lastPostKfromTorrent(username)));
+        ret.push_back(Pair(username,torrentLastHave(username)));
+    }
+
+    return ret;
+}
+
+Value getnumpieces(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "getnumpieces <username>\n"
+            "get number of posts already downloaded for each user user we follow");
+
+    string localUser = params[0].get_str();
+
+    Object ret;
+    LOCK(cs_twister);
+    BOOST_FOREACH(string username, m_users[localUser].m_following) {
+        ret.push_back(Pair(username,torrentNumPieces(username)));
     }
 
     return ret;

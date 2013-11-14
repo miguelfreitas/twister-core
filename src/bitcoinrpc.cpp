@@ -255,6 +255,7 @@ static const CRPCCommand vRPCCommands[] =
     { "unfollow",               &unfollow,               false,     true },
     { "getfollowing",           &getfollowing,           false,     true },
     { "getlasthave",            &getlasthave,            false,     true },
+    { "getnumpieces",           &getnumpieces,           false,     true },
     { "listusernamespartial",   &listusernamespartial,   false,     true },
     { "rescandirectmsgs",       &rescandirectmsgs,       false,     true },
 };
@@ -918,7 +919,7 @@ void JSONRequest::parse(const Value& valRequest)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
     if (strMethod != "getwork" && strMethod != "getblocktemplate" &&
-        strMethod != "getlasthave" &&
+        strMethod != "getlasthave" && strMethod != "getnumpieces" &&
         strMethod != "getinfo" && strMethod != "getbestblockhash" && strMethod != "getblock")
         printf("ThreadRPCServer method=%s\n", strMethod.c_str());
 
