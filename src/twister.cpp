@@ -338,6 +338,16 @@ void saveTorrentResumeData()
     }
 }
 
+void lockAndSaveUserData()
+{
+    LOCK(cs_twister);
+    if( m_users.size() ) {
+        printf("saving user_data (followers and DMs)...\n");
+        boost::filesystem::path userDataPath = GetDataDir() / USER_DATA_FILE;
+        saveUserData(userDataPath.string(), m_users);
+    }
+}
+
 int getDhtNodes()
 {
     if( !ses )
@@ -446,6 +456,7 @@ void ThreadMaintainDHTNodes()
         if( GetTime() > lastSaveResumeTime + 15 * 60 ) {
             lastSaveResumeTime = GetTime();
             saveTorrentResumeData();
+            lockAndSaveUserData();
         }
 
         MilliSleep(5000);
@@ -645,11 +656,7 @@ void stopSessionTorrent()
     boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
     saveGlobalData(globalDataPath.string());
 
-    if( m_users.size() ) {
-        printf("saving user_data (followers and DMs)...\n");
-        boost::filesystem::path userDataPath = GetDataDir() / USER_DATA_FILE;
-        saveUserData(userDataPath.string(), m_users);
-    }
+    lockAndSaveUserData();
 
     printf("libtorrent + dht stopped\n");
 }
