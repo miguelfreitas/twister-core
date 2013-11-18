@@ -5,6 +5,7 @@
 #include "main.h"
 #include "init.h"
 #include "bitcoinrpc.h"
+#include "txdb.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -1695,27 +1696,7 @@ Value listusernamespartial(const Array& params, bool fHelp)
         }
     }
 
-    // now the rest, the entire block chain
-    for(CBlockIndex* pindex = pindexBest; pindex && retStrings.size() < count; pindex = pindex->pprev ) {
-        CBlock block;
-        if( !ReadBlockFromDisk(block, pindex) )
-            continue;
-
-        BOOST_FOREACH(const CTransaction&tx, block.vtx) {
-            if( !tx.IsSpamMessage() ) {
-                string txUsername = tx.userName.ExtractSmallString();
-                if( (exact_match && userStartsWith.size() != txUsername.size()) ||
-                    userStartsWith.size() > txUsername.size() ) {
-                    continue;
-                }
-                int toCompare = userStartsWith.size();
-                if( memcmp( txUsername.data(), userStartsWith.data(), toCompare ) == 0 )
-                    retStrings.insert( txUsername );
-                if( retStrings.size() >= count )
-                   break;
-            }
-        }
-    }
+    pblocktree->GetNamesFromPartial(userStartsWith, retStrings, count);
 
     Array ret;
     BOOST_FOREACH(string username, retStrings) {

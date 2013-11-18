@@ -189,6 +189,51 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
     return true;
 }
 
+bool CBlockTreeDB::WritePartialNameTree(const std::string &partialName, const std::string &nextChars) {
+    return Write(std::make_pair('n', partialName), nextChars);
+}
+
+
+bool CBlockTreeDB::ReadPartialNameTree(const std::string &partialName, std::string &nextChars) {
+    return Read(std::make_pair('n', partialName), nextChars);
+}
+
+bool CBlockTreeDB::AddCharToPartialNameTree(const std::string &partialName, char ch) {
+    std::string nextChars;
+    if (ReadPartialNameTree(partialName, nextChars)) {
+        if (nextChars.find(ch) == string::npos) {
+            nextChars.push_back(ch);
+            return WritePartialNameTree(partialName, nextChars);
+        }
+    } else {
+        return WritePartialNameTree(partialName, std::string(1,ch));
+    }
+    return true;
+}
+
+bool CBlockTreeDB::AddNameToPartialNameTree(const std::string &name) {
+    std::string partial;
+    for (size_t i=0; i<name.size()-1; i++) {
+        partial.push_back(name.at(i));
+        if (!AddCharToPartialNameTree( partial, name.at(i+1) ))
+            return false;
+    }
+    return AddCharToPartialNameTree( name, '.' ); // mark end of name
+}
+
+void CBlockTreeDB::GetNamesFromPartial(const std::string &partial, std::set< std::string > &names, size_t count) {
+    std::string nextChars;
+    if (ReadPartialNameTree(partial, nextChars)) {
+        for(size_t i=0; i<nextChars.size() && names.size()<count; i++) {
+            if (nextChars.at(i) == '.') {
+                names.insert(partial);
+            } else {
+                GetNamesFromPartial(partial+nextChars.substr(i,1), names, count);
+            }
+        }
+    }
+}
+
 bool CBlockTreeDB::LoadBlockIndexGuts()
 {
     leveldb::Iterator *pcursor = NewIterator();

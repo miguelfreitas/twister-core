@@ -1175,6 +1175,8 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     CDiskTxPos pos(pindex->GetBlockPos(), GetSizeOfCompactSize(block.vtx.size()));
     std::vector<std::pair<uint256, CDiskTxPos> > vPos;
     vPos.reserve(block.vtx.size()-1);
+    std::vector<std::string> vUsernames;
+    vUsernames.reserve(block.vtx.size()-1);
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
         const CTransaction &tx = block.vtx[i];
@@ -1184,6 +1186,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
             blockundo.vtxundo.push_back(txundo);
             uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
             vPos.push_back(std::make_pair(txid, pos));
+            vUsernames.push_back(tx.GetUsername());
 
             CDiskTxPos oldPos;
             if( pblocktree->ReadTxIndex(txid, oldPos) && pos != oldPos ) {
@@ -1227,6 +1230,11 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     assert(fTxIndex);
     if (!pblocktree->WriteTxIndex(vPos))
         return state.Abort(_("Failed to write transaction index"));
+
+    for (size_t i=0; i<vUsernames.size(); i++) {
+        if (!pblocktree->AddNameToPartialNameTree(vUsernames.at(i)))
+            return state.Abort(_("Failed to write partial name index"));
+    }
 
     // add this block to the view's block chain
     assert(view.SetBestBlock(pindex));

@@ -51,6 +51,11 @@ public:
     bool WriteTxIndex(const std::vector<std::pair<uint256, CDiskTxPos> > &list);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
+    bool WritePartialNameTree(const std::string &partialName, const std::string &nextChars);
+    bool ReadPartialNameTree(const std::string &partialName, std::string &nextChars);
+    bool AddCharToPartialNameTree(const std::string &partialName, char ch);
+    bool AddNameToPartialNameTree(const std::string &name);
+    void GetNamesFromPartial(const std::string &partial, std::set< std::string > &names, size_t count);
     bool LoadBlockIndexGuts();
 };
 
