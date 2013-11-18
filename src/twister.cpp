@@ -72,9 +72,11 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
 torrent_handle startTorrentUser(std::string const &username)
 {
     bool userInTxDb = usernameExists(username); // keep this outside cs_twister to avoid deadlock
+    if( !userInTxDb )
+        return torrent_handle();
 
     LOCK(cs_twister);
-    if( !m_userTorrent.count(username) && userInTxDb ) {
+    if( !m_userTorrent.count(username) ) {
         sha1_hash ih = dhtTargetHash(username, "tracker", "m");
 
         printf("adding torrent for [%s,tracker]\n", username.c_str());
@@ -92,26 +94,36 @@ torrent_handle startTorrentUser(std::string const &username)
 
         m_userTorrent[username] = ses->add_torrent(tparams);
         m_userTorrent[username].force_dht_announce();
-        torrent_status status = m_userTorrent[username].status();
     }
     return m_userTorrent[username];
 }
 
+torrent_handle getTorrentUser(std::string const &username)
+{
+    LOCK(cs_twister);
+    if( m_userTorrent.count(username) )
+        return m_userTorrent[username];
+    else
+        return torrent_handle();
+}
+
 int torrentLastHave(std::string const &username)
 {
-    if( !m_userTorrent.count(username) )
+    torrent_handle h = getTorrentUser(username);
+    if( !h.is_valid() )
         return -1;
 
-    torrent_status status = m_userTorrent[username].status();
+    torrent_status status = h.status();
     return status.last_have;
 }
 
 int torrentNumPieces(std::string const &username)
 {
-    if( !m_userTorrent.count(username) )
+    torrent_handle h = getTorrentUser(username);
+    if( !h.is_valid() )
         return -1;
 
-    torrent_status status = m_userTorrent[username].status();
+    torrent_status status = h.status();
     return status.num_pieces;
 }
 
@@ -1172,14 +1184,12 @@ int findLastPublicPostLocalUser( std::string strUsername )
 {
     int lastk = -1;
 
-    LOCK(cs_twister);
-    if( strUsername.size() && m_userTorrent.count(strUsername) &&
-        m_userTorrent[strUsername].is_valid() ){
-
+    torrent_handle h = getTorrentUser(strUsername);
+    if( h.is_valid() ){
         std::vector<std::string> pieces;
         int max_id = std::numeric_limits<int>::max();
         int since_id = -1;
-        m_userTorrent[strUsername].get_pieces(pieces, 1, max_id, since_id, USERPOST_FLAG_RT);
+        h.get_pieces(pieces, 1, max_id, since_id, USERPOST_FLAG_RT);
 
         if( pieces.size() ) {
             string const& piece = pieces.front();
@@ -1414,12 +1424,10 @@ Value getposts(const Array& params, bool fHelp)
             if( i->name_ == "since_id" ) since_id = i->value_.get_int();
         }
 
-        LOCK(cs_twister);
-        if( strUsername.size() && m_userTorrent.count(strUsername) &&
-            m_userTorrent[strUsername].is_valid() ){
-
+        torrent_handle h = getTorrentUser(strUsername);
+        if( h.is_valid() ){
             std::vector<std::string> pieces;
-            m_userTorrent[strUsername].get_pieces(pieces, count, max_id, since_id, flags);
+            h.get_pieces(pieces, count, max_id, since_id, flags);
 
             BOOST_FOREACH(string const& piece, pieces) {
                 lazy_entry v;
@@ -1566,20 +1574,14 @@ Value follow(const Array& params, bool fHelp)
     string localUser = params[0].get_str();
     Array users      = params[1].get_array();
 
-    LOCK(cs_twister);
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
+        torrent_handle h = startTorrentUser(username);
 
-        if( !m_users[localUser].m_following.count(username) ) {
-            if( m_userTorrent.count(username) ) {
-                // perhaps torrent is already initialized due to neighborhood
+        LOCK(cs_twister);
+        if( h.is_valid() && m_users.count(localUser) &&
+            !m_users[localUser].m_following.count(username) ) {
                 m_users[localUser].m_following.insert(username);
-            } else {
-                torrent_handle h = startTorrentUser(username);
-                if( h.is_valid() ) {
-                    m_users[localUser].m_following.insert(username);
-                }
-            }
         }
     }
 
@@ -1600,7 +1602,8 @@ Value unfollow(const Array& params, bool fHelp)
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
 
-        if( m_users[localUser].m_following.count(username) ) {
+        if( m_users.count(localUser) &&
+            m_users[localUser].m_following.count(username) ) {
             m_users[localUser].m_following.erase(username);
         }
     }
@@ -1619,10 +1622,11 @@ Value getfollowing(const Array& params, bool fHelp)
 
     Array ret;
     LOCK(cs_twister);
-    BOOST_FOREACH(string username, m_users[localUser].m_following) {
-        ret.push_back(username);
+    if( m_users.count(localUser) ) {
+        BOOST_FOREACH(string username, m_users[localUser].m_following) {
+            ret.push_back(username);
+        }
     }
-
     return ret;
 }
 
@@ -1635,9 +1639,15 @@ Value getlasthave(const Array& params, bool fHelp)
 
     string localUser = params[0].get_str();
 
+    std::set<std::string> following;
+    {
+        LOCK(cs_twister);
+        if( m_users.count(localUser) )
+            following = m_users[localUser].m_following;
+    }
+
     Object ret;
-    LOCK(cs_twister);
-    BOOST_FOREACH(string username, m_users[localUser].m_following) {
+    BOOST_FOREACH(string username, following) {
         ret.push_back(Pair(username,torrentLastHave(username)));
     }
 
@@ -1653,9 +1663,15 @@ Value getnumpieces(const Array& params, bool fHelp)
 
     string localUser = params[0].get_str();
 
+    std::set<std::string> following;
+    {
+        LOCK(cs_twister);
+        if( m_users.count(localUser) )
+            following = m_users[localUser].m_following;
+    }
+
     Object ret;
-    LOCK(cs_twister);
-    BOOST_FOREACH(string username, m_users[localUser].m_following) {
+    BOOST_FOREACH(string username, following) {
         ret.push_back(Pair(username,torrentNumPieces(username)));
     }
 
@@ -1722,15 +1738,9 @@ Value rescandirectmsgs(const Array& params, bool fHelp)
     }
 
     BOOST_FOREACH(string username, following) {
-        torrent_handle torrent;
-
-        {
-            LOCK(cs_twister);
-            if( username.size() && m_userTorrent.count(username) )
-                torrent = m_userTorrent[username];
-        }
-        if( torrent.is_valid() ){
-            torrent.recheck_pieces(USERPOST_FLAG_DM);
+        torrent_handle h = getTorrentUser(username);
+        if( h.is_valid() ){
+            h.recheck_pieces(USERPOST_FLAG_DM);
         }
     }
 
