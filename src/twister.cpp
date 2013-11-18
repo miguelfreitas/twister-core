@@ -1542,7 +1542,6 @@ Value setspammsg(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     string strMsg      = params[1].get_str();
 
-    LOCK(cs_main);
     strSpamUser    = strUsername;
     strSpamMessage = strMsg;
 
@@ -1557,7 +1556,6 @@ Value getspammsg(const Array& params, bool fHelp)
             "get spam message attached to generated blocks");
 
     Array ret;
-    LOCK(cs_main);
     ret.push_back(strSpamUser);
     ret.push_back(strSpamMessage);
 
