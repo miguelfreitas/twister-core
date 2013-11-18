@@ -783,7 +783,7 @@ bool processReceivedDM(lazy_entry const* post)
                             stoDM.m_text    == (*it).m_text ) {
                             break;
                         }
-                        if( stoDM.m_utcTime < (*it).m_utcTime ) {
+                        if( stoDM.m_utcTime < (*it).m_utcTime && !(*it).m_fromMe) {
                             dmsFromToUser.insert(it, stoDM);
                             break;
                         }
