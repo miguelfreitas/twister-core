@@ -59,3 +59,5 @@ this resource to report the number of torrent peers)
 
 - Implement -secdatadir= parameter to store sensitive data (wallet, dm) in a separated dir.
 
+- Improve dhtget for the multi case so multiple responses may be joined/concatenated.
+
