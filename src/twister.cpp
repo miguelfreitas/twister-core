@@ -1115,6 +1115,8 @@ Value dhtput(const Array& params, bool fHelp)
     string strResource = params[1].get_str();
     string strMulti    = params[2].get_str();
     entry value = jsonToEntry(params[3]);
+    // value is already "p":"v": contents, so post may be unhexcaped directly
+    unHexcapePost(value);
     string strSigUser  = params[4].get_str();
 
     // Test for private key here to avoid going into dht
@@ -1173,7 +1175,12 @@ Value dhtget(const Array& params, bool fHelp)
 
         dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
         if( rd ) {
-            ret = entryToJson(rd->m_lst);
+            entry::list_type dhtLst = rd->m_lst;
+            entry::list_type::iterator it;
+            for( it = dhtLst.begin(); it != dhtLst.end(); ++it ) {
+                hexcapeDht( *it );
+            }
+            ret = entryToJson(dhtLst);
         } else {
             // cast failed => dht_reply_data_done_alert => no data
         }
@@ -1293,6 +1300,7 @@ Value newpostmsg(const Array& params, bool fHelp)
         }
     }
 
+    hexcapePost(v);
     return entryToJson(v);
 }
 
@@ -1341,6 +1349,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
     torrent_handle h = startTorrentUser(strFrom);
     h.add_piece(k,buf.data(),buf.size());
 
+    hexcapePost(v);
     return entryToJson(v);
 }
 
@@ -1357,6 +1366,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     int k              = params[1].get_int();
     string strK        = boost::lexical_cast<std::string>(k);
     entry  vrt         = jsonToEntry(params[2].get_obj());
+    unHexcapePost(vrt);
     entry const *rt    = vrt.find_key("userpost");
     entry const *sig_rt= vrt.find_key("sig_userpost");
 
@@ -1402,6 +1412,7 @@ Value newrtmsg(const Array& params, bool fHelp)
                          v, strUsername, GetAdjustedTime(), 0);
     }
 
+    hexcapePost(v);
     return entryToJson(v);
 }
 
@@ -1446,6 +1457,7 @@ Value getposts(const Array& params, bool fHelp)
 
                     entry vEntry;
                     vEntry = v;
+                    hexcapePost(vEntry);
                     postsByTime.insert( pair<int64,entry>(time, vEntry) );
                 }
             }
@@ -1477,7 +1489,7 @@ Value getposts(const Array& params, bool fHelp)
 
             unsigned char vchSig[65];
             RAND_bytes(vchSig,sizeof(vchSig));
-            v["sig_userpost"] = std::string((const char *)vchSig, sizeof(vchSig));
+            v["sig_userpost"] = HexStr( string((const char *)vchSig, sizeof(vchSig)) );
             ret.insert(ret.begin(),entryToJson(v));
 
             m_receivedSpamMsgStr = "";

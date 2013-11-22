@@ -38,4 +38,10 @@ libtorrent::entry jsonToEntry(const json_spirit::Value &v);
 int saveUserData(std::string const& filename, std::map<std::string,UserData> const &users);
 int loadUserData(std::string const& filename, std::map<std::string,UserData> &users);
 
+void hexcapePost(libtorrent::entry &e);
+void unHexcapePost(libtorrent::entry &e);
+
+void hexcapeDht(libtorrent::entry &e);
+void unHexcapeDht(libtorrent::entry &e);
+
 #endif // TWISTER_UTILS_H

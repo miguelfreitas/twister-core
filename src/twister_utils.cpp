@@ -1,5 +1,7 @@
 #include "twister_utils.h"
 
+#include "util.h"
+
 #include <libtorrent/session.hpp>
 #include <libtorrent/bencode.hpp>
 
@@ -227,6 +229,104 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
 data_error:
     printf("loadUserData: unexpected bencode type - user_data corrupt!\n");
     return -2;
+}
+
+
+void findAndHexcape(libtorrent::entry &e, string const& key)
+{
+    if( e.type() == libtorrent::entry::dictionary_t &&
+        e.find_key(key) && e[key].type() == libtorrent::entry::string_t ) {
+        e[key] = HexStr(e[key].string());
+    }
+}
+
+void findAndUnHexcape(libtorrent::entry &e, string const& key)
+{
+    if( e.type() == libtorrent::entry::dictionary_t &&
+        e.find_key(key) && e[key].type() == libtorrent::entry::string_t ) {
+        vector<unsigned char> vch = ParseHex(e[key].string());
+        e[key] = string((const char *)vch.data(), vch.size());
+    }
+}
+
+void hexcapePost(libtorrent::entry &e)
+{
+    if( e.type() == libtorrent::entry::dictionary_t ) {
+        findAndHexcape(e,"sig_userpost");
+        if( e.find_key("userpost") ) {
+            entry &userpost = e["userpost"];
+            if( userpost.type() == libtorrent::entry::dictionary_t ) {
+                findAndHexcape(userpost,"sig_rt");
+                if( userpost.find_key("dm") ) {
+                    entry &dm = userpost["dm"];
+                    if( dm.type() == libtorrent::entry::dictionary_t ) {
+                        findAndHexcape(dm,"body");
+                        findAndHexcape(dm,"key");
+                        findAndHexcape(dm,"mac");
+                    }
+                }
+            }
+        }
+    }
+}
+
+void unHexcapePost(libtorrent::entry &e)
+{
+    if( e.type() == libtorrent::entry::dictionary_t ) {
+        findAndUnHexcape(e,"sig_userpost");
+        if( e.find_key("userpost") ) {
+            entry &userpost = e["userpost"];
+            if( userpost.type() == libtorrent::entry::dictionary_t ) {
+                findAndUnHexcape(userpost,"sig_rt");
+                if( userpost.find_key("dm") ) {
+                    entry &dm = userpost["dm"];
+                    if( dm.type() == libtorrent::entry::dictionary_t ) {
+                        findAndUnHexcape(dm,"body");
+                        findAndUnHexcape(dm,"key");
+                        findAndUnHexcape(dm,"mac");
+                    }
+                }
+            }
+        }
+    }
+}
+
+void hexcapeDht(libtorrent::entry &e)
+{
+    if( e.type() == libtorrent::entry::dictionary_t ) {
+        findAndHexcape(e,"sig_p");
+        if( e.find_key("p") ) {
+            entry &p = e["p"];
+            if( p.type() == libtorrent::entry::dictionary_t ) {
+                if( p.find_key("v") ) {
+                    entry &v = p["v"];
+                    if( v.type() == libtorrent::entry::dictionary_t ) {
+                        hexcapePost(v);
+                        // any other possible content to hexcape?
+                    }
+                }
+            }
+        }
+    }
+}
+
+void unHexcapeDht(libtorrent::entry &e)
+{
+    if( e.type() == libtorrent::entry::dictionary_t ) {
+        findAndUnHexcape(e,"sig_p");
+        if( e.find_key("p") ) {
+            entry &p = e["p"];
+            if( p.type() == libtorrent::entry::dictionary_t ) {
+                if( p.find_key("v") ) {
+                    entry &v = p["v"];
+                    if( v.type() == libtorrent::entry::dictionary_t ) {
+                        unHexcapePost(v);
+                        // any other possible content to unhexcape?
+                    }
+                }
+            }
+        }
+    }
 }
 
 
