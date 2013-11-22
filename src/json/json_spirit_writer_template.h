@@ -75,6 +75,7 @@ namespace json_spirit
 
             if( add_esc_char( c, result ) ) continue;
 
+            /*
             const wint_t unsigned_c( ( c >= 0 ) ? c : 256 + c );
 
             if( iswprint( unsigned_c ) )
@@ -84,6 +85,14 @@ namespace json_spirit
             else
             {
                 result += non_printable_to_string< String_type >( unsigned_c );
+            }
+            */
+            // [MF] twister uses utf8 strings (and not any sort of wide char).
+            // only control characters need to be escaped, per JSON RFC spec.
+            if( c >=0 && c <= 0x1f ) {
+                result += non_printable_to_string< String_type >( c );
+            } else {
+                result += c;
             }
         }
 

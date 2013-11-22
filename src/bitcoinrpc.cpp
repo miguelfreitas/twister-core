@@ -993,9 +993,9 @@ void ServiceConnection(AcceptedConnection *conn)
             std::vector<char> file_data;
             if( load_file( fname.c_str(), file_data) == 0 ) {
                 std::string str(file_data.data(), file_data.size());
-                const char *contentType = "text/html";
+                const char *contentType = "text/html; charset=utf-8";
                 if( strURI.find(".js") != std::string::npos )
-                    contentType = "text/javascript";
+                    contentType = "text/javascript; charset=utf-8";
                 if( strURI.find(".css") != std::string::npos )
                     contentType = "text/css";
                 if( strURI.find(".png") != std::string::npos )
