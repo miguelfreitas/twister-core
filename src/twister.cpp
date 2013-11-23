@@ -1595,10 +1595,9 @@ Value follow(const Array& params, bool fHelp)
         string username = users[u].get_str();
         torrent_handle h = startTorrentUser(username);
 
-        LOCK(cs_twister);
-        if( h.is_valid() && m_users.count(localUser) &&
-            !m_users[localUser].m_following.count(username) ) {
-                m_users[localUser].m_following.insert(username);
+        if( h.is_valid() ) {
+            LOCK(cs_twister);
+            m_users[localUser].m_following.insert(username);
         }
     }
 
