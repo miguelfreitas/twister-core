@@ -61,3 +61,7 @@ this resource to report the number of torrent peers)
 
 - Improve dhtget for the multi case so multiple responses may be joined/concatenated.
 
+- Check pieces before sending to other peers in swarm. The issue here is that whenever
+acceptSignedPost is changed to become stricter the old posts (which have been previously
+accepted into torrents) may fail to pass in the new test. This causes peers to becomed
+massively banned by other peers because they try to send invalid pieces.
