@@ -14,6 +14,7 @@
 #include "chainparams.h"
 
 #include "twister.h"
+#include "utf8core.h"
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
@@ -428,7 +429,10 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, int maxHe
         string spamMsg = tx.message.ExtractPushDataString(0);
         if (!spamMsg.size())
             return state.DoS(100, error("CheckTransaction() : invalid or empty spam message"));
-        if (spamMsg.size() > MAX_SPAM_MSG_SIZE)
+        int spamMsgUtf8Size = utf8::num_characters(spamMsg.begin(), spamMsg.end());
+        if (spamMsgUtf8Size < 0)
+            return state.DoS(100, error("CheckTransaction() : spam message invalid utf8"));
+        if (spamMsgUtf8Size > MAX_SPAM_MSG_SIZE)
             return state.DoS(100, error("CheckTransaction() : spam message too big"));
 
         string spamUser = tx.userName.ExtractPushDataString(0);

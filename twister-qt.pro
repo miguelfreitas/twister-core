@@ -198,6 +198,7 @@ HEADERS +=  \
     src/threadsafety.h \
     src/limitedmap.h \
     src/scrypt.h \
+    src/utf8core.h \
     src/twister.h \
     src/twister_utils.h
 

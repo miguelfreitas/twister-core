@@ -6,6 +6,7 @@
 #include "init.h"
 #include "bitcoinrpc.h"
 #include "txdb.h"
+#include "utf8core.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -827,6 +828,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
             } else {
                 std::string n = post->dict_find_string_value("n");
                 std::string msg = post->dict_find_string_value("msg");
+                int msgUtf8Chars = utf8::num_characters(msg.begin(), msg.end());
                 int k = post->dict_find_int_value("k",-1);
                 int height = post->dict_find_int_value("height",-1);
 
@@ -842,8 +844,10 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 } else if( height < 0 || (height > getBestHeight() && getBestHeight() > 0) ) {
                     sprintf(errbuf,"post from future not accepted (height: %d > %d)",
                             height, getBestHeight());
-                } else if( msg.size() && msg.size() > 140 ) {
-                    sprintf(errbuf,"msg too big (%zd > 140)", msg.size());
+                } else if( msgUtf8Chars < 0 ) {
+                    sprintf(errbuf,"invalid utf8 string");
+                } else if( msgUtf8Chars > 140 ) {
+                    sprintf(errbuf,"msg too big (%d > 140)", msgUtf8Chars);
                 } else {
                     std::pair<char const*, int> postbuf = post->data_section();
                     ret = verifySignature(
