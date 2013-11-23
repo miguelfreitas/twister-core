@@ -7136,7 +7136,8 @@ namespace libtorrent
 		TORRENT_ASSERT(m_ses.is_network_thread());
 
 		if (m_allow_peers == b
-			&& m_graceful_pause_mode == graceful) return;
+            && (m_graceful_pause_mode == graceful
+                || m_ses.is_paused()) ) return;
 
 		m_allow_peers = b;
 		if (!m_ses.is_paused())
