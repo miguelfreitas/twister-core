@@ -258,6 +258,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getnumpieces",           &getnumpieces,           false,     true },
     { "listusernamespartial",   &listusernamespartial,   false,     true },
     { "rescandirectmsgs",       &rescandirectmsgs,       false,     true },
+    { "recheckusertorrent",     &recheckusertorrent,     false,     true },
 };
 
 CRPCTable::CRPCTable()

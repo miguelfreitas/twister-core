@@ -1766,3 +1766,23 @@ Value rescandirectmsgs(const Array& params, bool fHelp)
 
     return Value();
 }
+
+Value recheckusertorrent(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "recheckusertorrent <username>\n"
+            "recheck all posts in a given torrent. this may be useful if\n"
+            "post validation rules became stricter");
+
+    string localUser = params[0].get_str();
+
+    torrent_handle h = getTorrentUser(localUser);
+    if( h.is_valid() ){
+        h.force_recheck();
+    }
+
+    return Value();
+}
+
+
