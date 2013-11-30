@@ -70,7 +70,7 @@ int64 nHPSTimerStart = 0;
 int64 nTransactionFee = 0;
 
 string strSpamMessage = "Promoted posts are needed to run the network infrastructure. If you want to help, start generating blocks and advertise. [en]";
-string strSpamUser = "nobody"; // [MF] FIXME: authenticy check needed
+string strSpamUser = "nobody";
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3581,14 +3581,15 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
     std::string strUsername = strSpamUser;
 
     CKeyID keyID;
-    if( strSpamUser != "nobody" && !pwalletMain->GetKeyIdFromUsername(strSpamUser, keyID) ) {
-      if( pwalletMain->vchDefaultKey.IsValid() ) {
-        keyID = pwalletMain->vchDefaultKey.GetID();
-        strUsername = pwalletMain->mapKeyMetadata[keyID].username;
-      } else {
+    if( strSpamUser != "nobody" ) {
+      // check both wallet and block chain if they know about this user
+      uint256 txid = SerializeHash(make_pair(strSpamUser,-1));
+      if( !pblocktree->HaveTxIndex(txid) ||
+          !pwalletMain->GetKeyIdFromUsername(strSpamUser, keyID) ) {
         strUsername = "nobody";
       }
     }
+
     printf("CreateSpamMsgTx: keyId = %s\n", keyID.ToString().c_str() );
 
     // compute message hash and sign it
