@@ -1240,7 +1240,7 @@ namespace libtorrent
 		, active_dht_limit(88) // don't announce more than once every 40 seconds
 		, active_tracker_limit(1600) // don't announce to trackers more than once every 1.125 seconds
 		, active_lsd_limit(60) // don't announce to local network more than once every 5 seconds
-		, active_limit(15)
+        , active_limit(25)
 		, auto_manage_prefer_seeds(false)
 		, dont_count_slow_torrents(true)
 		, auto_manage_interval(30)
