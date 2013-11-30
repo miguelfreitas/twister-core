@@ -3952,8 +3952,15 @@ void static BitcoinMiner(CWallet *pwallet)
             do {
                 pblock->nNonce++;
                 hash = pblock->GetPoWHash();
+
+                if ((pblock->nNonce & 0xff) == 0) {
+                    boost::this_thread::interruption_point();
+                }
+                if (pindexPrev != pindexBest)
+                    break;
+
             } while( hash > hashTarget &&
-                     (pblock->nNonce & 0xffff) != 0 );
+                     (pblock->nNonce & 0xfff) != 0 );
             nHashesDone = 0xffff+1;
 
             // Check if something found
