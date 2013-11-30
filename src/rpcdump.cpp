@@ -87,20 +87,22 @@ Value importprivkey(const Array& params, bool fHelp)
 
     CBitcoinSecret vchSecret;
     bool fGood = vchSecret.SetString(strSecret);
-
     if (!fGood) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
-
-    if( !fAllowNewUser ) {
-        CTransaction txOut;
-        uint256 hashBlock;
-        if( !GetTransaction(strUsername, txOut, hashBlock) ) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "User must exist (or allow_new_user flag must be set)");
-        }
-    }
 
     CKey key = vchSecret.GetKey();
     CPubKey pubkey = key.GetPubKey();
     CKeyID vchAddress = pubkey.GetID();
+
+    CPubKey pubkeyInDb;
+    bool userExists = getUserPubKey(strUsername, pubkeyInDb);
+    if( !userExists && !fAllowNewUser ) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "User must exist (or allow_new_user flag must be set)");
+    }
+
+    if( userExists && pubkey != pubkeyInDb ) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key mismatch to existing public key (wrong username?)");
+    }
+
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
 
