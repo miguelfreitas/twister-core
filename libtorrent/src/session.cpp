@@ -1318,7 +1318,7 @@ namespace libtorrent
 		, download_rate_limit(0)
 		, local_upload_rate_limit(0)
 		, local_download_rate_limit(0)
-		, dht_upload_rate_limit(4000)
+		, dht_upload_rate_limit(8000)
 		, unchoke_slots_limit(8)
 		, half_open_limit(0)
 		, connections_limit(200)
