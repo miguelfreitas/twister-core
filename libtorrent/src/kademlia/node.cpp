@@ -574,6 +574,10 @@ bool node_impl::refresh_storage() {
 }
 
 bool node_impl::has_expired(dht_storage_item const& item) {
+    // dont expire if block chain is invalid
+    if( getBestHeight() < 1 )
+        return false;
+
     if (!verifySignature(item.p, item.sig_user, item.sig_p)) {
         // invalid signature counts as expired
         printf("node_impl::has_expired verifySignature failed\n");
