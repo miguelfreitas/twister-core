@@ -64,6 +64,7 @@ public:
 
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed.twister.net.co"));
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed2.twister.net.co"));
+        vSeeds.push_back(CDNSSeedData("twister.net.co", "seed3.twister.net.co"));
 
         base58Prefixes[PUBKEY_ADDRESS] = 0;
         base58Prefixes[SCRIPT_ADDRESS] = 5;
