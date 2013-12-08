@@ -60,7 +60,7 @@ static const int fHaveUPnP = true;
 static const int fHaveUPnP = false;
 #endif
 /** The maximum size for spam messages */
-static const unsigned int MAX_SPAM_MSG_SIZE = 140;
+static const int MAX_SPAM_MSG_SIZE = 140;
 /** The maximum size for username */
 static const unsigned int MAX_USERNAME_SIZE = 16;
 

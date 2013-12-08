@@ -243,7 +243,7 @@ Value dumppubkey(const Array& params, bool fHelp)
     }
 
     string strPubkey = string( reinterpret_cast<const char *>(pubkey.begin()), pubkey.size());
-    return strPubkey;
+    return HexStr(strPubkey);
 }
 
 
