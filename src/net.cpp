@@ -1102,7 +1102,7 @@ void ThreadMapPort()
             }
         }
 
-        string strDesc = "Bitcoin " + FormatFullVersion();
+        string strDesc = "twister " + FormatFullVersion();
 
         try {
             loop {
