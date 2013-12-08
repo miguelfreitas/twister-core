@@ -1871,6 +1871,18 @@ namespace libtorrent
 		m_have_piece = bits;
 		m_num_pieces = num_pieces;
 
+		//[MF] this is not original code.
+		// inserted here trying to fix torrents that never start requesting
+		for (int i = 0; i < int(m_have_piece.size()); ++i) {
+			if (m_have_piece[i]) {
+				// if the peer has a piece and we don't, the peer is interesting
+				if (!t->have_piece(i)
+				    && t->picker().piece_priority(i) != 0) {
+					interesting = true;
+					break;
+				}
+			}
+		}
 		if (interesting) t->get_policy().peer_is_interesting(*this);
 		else if (upload_only()) disconnect(errors::upload_upload_connection);
 	}
