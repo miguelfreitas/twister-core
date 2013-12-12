@@ -4571,6 +4571,11 @@ namespace libtorrent
 		
         if (ret <= 0)
 		{
+			if (t->has_picker() && t->have_piece(j.piece) ) {
+				printf("on_disk_read_complete: read error (database corrupt?) - setting we_dont_have(%d)\n", j.piece);
+				t->we_dont_have(j.piece);
+			}
+
 			if (ret == -3)
 			{
 #if defined TORRENT_VERBOSE_LOGGING

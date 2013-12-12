@@ -944,7 +944,7 @@ namespace libtorrent
 			pieces->push_back( std::string(j.buffer, ret));
 		} else {
 			printf("piece read error (database corrupt?) - setting we_dont_have(%d)\n", j.piece);
-			m_picker->we_dont_have(j.piece);
+			we_dont_have(j.piece);
 		}
 		(*reqs)--;
 
@@ -3112,6 +3112,16 @@ namespace libtorrent
 
 		m_picker->we_have(index, post_flags);
 	}
+
+	void torrent::we_dont_have(int index)
+	{
+		TORRENT_ASSERT(m_ses.is_network_thread());
+		// update m_file_progress
+		TORRENT_ASSERT(m_picker);
+
+		m_picker->we_dont_have(index);
+	}
+
 
 	void torrent::piece_passed(int index, boost::uint32_t post_flags)
 	{

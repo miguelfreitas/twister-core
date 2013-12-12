@@ -529,6 +529,8 @@ namespace libtorrent
 		// only once per piece
 		void we_have(int index, boost::uint32_t post_flags);
 
+		void we_dont_have(int index);
+
 		int num_have() const
 		{
 			return has_picker()
