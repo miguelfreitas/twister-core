@@ -942,6 +942,9 @@ namespace libtorrent
 
 		if (ret > 0) {
 			pieces->push_back( std::string(j.buffer, ret));
+		} else {
+			printf("piece read error (database corrupt?) - setting we_dont_have(%d)\n", j.piece);
+			m_picker->we_dont_have(j.piece);
 		}
 		(*reqs)--;
 
