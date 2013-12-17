@@ -300,7 +300,7 @@ void ThreadWaitExtIP()
 bool isBlockChainUptodate() {
     if( !pindexBest )
         return false;
-    return (pindexBest->GetBlockTime() > GetTime() - 1 * 60 * 60);
+    return (pindexBest->GetBlockTime() > GetTime() - 2 * 60 * 60);
 }
 
 bool yes(libtorrent::torrent_status const&)
