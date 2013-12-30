@@ -549,8 +549,13 @@ void ThreadSessionAlerts()
                                 } else {
                                         // now we do our own search to make sure we are really close to this target
                                     sha1_hash ih = dhtTargetHash(n->string(), r->string(), t->string());
-
-                                    if( !neighborCheck.count(ih) ) {
+                                    
+                                    bool knownTorrent = false;
+                                    {
+                                        LOCK(cs_twister);
+                                        knownTorrent = m_userTorrent.count(n->string());
+                                    }
+                                    if( !neighborCheck.count(ih) && !knownTorrent ) {
                                         printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
                                                n->string().c_str(),
                                                r->string().c_str(),
@@ -589,9 +594,10 @@ void ThreadSessionAlerts()
                     if( dd->m_is_neighbor && m_specialResources.count(dd->m_resource) &&
                         neighborCheck.count(ih) ) {
                         // Do something!
-                        printf("Neighbor of special resource - do something!\n");
                         if( dd->m_resource == "tracker" ) {
                             startTorrentUser(dd->m_username);
+                        } else {
+                            printf("Neighbor of special resource - do something!\n");
                         }
                     }
                     continue;
@@ -622,7 +628,7 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     printf("startSessionTorrent (waiting for external IP)\n");
 
     m_specialResources["tracker"] = true;
-    m_specialResources["swarm"] = true;
+    //m_specialResources["swarm"] = true;
 
     // these are the resources which shouldn't expire
     m_noExpireResources["avatar"] = SimpleNoExpire;
