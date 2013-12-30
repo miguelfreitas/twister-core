@@ -1,5 +1,3 @@
-- Count UTF8 chars in acceptSignedPost to proper limit the 140 characters.
-
 - Encrypt user_data (which contains all DMs)
 
 - Test wallet encrypt to see if it still works from original bitcoin implementation and what
@@ -25,27 +23,15 @@ needed to validate it by a lightweight client. That includes: block hash, block 
 merkle tree inside that block. This resource propagation cannot be sent right after user
 registration for obvious reasons (no block yet, other nodes wouldn't accept the signed dht put).
 
-- Discuss and implement the acceptable level of spam per day (priorizing localization).
-DONE (except for the discussion part...)
-
 - Implement the mention forwarding mechanism discussed in the paper so user don't need to do polling
 and can also be sure to receive all mentions.
 
 - Implement hashtag "storage-less" torrents for post distribution.
 
-- Define expiration policies to dht stored values. Currently all keys are refreshed every hour which,
-according to previous bittorrent research, would be enough to keep data available forever (with high
-probability). twister also persists keys to disk. As userbase increases, old post storage and
-unreliable multivalued keys should better expire. Since those posts include the height and time, a
-policy may me defined.
-=> Implemented shouldDhtResourceExpire() which is tested on initialization but not really used yet.
-
 - Check stored dht values if their signature is still valid before trying to refresh another node.
 Key pair might have changed and currently we receive a lot of errors from other nodes.
 
 - save_file() must truncate file.
-
-- Save lastk field to post so torrent-less navigation through posts is possible. => DONE
 
 - Implement dht-to-torrent gateway, the "swarm" resource (so poster may not need to be member
 of his own torrent)

@@ -422,6 +422,7 @@ bool DoTxProofOfWork(CTransaction& tx)
 }
 
 // [MF] check tx consistency and pow, not duplicated id.
+// Careful here: stricter checks may create hard-forks!
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, int maxHeight)
 {
     // Basic checks that don't depend on any context
