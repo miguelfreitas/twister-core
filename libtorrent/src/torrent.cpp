@@ -2154,7 +2154,7 @@ namespace libtorrent
 		if (m_trackers.empty())
 		{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
-			debug_log("*** announce_with_tracker: no trackers");
+			//debug_log("*** announce_with_tracker: no trackers");
 #endif
 			return;
 		}

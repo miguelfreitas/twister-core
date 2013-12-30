@@ -531,11 +531,12 @@ bool node_impl::refresh_storage() {
                 if( refresh_next_item ) {
                     refresh_next_item = false;
                     m_last_refreshed_item = i->first;
-
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
                     printf("node dht: refreshing storage: [%s,%s,%s]\n",
                            username.c_str(),
                            resource.c_str(),
                            target->dict_find_string_value("t").c_str());
+#endif
 
                     entry entryP;
                     entryP = p; // lazy to non-lazy
@@ -1213,13 +1214,13 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		std::pair<char const*, int> targetbuf = msg_keys[mk_target]->data_section();
 		sha1_hash target = hasher(targetbuf.first,targetbuf.second).final();
 
-//#ifdef TORRENT_DHT_VERBOSE_LOGGING
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
 		printf("PUT target={%s,%s,%s} from=%s:%d\n"
 			, msg_keys[mk_n]->string_value().c_str()
 			, msg_keys[mk_r]->string_value().c_str()
 			, msg_keys[mk_t]->string_value().c_str()
 			, m.addr.address().to_string().c_str(), m.addr.port());
-//#endif
+#endif
 
 		// verify the write-token. tokens are only valid to write to
 		// specific target hashes. it must match the one we got a "get" for
@@ -1391,13 +1392,13 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		bool justtoken = false;
 		if (msg_keys[mk_justtoken] && msg_keys[mk_justtoken]->int_value() != 0) justtoken = true;
 
-//#ifdef TORRENT_DHT_VERBOSE_LOGGING
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
 		printf("GET target={%s,%s,%s} from=%s:%d\n"
 			, msg_keys[mk_n]->string_value().c_str()
 			, msg_keys[mk_r]->string_value().c_str()
 			, msg_keys[mk_t]->string_value().c_str()
 			, m.addr.address().to_string().c_str(), m.addr.port());
-//#endif
+#endif
 		reply["token"] = generate_token(m.addr, target.to_string().c_str());
 
 		nodes_t n;
@@ -1410,7 +1411,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		if( msg_keys[mk_r]->string_value() == "tracker" ) {
 			lookup_peers(target, 20, reply, false, false);
 			entry::list_type& pe = reply["values"].list();
-			printf("tracker=> replying with %d peers\n", pe.size());
+			//printf("tracker=> replying with %d peers\n", pe.size());
 		} else {
 			dht_storage_table_t::iterator i = m_storage_table.find(target);
 			if (i != m_storage_table.end())

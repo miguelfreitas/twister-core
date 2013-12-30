@@ -33,7 +33,8 @@ twister::twister()
 #include "libtorrent/aux_/session_impl.hpp"
 
 #define DEBUG_ACCEPT_POST 1
-#define DEBUG_EXPIRE_DHT_ITEM 1
+//#define DEBUG_EXPIRE_DHT_ITEM 1
+//#define DEBUG_MAINTAIN_DHT_NODES 1
 
 using namespace libtorrent;
 static session *ses = NULL;
@@ -389,7 +390,9 @@ void ThreadMaintainDHTNodes()
                 BOOST_FOREACH(const CAddress &a, vAddr) {
                     std::string addr = a.ToStringIP();
                     int port = a.GetPort() + LIBTORRENT_PORT_OFFSET;
+#ifdef DEBUG_MAINTAIN_DHT_NODES
                     printf("Adding dht node (addrman) %s:%d\n", addr.c_str(), port);
+#endif
                     ses->add_dht_node(std::pair<std::string, int>(addr, port));
                     nodesAdded = true;
                 }
@@ -403,8 +406,10 @@ void ThreadMaintainDHTNodes()
                         int port = (!pnode->fInbound) ? pnode->addr.GetPort() : Params().GetDefaultPort();
                         port += LIBTORRENT_PORT_OFFSET;
 
+#ifdef DEBUG_MAINTAIN_DHT_NODES
                         printf("Adding dht node (%sbound) %s:%d\n", (!pnode->fInbound) ? "out" : "in",
                                addr.c_str(), port);
+#endif
                         ses->add_dht_node(std::pair<std::string, int>(addr, port));
                         nodesAdded = true;
                     }
@@ -441,9 +446,11 @@ void ThreadMaintainDHTNodes()
             for( size_t i = 0; i < ss.dht_routing_table.size(); i++ ) {
                 dht_routing_bucket &bucket = ss.dht_routing_table[i];
                 if( bucket.num_nodes ) {
+#ifdef DEBUG_MAINTAIN_DHT_NODES
                     printf("DHT bucket [%zd] random node = %s:%d\n", i,
                            bucket.random_node.address().to_string().c_str(),
                            bucket.random_node.port);
+#endif
                     char nodeStr[64];
                     sprintf(nodeStr,"%s:%d", bucket.random_node.address().to_string().c_str(),
                             bucket.random_node.port - LIBTORRENT_PORT_OFFSET);
@@ -507,8 +514,10 @@ void ThreadSessionAlerts()
                                         alert_manager *am = (*mi).second;
                                         am->post_alert(*rd);
                                     } else {
+/* FIXME: we could use multiple dht responses instead of ignoring here.
                                         printf("ThreadSessionAlerts: received dht [%s,%s,%s] but no alert_manager registered\n",
                                                n->string().c_str(), r->string().c_str(), t->string().c_str() );
+*/
                                     }
                                 }
                             }

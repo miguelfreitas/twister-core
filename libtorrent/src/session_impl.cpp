@@ -2954,8 +2954,10 @@ retry:
 #endif
 
 #if defined(TORRENT_LOGGING)
+/*
 		session_log(" CLOSING CONNECTION %s : %s"
 			, print_endpoint(p->remote()).c_str(), ec.message().c_str());
+*/
 #endif
 
 		TORRENT_ASSERT(p->is_disconnecting());
@@ -4224,7 +4226,7 @@ retry:
 				--hard_limit;
 				--type_limit;
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
-				t->log_to_all_peers("AUTO MANAGER STARTING TORRENT");
+				//t->log_to_all_peers("AUTO MANAGER STARTING TORRENT");
 #endif
 				t->set_allow_peers(true);
 			}
