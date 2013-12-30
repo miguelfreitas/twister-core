@@ -756,7 +756,10 @@ public:
 
     bool CheckIndex() const
     {
-        return CheckProofOfWork(CBlock(GetBlockHeader()).GetPoWHash(), nBits);
+        /** Scrypt is used for block proof-of-work, but for purposes of performance the index internally uses sha256.
+         *  This check was considered unneccessary given the other safeguards like the genesis and checkpoints. */
+        return true;
+        //return CheckProofOfWork(CBlock(GetBlockHeader()).GetPoWHash(), nBits);
     }
 
     enum { nMedianTimeSpan=11 };
