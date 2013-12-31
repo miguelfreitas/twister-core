@@ -16,6 +16,7 @@ libtorrent's.
 $ cd libtorrent
 $ ./bootstrap.sh
 $ ./configure --enable-logging --enable-debug --enable-dht
+$ make
 
 Note1: 64-bit systems may need "--with-boost-libdir=/usr/lib64"
 Note2: disable logging if you want, but at this point it might
