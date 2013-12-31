@@ -193,14 +193,14 @@ AC_ARG_ENABLE(
   [debug],
   [AS_HELP_STRING(
     [--enable-debug],
-    [enable debug build [default=no]])],
+    [enable debug build [default=yes]])],
   [
    ARG_ENABLE_DEBUG=$enableval
    ac_arg_enable_debug=$enableval
   ],
   [
-   ARG_ENABLE_DEBUG=no
-   ac_arg_enable_debug=no
+   ARG_ENABLE_DEBUG=yes
+   ac_arg_enable_debug=yes
   ]
 )
 
