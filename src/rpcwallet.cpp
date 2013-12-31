@@ -83,7 +83,9 @@ Value getinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("addrman_total", (int)addrman.size()));
         obj.push_back(Pair("addrman_get",   (int)addrman.GetAddr().size()));
     }
-    obj.push_back(Pair("dht_nodes",     getDhtNodes()));
+    boost::int64_t dht_global_nodes;
+    obj.push_back(Pair("dht_nodes",     getDhtNodes(&dht_global_nodes)));
+    obj.push_back(Pair("dht_global_nodes", dht_global_nodes));
     obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     {
         LOCK(cs_main);

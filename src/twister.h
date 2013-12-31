@@ -37,6 +37,6 @@ void receivedSpamMessage(std::string const &message, std::string const &user);
 int getBestHeight();
 bool shouldDhtResourceExpire(std::string resource, bool multi, int height);
 
-int getDhtNodes();
+int getDhtNodes(boost::int64_t *dht_global_nodes = NULL);
 
 #endif // TWISTER_H

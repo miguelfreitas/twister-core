@@ -350,11 +350,13 @@ void lockAndSaveUserData()
     }
 }
 
-int getDhtNodes()
+int getDhtNodes(boost::int64_t *dht_global_nodes)
 {
     if( !ses )
         return 0;
     session_status ss = ses->status();
+    if( dht_global_nodes )
+        *dht_global_nodes = ss.dht_global_nodes;
     return ss.dht_nodes;
 }
 
