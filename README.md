@@ -165,5 +165,6 @@ them:
 
     ./twisterd -rpcuser=user -rpcpassword=pwd
 
-Visit http://localhost:28332/index.html in your web browser and you should
-see a page asking you to choose between the Desktop and Mobile interfaces.
+Visit [http://localhost:28332/index.html](http://localhost:28332/index.html)
+in your web browser and you should see a page asking you to choose between the
+Desktop and Mobile interfaces.
