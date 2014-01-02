@@ -88,7 +88,7 @@ torrent_handle startTorrentUser(std::string const &username)
         boost::filesystem::path torrentPath = GetDataDir() / "swarm";
         tparams.save_path= torrentPath.string();
 
-        error_code ec;
+        libtorrent::error_code ec;
         create_directory(tparams.save_path, ec);
 
         std::string filename = combine_path(tparams.save_path, to_hex(ih.to_string()) + ".resume");
@@ -156,7 +156,7 @@ int loadGlobalData(std::string const& filename)
     std::vector<char> in;
     if (load_file(filename, in) == 0) {
         lazy_entry userDict;
-        error_code ec;
+        libtorrent::error_code ec;
         if (lazy_bdecode(&in[0], &in[0] + in.size(), userDict, ec) == 0) {
             if( userDict.type() != lazy_entry::dict_t ) goto data_error;
 
@@ -207,7 +207,7 @@ void ThreadWaitExtIP()
         MilliSleep(500);
     }
 
-    error_code ec;
+    libtorrent::error_code ec;
     int listen_port = GetListenPort() + LIBTORRENT_PORT_OFFSET;
     std::string bind_to_interface = "";
 
@@ -833,7 +833,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
 
     lazy_entry v;
     int pos;
-    error_code ec;
+    libtorrent::error_code ec;
     if (lazy_bdecode(data, data + data_size, v, ec, &pos) == 0) {
 
         if( v.type() == lazy_entry::dict_t ) {
@@ -1230,7 +1230,7 @@ int findLastPublicPostLocalUser( std::string strUsername )
             string const& piece = pieces.front();
             lazy_entry v;
             int pos;
-            error_code ec;
+            libtorrent::error_code ec;
             if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
                 lazy_entry const* post = v.dict_find_dict("userpost");
                 lastk = post->dict_find_int_value("k",-1);
@@ -1471,7 +1471,7 @@ Value getposts(const Array& params, bool fHelp)
             BOOST_FOREACH(string const& piece, pieces) {
                 lazy_entry v;
                 int pos;
-                error_code ec;
+                libtorrent::error_code ec;
                 if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
                     lazy_entry const* post = v.dict_find_dict("userpost");
                     int64 time = post->dict_find_int_value("time",-1);
