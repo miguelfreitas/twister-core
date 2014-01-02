@@ -22,6 +22,13 @@
 #include <miniupnpc/upnperrors.h>
 #endif
 
+// MSG_NOSIGNAL does not exists on OS X
+#if defined(__APPLE__) || defined(__MACH__)
+# ifndef MSG_NOSIGNAL
+#   define MSG_NOSIGNAL SO_NOSIGPIPE
+# endif
+#endif
+
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 

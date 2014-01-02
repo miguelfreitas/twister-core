@@ -68,7 +68,7 @@ int save_file(std::string const& filename, std::vector<char>& v)
 
 	// TODO: don't use internal file type here. use fopen()
 	file f;
-	error_code ec;
+	libtorrent::error_code ec;
 	if (!f.open(filename, file::write_only, ec)) return -1;
 	if (ec) return -1;
 	file::iovec_t b = {&v[0], v.size()};
@@ -180,7 +180,7 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
     std::vector<char> in;
     if (load_file(filename, in) == 0) {
         lazy_entry userDict;
-        error_code ec;
+        libtorrent::error_code ec;
         if (lazy_bdecode(&in[0], &in[0] + in.size(), userDict, ec) == 0) {
             if( userDict.type() != lazy_entry::dict_t ) goto data_error;
 
