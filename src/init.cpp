@@ -51,7 +51,7 @@ CClientUIInterface uiInterface;
 // anyway.
 #define MIN_CORE_FILEDESCRIPTORS 0
 #else
-#define MIN_CORE_FILEDESCRIPTORS 150
+#define MIN_CORE_FILEDESCRIPTORS 1000
 #endif
 
 // Used to pass flags to the Bind() function
