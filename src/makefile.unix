@@ -177,6 +177,7 @@ leveldb/libleveldb.a:
 #
 MAKEOVERRIDES =
 LIBS += $(CURDIR)/../libtorrent/src/.libs/libtorrent-rasterbar.a
+LIBS += -l rt
 DEFS += $(addprefix -I,$(CURDIR)/../libtorrent/include)
 DEFS += -DTORRENT_DEBUG
 DEFS += -DBOOST_ASIO_SEPARATE_COMPILATION
