@@ -8,17 +8,16 @@ This software is a proof-of-concept, a forced marriage between
 bitcoin and libtorrent codebases. So don't expect an easy ride.
 Building this thing is quite hacky (but hopefully not complicated).
 
-In order to build twister you need to configure both bitcoin's and
-libtorrent's.
-
-1) Start with libtorrent:
+1) Twister relies on a bundled custom version of libtorrent, so
+first you need to build that:
 
 $ cd libtorrent
 $ ./bootstrap.sh
 $ ./configure --enable-logging --enable-debug --enable-dht
 $ make
 
-Note1: 64-bit systems may need "--with-boost-libdir=/usr/lib64"
+Note1: 64-bit systems may need eg. "--with-boost-libdir=/usr/lib64"
+       or "--with-boost-libdir=/usr/lib/x86_64-linux-gnu/"
 Note2: disable logging if you want, but at this point it might
        help to diagnose problems in case anything goes wrong.
 

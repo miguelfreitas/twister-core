@@ -150,3 +150,21 @@ To obtain the full list of commands
     ./twisterd help
 
 
+Running the web interface
+-------------------------
+
+First you'll need to grab the latest version of the web UI code and put it
+in your twister data dir:
+
+    cd ~/.twister/
+    git clone https://github.com/miguelfreitas/twister-html.git ./html
+
+Next, run the twister daemon. The RPC username and password are currently
+hard coded as "user" and "pwd" in the web client so you'll need to specify
+them:
+
+    ./twisterd -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1
+
+Visit [http://localhost:28332/index.html](http://localhost:28332/index.html)
+in your web browser and you should see a page asking you to choose between the
+Desktop and Mobile interfaces.
