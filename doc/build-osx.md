@@ -78,7 +78,8 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
         ./bootstrap.sh
         ./configure --enable-logging --enable-debug --enable-dht
         make
-        make install
+        # note: install is optional, might conflict with existing libtorrent install
+        make install  
 
 4. Build twisterd. Note: it *will* emit a lot of warnings, but as long as you don't get 
 actual `error` messages, it should be fine:
@@ -132,7 +133,7 @@ directory. We have to first create the RPC configuration file, though.
 Run `./twisterd` to get the filename where it should be put, or just try these
 commands:
 
-    echo -e "rpcuser=twisterrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/.twister/twister.conf"
+    echo -e "rpcuser=user\nrcpassword=pwd" > "/Users/${USER}/.twister/twister.conf"
     chmod 600 "/Users/${USER}/.twister/twister.conf"
 
 When next you run it, it will start downloading the blockchain, but it won't
@@ -142,7 +143,7 @@ output anything while it's doing this. This process may take several hours. If y
 Other commands:
 
     ./twisterd --help  # for a list of command-line options.
-    ./twisterd -daemon # to start the daemon.
+    ./twisterd -daemon # to start it as a daemon.
     ./twisterd help    # When the daemon is running, to get a list of RPC commands
 
 In order to get the HTML interface, you'll have to download it and link it in .twister:
