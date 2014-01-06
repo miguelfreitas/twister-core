@@ -211,7 +211,7 @@ namespace libtorrent
 			typedef std::set<boost::intrusive_ptr<peer_connection> > connection_map;
 			typedef std::map<sha1_hash, boost::shared_ptr<torrent> > torrent_map;
 
-			session_impl(
+			session_impl(CLevelDB &swarmDb,
 				std::pair<int, int> listen_port_range
 				, fingerprint const& cl_fprint
 				, char const* listen_interface
@@ -656,6 +656,7 @@ namespace libtorrent
 			// since they will still have references to it
 			// when they are destructed.
 			file_pool m_files;
+			CLevelDB &m_swarmDb;
 
 			// this is where all active sockets are stored.
 			// the selector can sleep while there's no activity on

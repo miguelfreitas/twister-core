@@ -242,22 +242,20 @@ namespace libtorrent
 	}
 
 	default_storage::default_storage(file_storage const& fs, file_storage const* mapped, std::string const& path
-		, file_pool& fp, std::vector<boost::uint8_t> const& file_prio)
-		// [MF] FIXME CLevelDB use path directly, cacheSize = 256K.
-		: CLevelDB(boost::filesystem::path(path), 256*1024, false, false)
-		, m_files(fs)
+		, CLevelDB &db, std::vector<boost::uint8_t> const& file_prio)
+		: m_files(fs)
 		, m_file_priority(file_prio)
-		, m_pool(fp)
+		, m_db_path(path)
+		, m_db(db)
 		, m_page_size(page_size())
 		, m_allocate_files(false)
 	{
 		if (mapped) m_mapped_files.reset(new file_storage(*mapped));
 
 		TORRENT_ASSERT(m_files.begin() != m_files.end());
-		m_save_path = complete(path);
 	}
 
-	default_storage::~default_storage() { m_pool.release(this); }
+	default_storage::~default_storage() { }
 
 	bool default_storage::initialize(bool allocate_files)
 	{
@@ -265,8 +263,6 @@ namespace libtorrent
 		error_code ec;
 
 		std::vector<boost::uint8_t>().swap(m_file_priority);
-		// close files that were opened in write mode
-		m_pool.release(this);
 
 		return error() ? true : false;
 	}
@@ -287,7 +283,6 @@ namespace libtorrent
 
 	bool default_storage::release_files()
 	{
-		m_pool.release(this);
 		return false;
 	}
 
@@ -302,41 +297,6 @@ namespace libtorrent
 
 	bool default_storage::delete_files()
 	{
-		// make sure we don't have the files open
-		m_pool.release(this);
-
-		// delete the files from disk
-		std::set<std::string> directories;
-		typedef std::set<std::string>::iterator iter_t;
-		for (file_storage::iterator i = files().begin()
-			, end(files().end()); i != end; ++i)
-		{
-			std::string fp = files().file_path(*i);
-			bool complete = is_complete(fp);
-			std::string p = complete ? fp : combine_path(m_save_path, fp);
-			if (!complete)
-			{
-				std::string bp = parent_path(fp);
-				std::pair<iter_t, bool> ret;
-				ret.second = true;
-				while (ret.second && !bp.empty())
-				{
-					ret = directories.insert(combine_path(m_save_path, bp));
-					bp = parent_path(bp);
-				}
-			}
-		}
-
-		// remove the directories. Reverse order to delete
-		// subdirectories first
-
-        for (std::set<std::string>::reverse_iterator i = directories.rbegin()
-			, end(directories.rend()); i != end; ++i)
-		{
-			delete_one_file(*i);
-		}
-
-		if (error()) return true;
 		return false;
 	}
 
@@ -398,99 +358,6 @@ namespace libtorrent
 	int default_storage::move_storage(std::string const& sp, int flags)
 	{
 		int ret = piece_manager::no_error;
-		std::string save_path = complete(sp);
-
-		// check to see if any of the files exist
-		error_code ec;
-		file_storage const& f = files();
-
-		file_status s;
-		if (flags == fail_if_exist)
-		{
-			stat_file(combine_path(save_path, f.name()), &s, ec);
-			if (ec != boost::system::errc::no_such_file_or_directory)
-			{
-				// the directory exists, check all the files
-				for (file_storage::iterator i = f.begin()
-					, end(f.end()); i != end; ++i)
-				{
-					// files moved out to absolute paths are ignored
-					if (is_complete(f.file_path(*i))) continue;
-
-					std::string new_path = f.file_path(*i, save_path);
-					stat_file(new_path, &s, ec);
-					if (ec != boost::system::errc::no_such_file_or_directory)
-						return piece_manager::file_exist;
-				}
-			}
-		}
-
-		// collect all directories in to_move. This is because we
-		// try to move entire directories by default (instead of
-		// files independently).
-		std::set<std::string> to_move;
-		for (file_storage::iterator i = f.begin()
-			, end(f.end()); i != end; ++i)
-		{
-			// files moved out to absolute paths are not moved
-			if (is_complete(f.file_path(*i))) continue;
-
-			std::string split = split_path(f.file_path(*i));
-			to_move.insert(to_move.begin(), split);
-		}
-
-		ec.clear();
-		stat_file(save_path, &s, ec);
-		if (ec == boost::system::errc::no_such_file_or_directory)
-		{
-			ec.clear();
-			create_directories(save_path, ec);
-		}
-
-		if (ec)
-		{
-			set_error(save_path, ec);
-			return piece_manager::fatal_disk_error;
-		}
-
-		m_pool.release(this);
-
-		for (std::set<std::string>::const_iterator i = to_move.begin()
-			, end(to_move.end()); i != end; ++i)
-		{
-			std::string old_path = combine_path(m_save_path, *i);
-			std::string new_path = combine_path(save_path, *i);
-
-			rename(old_path, new_path, ec);
-			if (ec)
-			{
-				if (flags == dont_replace && ec == boost::system::errc::file_exists)
-				{
-					if (ret == piece_manager::no_error) ret = piece_manager::need_full_check;
-					continue;
-				}
-
-				if (ec != boost::system::errc::no_such_file_or_directory)
-				{
-					error_code ec;
-					recursive_copy(old_path, new_path, ec);
-					if (ec)
-					{
-						set_error(old_path, ec);
-						ret = piece_manager::fatal_disk_error;
-					}
-					else
-					{
-						remove_all(old_path, ec);
-					}
-					break;
-				}
-			}
-		}
-
-		if (ret == piece_manager::no_error || ret == piece_manager::need_full_check)
-			m_save_path = save_path;
-
 		return ret;
 	}
 
@@ -543,13 +410,14 @@ namespace libtorrent
         int tries = 2;
         while( tries-- ) {
             try {
-                if( Write(std::make_pair('p', slot), postStr) ) {
+                std::pair<std::string, int> pathSlot = std::make_pair(m_db_path, slot);
+                if( m_db.Write(std::make_pair('p', pathSlot), postStr) ) {
                     return postStr.size();
                 } else {
                     return -1;
                 }
             } catch( leveldb_error &e ) {
-                RepairDB();
+                m_db.RepairDB();
             }
         }
 
@@ -583,7 +451,8 @@ namespace libtorrent
         while( tries-- ) {
             try {
                 std::string postStr;
-                if( Read(std::make_pair('p', slot), postStr) ) {
+                std::pair<std::string, int> pathSlot = std::make_pair(m_db_path, slot);
+                if( m_db.Read(std::make_pair('p', pathSlot), postStr) ) {
                     TORRENT_ASSERT(bufs[0].iov_len >= postStr.size());
                     memcpy(bufs[0].iov_base, postStr.data(), postStr.size());
                     return postStr.size();
@@ -591,7 +460,7 @@ namespace libtorrent
                     return 0;
                 }
             } catch( leveldb_error &e ) {
-                RepairDB();
+                m_db.RepairDB();
             }
         }
 	}
@@ -619,24 +488,14 @@ namespace libtorrent
 	boost::intrusive_ptr<file> default_storage::open_file(file_storage::iterator fe, int mode
 		, error_code& ec) const
 	{
-		int cache_setting = m_settings ? settings().disk_io_write_mode : 0;
-		if (cache_setting == session_settings::disable_os_cache
-			|| (cache_setting == session_settings::disable_os_cache_for_aligned_files
-			&& ((fe->offset + files().file_base(*fe)) & (m_page_size-1)) == 0))
-			mode |= file::no_buffer;
-		bool lock_files = m_settings ? settings().lock_files : false;
-		if (lock_files) mode |= file::lock_file;
-		if (!m_allocate_files) mode |= file::sparse;
-		if (m_settings && settings().no_atime_storage) mode |= file::no_atime;
-
-		return m_pool.open_file(const_cast<default_storage*>(this), m_save_path, fe, files(), mode, ec);
+		return new file();
 	}
 
 	storage_interface* default_storage_constructor(file_storage const& fs
-		, file_storage const* mapped, std::string const& path, file_pool& fp
+		, file_storage const* mapped, std::string const& path, CLevelDB &db
 		, std::vector<boost::uint8_t> const& file_prio)
 	{
-		return new default_storage(fs, mapped, path, fp, file_prio);
+		return new default_storage(fs, mapped, path, db, file_prio);
 	}
 
 	int disabled_storage::readv(file::iovec_t const* bufs, int slot, int offset, int num_bufs, int flags)
@@ -698,7 +557,7 @@ namespace libtorrent
 		boost::shared_ptr<void> const& torrent
 		, boost::intrusive_ptr<torrent_info const> info
 		, std::string const& save_path
-		, file_pool& fp
+		, CLevelDB &db
 		, disk_io_thread& io
 		, storage_constructor_type sc
 		, storage_mode_t sm
@@ -706,7 +565,7 @@ namespace libtorrent
 		: m_info(info)
 		, m_files(m_info->files())
 		, m_storage(sc(m_info->orig_files(), &m_info->files() != &m_info->orig_files()
-            ? &m_info->files() : 0, combine_path(save_path,to_hex(m_info->info_hash().to_string())), fp, file_prio))
+	    ? &m_info->files() : 0, to_hex(m_info->info_hash().to_string()), db, file_prio))
 		, m_storage_mode(sm)
 		, m_save_path(complete(save_path))
 		, m_state(state_none)

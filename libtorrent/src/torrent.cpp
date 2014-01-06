@@ -1540,7 +1540,7 @@ namespace libtorrent
 		// the shared_from_this() will create an intentional
 		// cycle of ownership, se the hpp file for description.
 		m_owning_storage = new piece_manager(shared_from_this(), m_torrent_file
-			, m_save_path, m_ses.m_files, m_ses.m_disk_thread, m_storage_constructor
+			, m_save_path, m_ses.m_swarmDb, m_ses.m_disk_thread, m_storage_constructor
 			, (storage_mode_t)m_storage_mode, m_file_priority);
 		m_storage = m_owning_storage.get();
 
@@ -1600,7 +1600,10 @@ namespace libtorrent
 			int ev = 0;
 			if (m_resume_entry.dict_find_string_value("file-format") != "libtorrent resume file")
 				ev = errors::invalid_file_tag;
-	
+
+			if (!ev && m_resume_entry.dict_find_int_value("file-version") < 2 )
+				ev = errors::invalid_file_tag;
+
 			std::string info_hash = m_resume_entry.dict_find_string_value("info-hash");
 			if (!ev && info_hash.empty())
 				ev = errors::missing_info_hash;
@@ -4945,9 +4948,8 @@ namespace libtorrent
 
 	void torrent::read_resume_data(lazy_entry const& rd)
 	{
-        // [MF]
-        int num_pieces = rd.dict_find_int_value("num_pieces");
-        increase_num_pieces(num_pieces);
+		int num_pieces = rd.dict_find_int_value("num_pieces");
+		increase_num_pieces(num_pieces);
 
 		m_total_uploaded = rd.dict_find_int_value("total_uploaded");
 		m_total_downloaded = rd.dict_find_int_value("total_downloaded");
@@ -5125,11 +5127,10 @@ namespace libtorrent
 	{
 		using namespace libtorrent::detail; // for write_*_endpoint()
 		ret["file-format"] = "libtorrent resume file";
-		ret["file-version"] = 1;
+		ret["file-version"] = 2;
 		ret["libtorrent-version"] = LIBTORRENT_VERSION;
 
-        // [MF]
-        ret["num_pieces"] = m_torrent_file->num_pieces();
+		ret["num_pieces"] = m_torrent_file->num_pieces();
 
 		ret["total_uploaded"] = m_total_uploaded;
 		ret["total_downloaded"] = m_total_downloaded;

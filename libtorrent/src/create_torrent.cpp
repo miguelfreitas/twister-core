@@ -160,6 +160,7 @@ namespace libtorrent
 	void set_piece_hashes(create_torrent& t, std::wstring const& p
 		, boost::function<void(int)> const& f, error_code& ec)
 	{
+		/*
 		file_pool fp;
 		std::string utf8;
 		wchar_utf8(p, utf8);
@@ -187,12 +188,14 @@ namespace libtorrent
 			t.set_hash(i, h.final());
 			f(i);
 		}
+		*/
 	}
 #endif
 
 	void set_piece_hashes(create_torrent& t, std::string const& p
 		, boost::function<void(int)> f, error_code& ec)
 	{
+		/*
 		file_pool fp;
 #if TORRENT_USE_UNC_PATHS
 		std::string path = canonicalize_path(p);
@@ -254,6 +257,7 @@ namespace libtorrent
 			t.set_hash(i, h.final());
 			f(i);
 		}
+		*/
 	}
 
 	create_torrent::~create_torrent() {}

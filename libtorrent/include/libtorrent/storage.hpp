@@ -178,11 +178,11 @@ namespace libtorrent
 		session_settings* m_settings;
 	};
 
-	class TORRENT_EXPORT default_storage : public storage_interface, boost::noncopyable, CLevelDB
+	class TORRENT_EXPORT default_storage : public storage_interface, boost::noncopyable
 	{
 	public:
 		default_storage(file_storage const& fs, file_storage const* mapped, std::string const& path
-			, file_pool& fp, std::vector<boost::uint8_t> const& file_prio);
+			, CLevelDB &db, std::vector<boost::uint8_t> const& file_prio);
 		~default_storage();
 
 #ifndef TORRENT_NO_DEPRECATE
@@ -233,11 +233,11 @@ namespace libtorrent
 			, error_code& ec) const;
 
 		std::vector<boost::uint8_t> m_file_priority;
-		std::string m_save_path;
-		// the file pool is typically stored in
+		std::string m_db_path;
+		// the leveldb is typically stored in
 		// the session, to make all storage
-		// instances use the same pool
-		file_pool& m_pool;
+		// instances use the same database
+		CLevelDB& m_db;
 
 		int m_page_size;
 		bool m_allocate_files;
@@ -310,7 +310,7 @@ namespace libtorrent
 			boost::shared_ptr<void> const& torrent
 			, boost::intrusive_ptr<torrent_info const> info
 			, std::string const& path
-			, file_pool& fp
+			, CLevelDB &db
 			, disk_io_thread& io
 			, storage_constructor_type sc
 			, storage_mode_t sm

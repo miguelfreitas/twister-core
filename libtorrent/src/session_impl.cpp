@@ -594,7 +594,7 @@ namespace aux {
 	}
 #endif
 
-	session_impl::session_impl(
+	session_impl::session_impl(CLevelDB &swarmDb,
 		std::pair<int, int> listen_port_range
 		, fingerprint const& cl_fprint
 		, char const* listen_interface
@@ -609,6 +609,7 @@ namespace aux {
 		, m_send_buffers(send_buffer_size)
 #endif
 		, m_files(40)
+		, m_swarmDb(swarmDb)
 		, m_io_service()
 #ifdef TORRENT_USE_OPENSSL
 		, m_ssl_ctx(m_io_service, asio::ssl::context::sslv23)

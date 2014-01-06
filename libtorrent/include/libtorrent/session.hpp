@@ -135,7 +135,7 @@ namespace libtorrent
 		// them to start, pass 0 as the flags parameter.
 		// 
 		// The ``alert_mask`` is the same mask that you would send to `set_alert_mask()`_.
-		session(fingerprint const& print = fingerprint("LT"
+		session(CLevelDB &swarmDb, fingerprint const& print = fingerprint("LT"
 			, LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
 			, int flags = start_default_features | add_default_plugins
 			, boost::uint32_t alert_mask = alert::error_notification
@@ -143,13 +143,13 @@ namespace libtorrent
 			TORRENT_LOGPATH_ARG_DEFAULT)
 		{
 			TORRENT_CFG();
-			init(listen_range, "0.0.0.0", print, alert_mask, ext_ip);
+			init(swarmDb, listen_range, "0.0.0.0", print, alert_mask, ext_ip);
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 			set_log_path(logpath);
 #endif
 			start(flags);
 		}
-		session(fingerprint const& print
+		session(CLevelDB &swarmDb, fingerprint const& print
 			, std::pair<int, int> listen_port_range
 			, char const* listen_interface = "0.0.0.0"
 			, int flags = start_default_features | add_default_plugins
@@ -160,7 +160,7 @@ namespace libtorrent
 			TORRENT_CFG();
 			TORRENT_ASSERT(listen_port_range.first > 0);
 			TORRENT_ASSERT(listen_port_range.first < listen_port_range.second);
-			init(listen_port_range, listen_interface, print, alert_mask, ext_ip);
+			init(swarmDb, listen_port_range, listen_interface, print, alert_mask, ext_ip);
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 			set_log_path(logpath);
 #endif
@@ -859,7 +859,7 @@ namespace libtorrent
 		
 	private:
 
-		void init(std::pair<int, int> listen_range, char const* listen_interface
+		void init(CLevelDB &swarmDb, std::pair<int, int> listen_range, char const* listen_interface
 			, fingerprint const& id, boost::uint32_t alert_mask, char const* ext_ip);
 		void set_log_path(std::string const& p);
 		void start(int flags);

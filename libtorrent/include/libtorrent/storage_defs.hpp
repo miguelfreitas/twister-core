@@ -34,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define TORRENT_STORAGE_DEFS_HPP_INCLUDE
 
 #include "libtorrent/config.hpp"
+#include "leveldb.h"
 #include <boost/function.hpp>
 #include <string>
 
@@ -62,14 +63,14 @@ namespace libtorrent
 	};
 	
 	typedef boost::function<storage_interface*(file_storage const&, file_storage const*
-		, std::string const&, file_pool&, std::vector<boost::uint8_t> const&)> storage_constructor_type;
+		, std::string const&, CLevelDB&, std::vector<boost::uint8_t> const&)> storage_constructor_type;
 
 	TORRENT_EXPORT storage_interface* default_storage_constructor(
-		file_storage const&, file_storage const* mapped, std::string const&, file_pool&
+		file_storage const&, file_storage const* mapped, std::string const&, CLevelDB&
 		, std::vector<boost::uint8_t> const&);
 
 	TORRENT_EXPORT storage_interface* disabled_storage_constructor(
-		file_storage const&, file_storage const* mapped, std::string const&, file_pool&
+		file_storage const&, file_storage const* mapped, std::string const&, CLevelDB&
 		, std::vector<boost::uint8_t> const&);
 
 }

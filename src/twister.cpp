@@ -48,6 +48,7 @@ static map<std::string, bool> m_specialResources;
 enum ExpireResType { SimpleNoExpire, NumberedNoExpire, PostNoExpireRecent };
 static map<std::string, ExpireResType> m_noExpireResources;
 static map<std::string, torrent_handle> m_userTorrent;
+static boost::scoped_ptr<CLevelDB> m_swarmDb;
 
 static CCriticalSection cs_spamMsg;
 static std::string m_preferredSpamLang = "[en]";
@@ -87,10 +88,8 @@ torrent_handle startTorrentUser(std::string const &username)
         tparams.name = username;
         boost::filesystem::path torrentPath = GetDataDir() / "swarm";
         tparams.save_path= torrentPath.string();
-
         libtorrent::error_code ec;
         create_directory(tparams.save_path, ec);
-
         std::string filename = combine_path(tparams.save_path, to_hex(ih.to_string()) + ".resume");
         load_file(filename.c_str(), tparams.resume_data);
 
@@ -208,12 +207,17 @@ void ThreadWaitExtIP()
     }
 
     libtorrent::error_code ec;
+
+    boost::filesystem::path swarmDbPath = GetDataDir() / "swarm" / "db";
+    create_directories(swarmDbPath.string(), ec);
+    m_swarmDb.reset(new CLevelDB(swarmDbPath.string(), 256*1024, false, false));
+
     int listen_port = GetListenPort() + LIBTORRENT_PORT_OFFSET;
     std::string bind_to_interface = "";
 
     printf("Creating new libtorrent session ext_ip=%s port=%d\n", ipStr.c_str(), listen_port);
 
-    ses = new session(fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
+    ses = new session(*m_swarmDb, fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
             , alert::dht_notification
             , ipStr.size() ? ipStr.c_str() : NULL
