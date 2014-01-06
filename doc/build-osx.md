@@ -71,6 +71,8 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
         export BOOST_INCLUDE_PATH=/usr/local/opt/boost/include
         export BOOST_LIB_PATH=/usr/local/opt/boost/lib
         export BOOST_LIB_SUFFIX=-mt
+	export LDFLAGS="-L$OPENSSL_LIB_PATH -L$BDB_LIB_PATH -LBOOST_LIB_PATH"
+	export CPPFLAGS="-I$OPENSSL_INCLUDE_PATH -I$BDB_INCLUDE_PATH -I$BOOST_INCLUDE_PATH"
 
 3. Build libtorrent
 
