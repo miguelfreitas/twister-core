@@ -387,6 +387,7 @@ namespace libtorrent
 		, m_got_tracker_response(false)
 		, m_connections_initialized(false)
 		, m_super_seeding(false)
+		, m_following(false)
 		, m_override_resume_data(p.flags & add_torrent_params::flag_override_resume_data)
 #ifndef TORRENT_DISABLE_RESOLVE_COUNTRIES
 		, m_resolving_country(false)
@@ -826,6 +827,10 @@ namespace libtorrent
 		// for a web server to serve it to us, no need to announce
 		// because the info-hash is just the URL hash
 		if (!m_torrent_file->is_valid() && !m_url.empty()) return false;
+
+		// try to reduce the level of useless dht tracker requests by not
+		// announcing empty torrents we do not follow.
+		if (!m_following && last_have() == -1 ) return false;
 
 		// don't announce private torrents
 		if (m_torrent_file->is_valid() && m_torrent_file->priv()) return false;
@@ -3507,6 +3512,11 @@ namespace libtorrent
 		{
 			(*i)->superseed_piece(-1, -1);
 		}
+	}
+
+	void torrent::set_following(bool on)
+	{
+		m_following = on;
 	}
 
 	int torrent::get_piece_to_super_seed(bitfield const& bits)

@@ -412,6 +412,7 @@ namespace libtorrent
 #endif
 
 		void super_seeding(bool on) const;
+		void set_following(bool on) const;
 
 		sha1_hash info_hash() const;
 

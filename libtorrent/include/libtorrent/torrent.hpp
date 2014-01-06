@@ -513,6 +513,7 @@ namespace libtorrent
 		}
 		
 		void super_seeding(bool on);
+		void set_following(bool on);
 		int get_piece_to_super_seed(bitfield const&);
 
 		// returns true if we have downloaded the given piece
@@ -1219,6 +1220,9 @@ namespace libtorrent
 		// if this is true, we're currently super seeding this
 		// torrent.
 		bool m_super_seeding:1;
+		
+		// if this is true, we're currently following this user
+		bool m_following:1;
 
 		// this is set when we don't want to load seed_mode,
 		// paused or auto_managed from the resume data

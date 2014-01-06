@@ -72,7 +72,7 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
     return hasher(buf.data(), buf.size()).final();
 }
 
-torrent_handle startTorrentUser(std::string const &username)
+torrent_handle startTorrentUser(std::string const &username, bool following)
 {
     bool userInTxDb = usernameExists(username); // keep this outside cs_twister to avoid deadlock
     if( !userInTxDb )
@@ -96,6 +96,8 @@ torrent_handle startTorrentUser(std::string const &username)
         m_userTorrent[username] = ses->add_torrent(tparams);
         m_userTorrent[username].force_dht_announce();
     }
+    if( following ) 
+        m_userTorrent[username].set_following(true);
     return m_userTorrent[username];
 }
 
@@ -298,7 +300,7 @@ void ThreadWaitExtIP()
     }
     // now restart the user torrents
     BOOST_FOREACH(string username, torrentsToStart) {
-        startTorrentUser(username);
+        startTorrentUser(username, true);
     }
 }
 
@@ -601,7 +603,7 @@ void ThreadSessionAlerts()
                         neighborCheck.count(ih) ) {
                         // Do something!
                         if( dd->m_resource == "tracker" ) {
-                            startTorrentUser(dd->m_username);
+                            startTorrentUser(dd->m_username, false);
                         } else {
                             printf("Neighbor of special resource - do something!\n");
                         }
@@ -1285,7 +1287,7 @@ Value newpostmsg(const Array& params, bool fHelp)
     if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
-    torrent_handle h = startTorrentUser(strUsername);
+    torrent_handle h = startTorrentUser(strUsername, true);
     if( h.is_valid() ) {
         // if member of torrent post it directly
         h.add_piece(k,buf.data(),buf.size());
@@ -1371,7 +1373,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
         m_users[strFrom].m_directmsg[strTo].push_back(stoDM);
     }
 
-    torrent_handle h = startTorrentUser(strFrom);
+    torrent_handle h = startTorrentUser(strFrom, true);
     h.add_piece(k,buf.data(),buf.size());
 
     hexcapePost(v);
@@ -1413,7 +1415,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
-    torrent_handle h = startTorrentUser(strUsername);
+    torrent_handle h = startTorrentUser(strUsername, true);
     if( h.is_valid() ) {
         // if member of torrent post it directly
         h.add_piece(k,buf.data(),buf.size());
@@ -1618,7 +1620,7 @@ Value follow(const Array& params, bool fHelp)
 
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
-        torrent_handle h = startTorrentUser(username);
+        torrent_handle h = startTorrentUser(username, true);
 
         if( h.is_valid() ) {
             LOCK(cs_twister);

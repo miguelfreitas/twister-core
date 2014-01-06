@@ -975,6 +975,12 @@ namespace libtorrent
 		TORRENT_ASYNC_CALL1(super_seeding, on);
 	}
 
+	void torrent_handle::set_following(bool on) const
+	{
+		INVARIANT_CHECK;
+		TORRENT_ASYNC_CALL1(set_following, on);
+	}
+
 	void torrent_handle::resolve_countries(bool r)
 	{
 		INVARIANT_CHECK;
