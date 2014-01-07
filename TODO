@@ -1,3 +1,7 @@
+- Add pre-compiled versions (separated by version)
+
+- Add exit button in web interface for kill daemon 
+
 - Encrypt user_data (which contains all DMs)
 
 - Test wallet encrypt to see if it still works from original bitcoin implementation and what
