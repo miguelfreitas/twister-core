@@ -840,7 +840,9 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
     lazy_entry v;
     int pos;
     libtorrent::error_code ec;
-    if (lazy_bdecode(data, data + data_size, v, ec, &pos) == 0) {
+    if (data_size <= 0 || data_size > 2048 ) {
+        sprintf(errbuf,"bad bencoded post size");
+    } else if (lazy_bdecode(data, data + data_size, v, ec, &pos) == 0) {
 
         if( v.type() == lazy_entry::dict_t ) {
             lazy_entry const* post = v.dict_find_dict("userpost");
