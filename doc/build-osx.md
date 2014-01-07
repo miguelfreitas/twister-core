@@ -135,7 +135,7 @@ directory. We have to first create the RPC configuration file, though.
 Run `./twisterd` to get the filename where it should be put, or just try these
 commands:
 
-    echo -e "rpcuser=user\nrcpassword=pwd" > "/Users/${USER}/.twister/twister.conf"
+    echo -e "rpcuser=user\nrpcpassword=pwd" > "/Users/${USER}/.twister/twister.conf"
     chmod 600 "/Users/${USER}/.twister/twister.conf"
 
 When next you run it, it will start downloading the blockchain, but it won't
