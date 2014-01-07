@@ -86,6 +86,7 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
 4. Build twisterd. Note: it *will* emit a lot of warnings, but as long as you don't get 
 actual `error` messages, it should be fine:
 
+        cd ../
         cd src
         make -f makefile.osx
 
@@ -93,7 +94,7 @@ actual `error` messages, it should be fine:
 
         make -f makefile.osx test
 
-6. If things go south, before trying again, make sure you clean it up:
+If things go south, before trying again, make sure you clean it up:
 
         make -f makefile.osx clean
 
