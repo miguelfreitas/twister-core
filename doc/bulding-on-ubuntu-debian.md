@@ -17,7 +17,7 @@ Ubuntu / Debian building instructions
 
 7) ./configure --enable-logging --enable-debug --enable-dht
 
-8) make 'if you have multi-core CPU use -j N where n = cpu cores'
+8) make if you have multi-core CPU use -j N where n = cpu cores
 
 9) cd ../
 
@@ -26,12 +26,13 @@ Ubuntu / Debian building instructions
 11) make -f makefile.unix
 
 ### Configure & web gui:
-1) 'echo -e "rpcuser=user\nrpcpassword=pwd" > "/home/${USER}/.twister/twister.conf"
-chmod 600 "/home/${USER}/.twister/twister.conf"'
+1) echo -e "rpcuser=user\nrpcpassword=pwd" > "/home/${USER}/.twister/twister.conf"
 
-2) cd /home/${USER}/.twister/
+2) chmod 600 "/home/${USER}/.twister/twister.conf"
 
-3) git clone git@github.com:miguelfreitas/twister-html.git ./html
+3) cd /home/${USER}/.twister/
+
+4) git clone git@github.com:miguelfreitas/twister-html.git ./html
 
 ### Start
 1) Go to src folder (on 10 step) 
