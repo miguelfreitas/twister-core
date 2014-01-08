@@ -8632,7 +8632,7 @@ namespace libtorrent
 			, to_hex(info_hash().to_string()).substr(0, 6).c_str(), usr);
 		//(*m_ses.m_logger) << buf;
 		// [MF]
-		printf(buf);
+		printf("%s", buf);
 	}
 #endif
 

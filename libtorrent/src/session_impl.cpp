@@ -4948,7 +4948,7 @@ retry:
 		char buf[450];
 		snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
 		// printf is the bitcoin/util.h logger
-		printf(buf);
+		printf("%s", buf);
 		//(*m_logger) << buf;
 	}
 #endif
@@ -6516,7 +6516,7 @@ retry:
 			char buf[1280];
 			snprintf(buf, sizeof(buf), "%s: %s\n", time_now_string(), usr);
 			// printf is the bitcoin/util.h logger
-			printf(buf);
+			printf("%s", buf);
 			//(*m_ses.m_logger) << buf;
 		}
 #endif
