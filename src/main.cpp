@@ -481,7 +481,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, int maxHe
           return state.DoS(10, error("CheckTransaction() : username check failed"));
     }
     // Size limits
-    if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
+    if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > 512)
         return state.DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
     // Check proof of work matches claimed amount
