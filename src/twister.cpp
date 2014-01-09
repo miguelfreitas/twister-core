@@ -1138,6 +1138,9 @@ Value dhtput(const Array& params, bool fHelp)
             "dhtput <username> <resource> <s(ingle)/m(ulti)> <value> <sig_user> <seq>\n"
             "Store resource in dht network");
 
+    if( !ses )
+        return Value();
+
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
@@ -1180,6 +1183,9 @@ Value dhtget(const Array& params, bool fHelp)
         throw runtime_error(
             "dhtget <username> <resource> <s(ingle)/m(ulti)>\n"
             "Get resource from dht network");
+
+    if( !ses )
+        return Array();
 
     string strUsername = params[0].get_str();
     string strResource = params[1].get_str();
