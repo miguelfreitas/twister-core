@@ -170,7 +170,7 @@ LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
 DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
 DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
 leveldb/libleveldb.a:
-	@echo "Building LevelDB ..." && cd leveldb && $(MAKE) CC=$(CC) CXX=$(CXX) OPT="$(xCXXFLAGS)" libleveldb.a libmemenv.a && cd ..
+	@echo "Building LevelDB ..." && cd leveldb && $(MAKE) CC="$(CC)" CXX="$(CXX)" OPT="$(xCXXFLAGS)" libleveldb.a libmemenv.a && cd ..
 
 #
 # libtorrent hack
@@ -183,7 +183,7 @@ DEFS += -DTORRENT_DEBUG
 DEFS += -DBOOST_ASIO_SEPARATE_COMPILATION
 #DEFS += -DBOOST_ASIO_DYN_LINK
 ../libtorrent/src/.libs/libtorrent-rasterbar.a:
-	@echo "Building libtorrent ..." && cd ../libtorrent && $(MAKE) CC=$(CC) CXX=$(CXX) OPT="$(xCXXFLAGS)" && cd ../src
+	@echo "Building libtorrent ..." && cd ../libtorrent && $(MAKE) CC="$(CC)" CXX="$(CXX)" OPT="$(xCXXFLAGS)" && cd ../src
 
 
 # auto-generated dependencies:
