@@ -1137,6 +1137,20 @@ void static FlushBlockFile(bool fFinalize = false)
 
 bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigned int nAddSize);
 
+bool isUserTransactionInMainChain(std::string username) {
+    CTransaction tx;
+    uint256 hashBlock = 0;
+    if( !GetTransaction(username, tx, hashBlock) || hashBlock == 0)
+        return false;
+
+    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+    if (mi != mapBlockIndex.end() && (*mi).second) {
+        CBlockIndex* pindex = (*mi).second;
+        return pindex->IsInMainChain();
+    }
+    return false;
+}
+
 bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     // Check it again in case a previous version let a bad block in
@@ -1159,8 +1173,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
         CTransaction &tx = block.vtx[i];
 
-        uint256 txid = SerializeHash(make_pair(block.vtx[i].GetUsername(),-1));
-        if( pblocktree->HaveTxIndex(txid) ) {
+        if( isUserTransactionInMainChain(block.vtx[i].GetUsername()) ) {
             /* We have index for this username, which is not allowed, except:
              * 1) same transaction. this shouldn't happen but it does if twisterd terminates badly.
              *    explanation: TxIndex seems to get out-of-sync with block chain, so it may try to
@@ -2144,6 +2157,9 @@ bool VerifyDB(int nCheckLevel, int nCheckDepth)
         // check level 1: verify block validity
         if (nCheckLevel >= 1 && !CheckBlock(block, state))
             return error("VerifyDB() : *** found bad block at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString().c_str());
+        if (!Checkpoints::CheckBlock(pindex->nHeight, pindex->GetBlockHash()))
+            return error("VerifyDB() : *** rejected by checkpoint lock-in at %d\n", pindex->nHeight);
+
         // check level 2: verify undo validity
         if (nCheckLevel >= 2 && pindex) {
             CBlockUndo undo;
