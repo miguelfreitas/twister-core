@@ -437,37 +437,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, int maxHe
             return state.DoS(100, error("CheckTransaction() : spam message too big"));
 
         string spamUser = tx.userName.ExtractPushDataString(0);
-        if( spamUser != "nobody" ) {
-            string strSign = tx.userName.ExtractPushDataString(1);
-            if (!strSign.size())
-                return state.DoS(100, error("CheckTransaction() : spam signature missing"));
-            vector<unsigned char> vchSig((const unsigned char*)strSign.data(),
-                                         (const unsigned char*)strSign.data() + strSign.size());
-
-            CPubKey pubkey;
-            CTransaction txPubKey;
-            uint256 hashBlock;
-            if( !GetTransaction(spamUser, txPubKey, hashBlock, maxHeight) )
-                return state.DoS(100, error("CheckTransaction() : spam signed by unknown user"));
-
-            std::vector< std::vector<unsigned char> > vData;
-            if( !txPubKey.pubKey.ExtractPushData(vData) || vData.size() < 1 )
-                return state.DoS(100, error("CheckTransaction() : spam signed with broken pubkey"));
-
-            pubkey = CPubKey(vData[0]);
-
-            // compute message hash for signature checking
-            CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-            ss << strMessageMagic;
-            ss << tx.message;
-
-            CPubKey pubkeyRec;
-            if (!pubkeyRec.RecoverCompact(ss.GetHash(), vchSig))
-                return state.DoS(100, error("CheckTransaction() : RecoverCompact failed for spammsg"));
-
-            if (pubkeyRec.GetID() != pubkey.GetID())
-                return state.DoS(100, error("CheckTransaction() : spam signature verification failed"));
-        }
+        if (!spamUser.size() || spamUser.size() > MAX_USERNAME_SIZE)
+            return state.DoS(100, error("CheckTransaction() : spam user size invalid"));
     } else {
       if (tx.userName.empty())
           return state.DoS(10, error("CheckTransaction() : username empty"));
@@ -1161,6 +1132,44 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
         view.SetBestBlock(pindex);
         pindexGenesisBlock = pindex;
         return true;
+    }
+
+    // check if spamuser is valid.
+    // this is not context-independent, so it can't be performed in CheckTransaction
+    {
+        CTransaction &tx = block.vtx[0];
+        string spamUser = tx.userName.ExtractPushDataString(0);
+        if( spamUser != "nobody" ) {
+            string strSign = tx.userName.ExtractPushDataString(1);
+            if (!strSign.size())
+                return state.DoS(100, error("ConnectBlock() : spam signature missing"));
+            vector<unsigned char> vchSig((const unsigned char*)strSign.data(),
+                                         (const unsigned char*)strSign.data() + strSign.size());
+
+            CPubKey pubkey;
+            CTransaction txPubKey;
+            uint256 hashBlock;
+            if( !GetTransaction(spamUser, txPubKey, hashBlock, block.nHeight) )
+                return state.DoS(100, error("ConnectBlock() : spam signed by unknown user"));
+
+            std::vector< std::vector<unsigned char> > vData;
+            if( !txPubKey.pubKey.ExtractPushData(vData) || vData.size() < 1 )
+                return state.DoS(100, error("ConnectBlock() : spam signed with broken pubkey"));
+
+            pubkey = CPubKey(vData[0]);
+
+            // compute message hash for signature checking
+            CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+            ss << strMessageMagic;
+            ss << tx.message;
+
+            CPubKey pubkeyRec;
+            if (!pubkeyRec.RecoverCompact(ss.GetHash(), vchSig))
+                return state.DoS(100, error("ConnectBlock() : RecoverCompact failed for spammsg"));
+
+            if (pubkeyRec.GetID() != pubkey.GetID())
+                return state.DoS(100, error("ConnectBlock() : spam signature verification failed"));
+        }
     }
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
