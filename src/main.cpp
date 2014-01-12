@@ -695,9 +695,18 @@ bool GetTransaction(const std::string &username, CTransaction &txOut, uint256 &h
                 } catch (std::exception &e) {
                     return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
                 }
-                hashBlock = header.GetHash();
                 if (txOut.GetUsername() != username)
                     return error("%s() : txid mismatch", __PRETTY_FUNCTION__);
+                hashBlock = header.GetHash();
+                map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+                CBlockIndex* pindex = NULL;
+                if (mi != mapBlockIndex.end() && (*mi).second) {
+                    pindex = (*mi).second;
+                    assert( header.nHeight == pindex->nHeight );
+                }
+                if( !pindex || !pindex->IsInMainChain() )
+                    break; //same as not found tx
+
                 if (header.nHeight > maxHeight) {
                     printf("GetTransaction: %s height: %d blkHeight: %d maxHeight: %d\n",
                            username.c_str(), height, header.nHeight, maxHeight);
@@ -1137,20 +1146,6 @@ void static FlushBlockFile(bool fFinalize = false)
 
 bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigned int nAddSize);
 
-bool isUserTransactionInMainChain(std::string username) {
-    CTransaction tx;
-    uint256 hashBlock = 0;
-    if( !GetTransaction(username, tx, hashBlock) || hashBlock == 0)
-        return false;
-
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
-    if (mi != mapBlockIndex.end() && (*mi).second) {
-        CBlockIndex* pindex = (*mi).second;
-        return pindex->IsInMainChain();
-    }
-    return false;
-}
-
 bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& view, bool fJustCheck)
 {
     // Check it again in case a previous version let a bad block in
@@ -1173,7 +1168,9 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
         CTransaction &tx = block.vtx[i];
 
-        if( isUserTransactionInMainChain(block.vtx[i].GetUsername()) ) {
+        CTransaction txOld;
+        uint256 hashBlock = 0;
+        if( GetTransaction(block.vtx[i].GetUsername(), txOld, hashBlock) ) {
             /* We have index for this username, which is not allowed, except:
              * 1) same transaction. this shouldn't happen but it does if twisterd terminates badly.
              *    explanation: TxIndex seems to get out-of-sync with block chain, so it may try to
