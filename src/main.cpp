@@ -3713,20 +3713,32 @@ CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
         uint64 nBlockSize = 1000;
         uint64 nBlockTx = 0;
 
+        // Avoid duplicate usernames within the same block
+        set<uint256> uniqueUsers;
+
         for (map<uint256, CTransaction>::iterator mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
         {
             CTransaction& tx = (*mi).second;
             if (tx.IsSpamMessage())
                 continue;
 
-            // This should never happen; all transactions in the memory are new
-            uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
-            if( pblocktree->HaveTxIndex(txid) ) {
+            // This should never happen (unless replacement); all transactions in the memory are new
+            CTransaction txOld;
+            uint256 hashBlock = 0;
+            if( GetTransaction(tx.GetUsername(), txOld, hashBlock) ) {
                 if( !verifyDuplicateOrReplacementTx(tx, false, true) ) {
-                    printf("ERROR: mempool transaction already exists\n");
-                    if (fDebug) assert("mempool transaction already exists" == 0);
+                    printf("CreateNewBlock: mempool transaction already exists (%s)\n",
+                           tx.GetUsername().c_str());
+                    continue;
                 }
             }
+
+            if( uniqueUsers.count(tx.GetUsernameHash()) ) {
+                printf("CreateNewBlock() : duplicate username (%s)\n", 
+                       tx.GetUsername().c_str());
+                continue;
+            }
+            uniqueUsers.insert(tx.GetUsernameHash());
 
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
