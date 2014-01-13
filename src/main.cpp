@@ -1150,7 +1150,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
             CTransaction txPubKey;
             uint256 hashBlock;
             if( !GetTransaction(spamUser, txPubKey, hashBlock, block.nHeight) )
-                return state.DoS(100, error("ConnectBlock() : spam signed by unknown user"));
+                return state.DoS(100, error("ConnectBlock() : spam signed by unknown user %s", spamUser.c_str()));
 
             std::vector< std::vector<unsigned char> > vData;
             if( !txPubKey.pubKey.ExtractPushData(vData) || vData.size() < 1 )
@@ -1336,6 +1336,16 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
         int64 nStart = GetTimeMicros();
         if (!ConnectBlock(block, state, pindex, view)) {
             if (state.IsInvalid()) {
+                // [MF] invalidate all pindex between pindexNew and pindex
+                // trying to fix infinite recursion in SetBestChain.
+                CBlockIndex *pinvalid = pindexNew;
+                do {
+                    pinvalid->nStatus |= BLOCK_FAILED_CHILD;
+                    pblocktree->WriteBlockIndex(CDiskBlockIndex(pinvalid));
+                    setBlockIndexValid.erase(pinvalid);
+                    pinvalid = pinvalid->pprev;
+                } while( pinvalid != NULL && pinvalid != pindex);
+            
                 InvalidChainFound(pindexNew);
                 InvalidBlockFound(pindex);
             }
