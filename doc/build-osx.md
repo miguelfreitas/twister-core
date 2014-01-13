@@ -145,6 +145,7 @@ output anything while it's doing this. This process may take several hours. If y
 
 Other commands:
 
+    tail -f ~/.twister/debug.log
     ./twisterd --help  # for a list of command-line options.
     ./twisterd -daemon # to start it as a daemon.
     ./twisterd help    # When the daemon is running, to get a list of RPC commands
