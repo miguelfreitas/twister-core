@@ -1336,16 +1336,6 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
         int64 nStart = GetTimeMicros();
         if (!ConnectBlock(block, state, pindex, view)) {
             if (state.IsInvalid()) {
-                // [MF] invalidate all pindex between pindexNew and pindex
-                // trying to fix infinite recursion in SetBestChain.
-                CBlockIndex *pinvalid = pindexNew;
-                do {
-                    pinvalid->nStatus |= BLOCK_FAILED_CHILD;
-                    pblocktree->WriteBlockIndex(CDiskBlockIndex(pinvalid));
-                    setBlockIndexValid.erase(pinvalid);
-                    pinvalid = pinvalid->pprev;
-                } while( pinvalid != NULL && pinvalid != pindex);
-            
                 InvalidChainFound(pindexNew);
                 InvalidBlockFound(pindex);
             }
