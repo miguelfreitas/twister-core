@@ -1203,9 +1203,12 @@ Value dhtget(const Array& params, bool fHelp)
 
     ses->dht_getData(strUsername, strResource, multi);
 
-    Value ret = Array();
+    Array ret;
+    std::set<std::string> uniqueSigPs;
 
-    if( am.wait_for_alert(seconds(20)) ) {
+    time_duration timeToWait = seconds(10);
+    int repliesReceived = 0;
+    while( am.wait_for_alert(timeToWait) ) {
         std::auto_ptr<alert> a(am.get());
 
         dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
@@ -1213,11 +1216,33 @@ Value dhtget(const Array& params, bool fHelp)
             entry::list_type dhtLst = rd->m_lst;
             entry::list_type::iterator it;
             for( it = dhtLst.begin(); it != dhtLst.end(); ++it ) {
-                hexcapeDht( *it );
+                libtorrent::entry &e = *it;
+                hexcapeDht( e );
+                string sig_p = safeGetEntryString(e, "sig_p");
+                if( !sig_p.length() ) {
+                    ret.push_back( entryToJson(e) );
+                } else {
+                    if( !uniqueSigPs.count(sig_p) ) {
+                        uniqueSigPs.insert(sig_p);
+                        ret.push_back( entryToJson(e) );
+                    }
+                }
             }
-            ret = entryToJson(dhtLst);
+            //printf("dhtget: got %zd entries %zd unique\n", dhtLst.size(), uniqueSigPs.size());
         } else {
             // cast failed => dht_reply_data_done_alert => no data
+            break;
+        }
+
+        if( multi ) {
+            if( repliesReceived++ < 3 && uniqueSigPs.size() ) {
+                timeToWait = milliseconds(100 / repliesReceived);
+                //printf("dhtget: wait again %d\n", repliesReceived);
+            } else {
+                break;
+            }
+        } else {
+            break;
         }
     }
 
