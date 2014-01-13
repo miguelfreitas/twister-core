@@ -1621,6 +1621,14 @@ Value setspammsg(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     string strMsg      = params[1].get_str();
 
+    int spamMsgUtf8Size = utf8::num_characters(strMsg.begin(), strMsg.end());
+    if (spamMsgUtf8Size < 0)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "spam message invalid utf8");
+    if (spamMsgUtf8Size == 0)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "empty spam message");
+    if (spamMsgUtf8Size > MAX_SPAM_MSG_SIZE)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "spam message too big");
+
     strSpamUser    = strUsername;
     strSpamMessage = strMsg;
 
