@@ -759,6 +759,7 @@ void StartRPCThreads()
               "It is recommended you use the following password for now:\n"
               "rpcuser=user\n"
               "rpcpassword=pwd\n"
+              "rpcallowip=127.0.0.1\n"
               "(you do not need to remember this password)\n"
               "The username and password MUST NOT be the same.\n"
               "If the file does not exist, create it with owner-readable-only file permissions.\n"
