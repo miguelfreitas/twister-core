@@ -231,7 +231,6 @@ data_error:
     return -2;
 }
 
-
 void findAndHexcape(libtorrent::entry &e, string const& key)
 {
     if( e.type() == libtorrent::entry::dictionary_t &&
@@ -329,4 +328,13 @@ void unHexcapeDht(libtorrent::entry &e)
     }
 }
 
+std::string safeGetEntryString(libtorrent::entry &e, std::string const& key)
+{
+    if( e.type() == libtorrent::entry::dictionary_t &&
+        e.find_key(key) && e[key].type() == libtorrent::entry::string_t ) {
+        return e[key].string();
+    } else {
+        return "";
+    }
+}
 
