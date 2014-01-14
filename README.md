@@ -21,6 +21,18 @@ are provided by libtorrent.
 Both Bitcoin and libtorrent versions included here are highly patched and do
 not interoperate with existing networks (on purpose).
 
+Compiling
+----------------
+You can build you own twister with this docs: 
+
+[Ubuntu/Debian](https://github.com/miguelfreitas/twister-core/blob/master/doc/bulding-on-ubuntu-debian.md)
+
+[Mac OS X](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-osx.md)
+
+[Windows (untested)](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-msw.md)
+
+[Unix](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-unix.md)
+
 License
 -------
 
@@ -40,11 +52,6 @@ There is no development process defined yet.
 Developers of either bitcoin or libtorrent are welcomed and will be granted
 immediate write-access to the repository (a small retribution for
 bastardizing their codebases).
-
-Compiling
----------
-
-See `INSTALL`.
 
 Testing
 -------
