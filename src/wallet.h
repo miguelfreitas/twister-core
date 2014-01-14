@@ -98,6 +98,7 @@ public:
         nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
         nOrderPosNext = 0;
+        nTimeFirstKey = 0;
     }
     CWallet(std::string strWalletFileIn)
     {
@@ -108,6 +109,7 @@ public:
         nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
         nOrderPosNext = 0;
+        nTimeFirstKey = 0;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
