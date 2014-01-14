@@ -1,14 +1,46 @@
 UNIX BUILD NOTES
 ====================
-Some notes on how to build Bitcoin in Unix. 
+Some notes on how to build Twister in Unix. 
 
-To Build
----------------------
+This software is a proof-of-concept, a forced marriage between
+bitcoin and libtorrent codebases. So don't expect an easy ride.
+Building this thing is quite hacky (but hopefully not complicated).
 
-	cd src/
-	make -f makefile.unix		# Headless bitcoin
+1) Twister relies on a bundled custom version of libtorrent, so
+first you need to build that:
 
-See [readme-qt.md](readme-qt.md) for instructions on building Bitcoin-Qt, the graphical user interface.
+$ cd libtorrent
+$ ./bootstrap.sh
+$ ./configure --enable-logging --enable-debug --enable-dht
+$ make
+
+Note1: 64-bit systems may need eg. "--with-boost-libdir=/usr/lib64"
+       or "--with-boost-libdir=/usr/lib/x86_64-linux-gnu/"
+Note2: disable logging if you want, but at this point it might
+       help to diagnose problems in case anything goes wrong.
+
+2) Then, for bitcoin/twister, you have actually two choices to
+build. Both will produce (almost) the same "twisterd" executable,
+so try which one works for you.
+
+2a) Using qmake
+
+$ qmake
+$ make
+
+2b) Using standard makefile
+
+$ cd src
+$ make -f makefile.unix
+
+
+DEPENDENCIES
+============
+
+OpenSSL, Berkeley DB, Boost and miniupnpc are required.
+
+Please read doc/build-unix.md for a complete list and instructions.
+
 
 Dependencies
 ---------------------
