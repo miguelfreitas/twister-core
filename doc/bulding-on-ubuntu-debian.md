@@ -16,7 +16,7 @@
 1. mkdir ~/.twister
 1. echo -e "rpcuser=user\nrpcpassword=pwd" > ~/.twister/twister.conf
 1. chmod 600 ~/.twister/twister.conf
-1. git clone https://github.com:miguelfreitas/twister-html.git ~/.twister/html
+1. git clone https://github.com/miguelfreitas/twister-html.git ~/.twister/html
 
 ## Start
 
