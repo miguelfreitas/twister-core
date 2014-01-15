@@ -9,6 +9,12 @@
 #include <string>
 #include <boost/thread/mutex.hpp>
 #include <map>
+
+#ifdef __APPLE__
+#define __AVAILABILITYMACROS__
+#define DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER
+#endif
+
 #include <openssl/crypto.h> // for OPENSSL_cleanse()
 
 #ifdef WIN32

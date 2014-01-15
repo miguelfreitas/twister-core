@@ -1,6 +1,10 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#ifdef __APPLE__
+#define __AVAILABILITYMACROS__
+#define DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER
+#endif
 
 #include <openssl/ecdsa.h>
 #include <openssl/rand.h>

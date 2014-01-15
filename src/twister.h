@@ -1,6 +1,11 @@
 #ifndef TWISTER_H
 #define TWISTER_H
 
+#ifdef __APPLE__
+#define __AVAILABILITYMACROS__
+#define DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER
+#endif
+
 #include "util.h"
 #include "key.h"
 #include <boost/thread.hpp>
