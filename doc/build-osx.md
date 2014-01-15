@@ -41,7 +41,7 @@ Instructions: HomeBrew
 
 #### Install dependencies using Homebrew
 
-        brew install boost miniupnpc openssl berkeley-db4
+        brew install boost miniupnpc openssl berkeley-db4 autoconf automake
 
 Note: After you have installed the dependencies, you should check that the Brew-installed 
 version of OpenSSL is the one available for compilation. You can check this by typing
