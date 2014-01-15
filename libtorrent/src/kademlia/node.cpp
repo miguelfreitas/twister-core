@@ -497,15 +497,16 @@ bool node_impl::refresh_storage() {
     for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
     {
-        if( i->first == m_last_refreshed_item ) {
-            refresh_next_item = true;
-            num_refreshable++;
-            continue;
-        }
-
         dht_storage_list_t const& lsto = i->second;
-        if( lsto.size() == 1 ) {
-            dht_storage_item const& item = lsto.front();
+        dht_storage_list_t::const_iterator j(lsto.begin()), jEnd(lsto.end());
+        for(int jIdx = 0; j != jEnd; ++j, ++jIdx ) {
+            dht_storage_item const& item = *j;
+
+            if( std::make_pair(i->first,jIdx) == m_last_refreshed_item ) {
+                refresh_next_item = true;
+                num_refreshable++;
+                continue;
+            }
 
 #ifdef ENABLE_DHT_ITEM_EXPIRE
             if( has_expired(item) ) {
@@ -524,13 +525,13 @@ bool node_impl::refresh_storage() {
             std::string resource = target->dict_find_string_value("r");
             bool multi = (target->dict_find_string_value("t") == "m");
 
-            // refresh only signed single posts
-            if( !multi ) {
+            // refresh only signed single posts and mentions
+            if( !multi || (multi && resource == "mention") ) {
                 num_refreshable++;
 
                 if( refresh_next_item ) {
                     refresh_next_item = false;
-                    m_last_refreshed_item = i->first;
+                    m_last_refreshed_item = std::make_pair(i->first,jIdx);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
                     printf("node dht: refreshing storage: [%s,%s,%s]\n",
                            username.c_str(),
@@ -555,7 +556,7 @@ bool node_impl::refresh_storage() {
     }
 
     if( !did_something && m_storage_table.size() ) {
-        m_last_refreshed_item = m_storage_table.begin()->first;
+        m_last_refreshed_item = std::make_pair(m_storage_table.begin()->first,0);
     }
 
     time_duration sleepToRefresh;
