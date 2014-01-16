@@ -41,7 +41,7 @@ Instructions: HomeBrew
 
 #### Install dependencies using Homebrew
 
-        brew install boost miniupnpc openssl berkeley-db4
+        brew install boost miniupnpc openssl berkeley-db4 autoconf automake
 
 Note: After you have installed the dependencies, you should check that the Brew-installed 
 version of OpenSSL is the one available for compilation. You can check this by typing
@@ -73,6 +73,7 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
         export BOOST_LIB_SUFFIX=-mt
         export LDFLAGS="-L$OPENSSL_LIB_PATH -L$BDB_LIB_PATH -L$BOOST_LIB_PATH"
         export CPPFLAGS="-I$OPENSSL_INCLUDE_PATH -I$BDB_INCLUDE_PATH -I$BOOST_INCLUDE_PATH"
+        export PATH=${BDB_INCLUDE_PATH}:${PATH}
 
 3. Build libtorrent
 
