@@ -628,7 +628,7 @@ bool node_impl::save_storage(entry &save) const {
     if( m_storage_table.size() == 0 )
         return did_something;
 
-    printf("node dht: saving storage... (storage_table.size = %d)\n", m_storage_table.size());
+    printf("node dht: saving storage... (storage_table.size = %lu)\n", m_storage_table.size());
 
     for (dht_storage_table_t::const_iterator i = m_storage_table.begin(),
          iend(m_storage_table.end()); i != iend; ++i )
@@ -663,7 +663,7 @@ void node_impl::load_storage(entry const* e) {
     if( !e || e->type() != entry::dictionary_t)
         return;
 
-    printf("node dht: loading storage... (%d node_id keys)\n", e->dict().size());
+    printf("node dht: loading storage... (%lu node_id keys)\n", e->dict().size());
 
     for (entry::dictionary_type::const_iterator i = e->dict().begin();
          i != e->dict().end(); ++i) {
