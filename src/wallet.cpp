@@ -640,7 +640,7 @@ void CWallet::ReacceptWalletTransactions()
 
             CTransaction tx;
             uint256 hashBlock;
-            bool fUpdated = false;
+            //bool fUpdated = false;
             bool fFound = false;
             // [MF] can't use GetTransaction from main.cpp here. so?
             // GetTransaction(wtx.GetUsernameHash(), tx, hashBlock);
