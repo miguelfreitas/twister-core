@@ -85,7 +85,7 @@ $(SHARED3):
 
 endif  # PLATFORM_SHARED_EXT
 
-all: $(SHARED) $(LIBRARY)
+all: $(SHARED) $(LIBRARY) $(MEMENVLIBRARY)
 
 check: all $(PROGRAMS) $(TESTS)
 	for t in $(TESTS); do echo "***** Running $$t"; ./$$t || exit 1; done
