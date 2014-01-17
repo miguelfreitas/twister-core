@@ -326,6 +326,7 @@ bool rpc_manager::incoming(msg const& m, node_id* id)
 		entry e;
 		incoming_error(e, "missing 'r' key");
 		m_sock->send_packet(e, m.addr, 0);
+		o->timeout();
 		return false;
 	}
 
@@ -335,6 +336,7 @@ bool rpc_manager::incoming(msg const& m, node_id* id)
 		entry e;
 		incoming_error(e, "missing 'id' key");
 		m_sock->send_packet(e, m.addr, 0);
+		o->timeout();
 		return false;
 	}
 
@@ -348,6 +350,7 @@ bool rpc_manager::incoming(msg const& m, node_id* id)
 			m_observer->set_external_address(address_v4(b)
 				, m.addr.address());
 		// [MF] enforced: no valid response is sent along with "ip".
+		o->timeout();
 		return false;
 	}
 #if TORRENT_USE_IPV6
@@ -360,6 +363,7 @@ bool rpc_manager::incoming(msg const& m, node_id* id)
 			m_observer->set_external_address(address_v6(b)
 				, m.addr.address());
 		// [MF] enforced: no valid response is sent along with "ip".
+		o->timeout();
 		return false;
 	}
 #endif
@@ -505,10 +509,7 @@ observer::~observer()
 	// reported back to the traversal_algorithm as
 	// well. If it wasn't sent, it cannot have been
 	// reported back
-	/* [MF] this assert seems too strict. Some usages of rpc_manager::invoke, for
-	 * example, don't test the return value (false) which indicates that packet was not sent.
 	TORRENT_ASSERT(m_was_sent == bool(flags & flag_done) || m_was_abandoned);
-	*/
 	TORRENT_ASSERT(!m_in_constructor);
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 	TORRENT_ASSERT(m_in_use);
