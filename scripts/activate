@@ -1,0 +1,30 @@
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export TWISTER_CORE_PATH='/home/vagrant/twister-core'
+export TWISTER_HOME='/home/vagrant/.twister'
+
+alias twisterd='$TWISTER_CORE_PATH/src/twisterd'
+
+
+
+if [ ! -n "$TWISTER_OLD_PATH" ]; then
+	echo 'setting up the environment'
+	export TWISTER_OLD_PATH=$PATH
+	export TWISTER_OLD_PS1=$PS1
+	export PATH=$DIR/bin:$PATH
+	export PS1="(twister)$PS1\n> "
+else
+	echo 'already active'
+fi
+
+function deactivate {
+	if [ -n "$TWISTER_OLD_PATH" ]; then
+		echo 'cleaning up the environment'
+		export PATH=$TWISTER_OLD_PATH
+		export PS1=$TWISTER_OLD_PS1
+		unset TWISTER_OLD_PATH
+		unset TWISTER_OLD_PS1
+		unset -f deactivate
+	fi
+}

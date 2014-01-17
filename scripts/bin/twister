@@ -1,0 +1,37 @@
+#!/bin/bash
+
+RPCUSER='user'
+RPCPASSWORD='pwd'
+RPCALLOWIP='127.0.0.1'
+
+BIN=$TWISTER_CORE_PATH/src/twisterd
+
+CONFFILE="$TWISTER_HOME/twister.conf"
+
+OPTS="-daemon -debug"
+if [ ! -f "$CONFFILE" ]; then
+	OPTS='$OPTS -pid=$PIDFILE -rpcuser=$RPCUSER -rpcpassword=$RPCPASSWORD -rpcallowip=$RPCALLOWIP'
+fi
+
+
+function usage {
+	echo "Usage : $(basename $0) start|stop"
+	echo
+    exit
+}
+
+if [ $# -lt 1 ]
+then
+    usage $@
+fi
+
+case "$1" in
+	start) $BIN $OPTS
+		echo
+		;;
+	stop) $BIN stop
+		;;
+	*) echo "Invalid option: $1"
+		usage $@
+		;;
+esac

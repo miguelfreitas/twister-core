@@ -11,6 +11,10 @@ src/test_bitcoin
 *.patch
 .bitcoin
 
+#vagrant part
+vagrant
+.vagrant
+
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
