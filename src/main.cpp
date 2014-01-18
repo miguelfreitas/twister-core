@@ -493,8 +493,9 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
 
     {
         // do we already have it?
-        uint256 txid = SerializeHash(make_pair(tx.GetUsername(),-1));
-        if( pblocktree->HaveTxIndex(txid) &&
+        CTransaction txOld;
+        uint256 hashBlock = 0;
+        if( GetTransaction(tx.GetUsername(), txOld, hashBlock) &&
             // duplicate should be discarded but replacement is allowed.
             !verifyDuplicateOrReplacementTx(tx, false, true) ) {
             return false;
@@ -3608,8 +3609,9 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
     CKeyID keyID;
     if( strSpamUser != "nobody" ) {
       // check both wallet and block chain if they know about this user
-      uint256 txid = SerializeHash(make_pair(strSpamUser,-1));
-      if( !pblocktree->HaveTxIndex(txid) ||
+      CTransaction txOld;
+      uint256 hashBlock = 0;
+      if( !GetTransaction(strSpamUser, txOld, hashBlock) ||
           !pwalletMain->GetKeyIdFromUsername(strSpamUser, keyID) ) {
         strUsername = "nobody";
       }
