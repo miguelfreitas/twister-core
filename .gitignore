@@ -34,9 +34,6 @@ Makefile.in
 #
 *.lo
 
-#vagrant part
-vagrant
-.vagrant
 
 # Compilation and Qt preprocessor part
 *.qm

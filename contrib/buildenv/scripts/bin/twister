@@ -4,7 +4,7 @@ RPCUSER='user'
 RPCPASSWORD='pwd'
 RPCALLOWIP='127.0.0.1'
 
-BIN=$TWISTER_CORE_PATH/src/twisterd
+BIN=$TWISTER_CORE_PATH/twisterd
 
 CONFFILE="$TWISTER_HOME/twister.conf"
 

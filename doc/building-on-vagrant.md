@@ -1,8 +1,9 @@
-# Vagrant + Debian building instructions
+# Vagrant + Ubuntu building instructions
 
 This will run a virtual machine with all tools required to build and run twister
 using Vagrant. 
-This will probably work wherever vagrant can be installed.
+This will probably work wherever vagrant can be installed so Windows, Mac, Linux 
+at least
 
 ## Dependencies
 * http://www.vagrantup.com/
@@ -11,19 +12,19 @@ This will probably work wherever vagrant can be installed.
 
 ## Install
 1. git clone https://github.com/miguelfreitas/twister-core.git
-1. cd twister-core
-1. vagrant up
+2. cd twister-core/contrib/buildenv
+3. vagrant up
 
 
 
 ## Tweeking
-If you have lots of ram in your machine, feel free to use it
-edit the twister-core/Vagrantfile and change the line
-```
-v.customize ["modifyvm", :id, "--memory", 1024]
-```
-and write 2048, 4096 or whatever you feel resonable
-before running vagrant up.
+If you have lots of ram and CPU in your machine, feel free to use it.
+Before running vagrant up please set 
+VAGRANT_RAM and/or VAGRANT_CPU environment variables to whatever is fitting.
+Default is 1 CPU and 1024 MB RAM.
 
-This will make compile time and life in general much
-better in the virtual machine.
+Example with 2 CPU and 4096 MB RAM.
+```bash
+export VAGRANT_CPU=2
+export VAGRANT_RAM=4096
+```
