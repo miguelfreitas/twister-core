@@ -43,8 +43,7 @@ AC_CANONICAL_TARGET
 
 AS_ECHO
 AS_ECHO "Initializing Automake:"
-AM_INIT_AUTOMAKE([1.11 foreign])
-AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
 
 
 AS_ECHO
