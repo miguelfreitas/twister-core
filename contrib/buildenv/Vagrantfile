@@ -1,0 +1,39 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'time' 
+timezone = Time.now.zone
+
+
+Vagrant.configure("2") do |config|
+
+  config.vm.define "precise64" do |precise64|
+    precise64.vm.box     = 'precise64'
+    precise64.vm.box_url = 'http://files.vagrantup.com/precise64.box'
+  end
+  
+  #config.vm.define "saucy64" do |saucy64|
+  #  saucy64.vm.box     = 'saucy64'
+  #  saucy64.vm.box_url = 'http://cloud-images.ubuntu.com/vagrant/saucy/current/saucy-server-cloudimg-amd64-vagrant-disk1.box'
+  #end
+
+
+  config.vm.provider "virtualbox" do |v|
+    v.customize ["modifyvm", :id, "--memory", ENV.fetch('VAGRANT_RAM', 1024)]
+    v.customize ["modifyvm", :id, "--cpus", ENV.fetch('VAGRANT_CPU', 1)]   
+    v.customize ["modifyvm", :id, "--rtcuseutc", "on"]
+  end
+
+
+  config.vm.synced_folder "../../", "/home/vagrant/twister-core"
+
+  config.vm.network :public_network
+  config.vm.network :forwarded_port, guest: 28332, host: 28332, host_ip: '127.0.0.1'
+  
+  config.vm.provision :shell do |s|
+    bootstrap = ENV.fetch('DO_BOOTSTRAP', 1)
+    compile = ENV.fetch('DO_COMPILE', 1)
+    run = ENV.fetch('DO_RUN', 1)
+    s.path = 'scripts/vagrant_bootstrap.sh'
+    s.args = ["#{timezone}", "#{bootstrap}", "#{compile}", "#{run}"]
+  end
+end
