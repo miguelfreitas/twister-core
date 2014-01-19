@@ -1299,9 +1299,22 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
 
     // List of what to connect (typically only pindexNew)
     vector<CBlockIndex*> vConnect;
-    for (CBlockIndex* pindex = pindexNew; pindex != pfork; pindex = pindex->pprev)
+    for (CBlockIndex* pindex = pindexNew; pindex != pfork; pindex = pindex->pprev) {
         vConnect.push_back(pindex);
+        if( pindex->nStatus & BLOCK_FAILED_MASK ) {
+            BOOST_FOREACH(CBlockIndex *pindex, vConnect) {
+                pindex->nStatus |= BLOCK_FAILED_CHILD;
+                setBlockIndexValid.erase(pindex);
+                pblocktree->WriteBlockIndex(CDiskBlockIndex(pindex));
+            }
+            vConnect.clear();
+        }
+    }
     reverse(vConnect.begin(), vConnect.end());
+    
+    if (vConnect.size() < vDisconnect.size()) {
+        return error("SetBestChain() : Tried to connect to a shorter chain (invalid blocks)");
+    }
 
     if (vDisconnect.size() > 0) {
         printf("REORGANIZE: Disconnect %"PRIszu" blocks; %s..\n", vDisconnect.size(), pfork->GetBlockHash().ToString().c_str());
