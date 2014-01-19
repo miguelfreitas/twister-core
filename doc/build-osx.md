@@ -41,29 +41,31 @@ Instructions: HomeBrew
 
 #### Install dependencies using Homebrew
 
-        brew install boost miniupnpc openssl berkeley-db4 autoconf automake
+    brew install boost miniupnpc openssl berkeley-db4 autoconf automake
 
 Note: After you have installed the dependencies, you should check that the Brew-installed 
 version of OpenSSL is the one available for compilation. You can check this by typing
 
-        openssl version
+    openssl version
 
 into Terminal. You should see OpenSSL 1.0.1e 11 Feb 2013.
 
 If that's not the case, you *could* `brew link --force openssl` but it's a bad idea. 
 Instead, it's enough to make sure the right openssl binary is on your $PATH:
 
-        export PATH=/usr/local/opt/openssl/bin:$PATH
+    export PATH=/usr/local/opt/openssl/bin:$PATH
 
 ### Building `twisterd`
 
 1. Clone the github tree to get the source code and go into the directory.
 
+
         git clone git@github.com:miguelfreitas/twister-core.git
         cd twister-core
 
 2. Set system variables to match your environment. THIS IS IMPORTANT!
-        
+
+
         export OPENSSL_INCLUDE_PATH=/usr/local/opt/openssl/include
         export OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
         export BDB_INCLUDE_PATH=/usr/local/opt/berkeley-db4/include
@@ -75,30 +77,18 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
         export CPPFLAGS="-I$OPENSSL_INCLUDE_PATH -I$BDB_INCLUDE_PATH -I$BOOST_INCLUDE_PATH"
         export PATH=${BDB_INCLUDE_PATH}:${PATH}
 
-3. Build libtorrent
+3. Build twister using autotools
 
-        cd libtorrent
-        ./bootstrap.sh
-        ./configure --enable-logging --enable-debug --enable-dht
+
+        ./autotools.sh
+        ./configure --enable-logging
         make
-        # note: install is optional, might conflict with existing libtorrent install
-        make install  
 
-4. Build twisterd. Note: it *will* emit a lot of warnings, but as long as you don't get 
-actual `error` messages, it should be fine:
 
-        cd ../
-        cd src
-        make -f makefile.osx
+4. If things go south, before trying again, make sure you clean it up:
 
-5.  It is a good idea to build and run the unit tests, too:
 
-        make -f makefile.osx test
-
-If things go south, before trying again, make sure you clean it up:
-
-        make -f makefile.osx clean
-
+        make clean
 
 If all went well, you should now have a twisterd executable in the src directory. 
 See the Running instructions below.
@@ -112,22 +102,16 @@ Installing the dependencies using MacPorts is very straightforward.
 
     sudo port install boost db48@+no_java openssl miniupnpc
 
-### Building `twisterd`
+Once installed dependencies, do:
 
-1. Clone the github tree to get the source code and go into the directory.
+    ./autotools.sh
+    ./configure --enable-logging
+    make
 
-        git clone git@github.com:miguelfreitas/twister-core.git
-        cd twister-core
+If things go south, before trying again, make sure you clean it up:
 
-2.  Build twisterd:
-
-        cd src
-        make -f makefile.osx
-
-3.  It is a good idea to build and run the unit tests, too:
-
-        make -f makefile.osx test
-
+    make clean
+    
 Running
 -------
 
@@ -137,7 +121,7 @@ directory. We have to first create the RPC configuration file, though.
 Run `./twisterd` to get the filename where it should be put, or just try these
 commands:
 
-    echo -e "rpcuser=user\nrpcpassword=pwd" > "/Users/${USER}/.twister/twister.conf"
+    echo -e "rpcuser=user\nrpcpassword=pwd\nrpcallowip=127.0.0.1" > "/Users/${USER}/.twister/twister.conf"
     chmod 600 "/Users/${USER}/.twister/twister.conf"
 
 When next you run it, it will start downloading the blockchain, but it won't
@@ -153,5 +137,7 @@ Other commands:
 
 In order to get the HTML interface, you'll have to download it and link it in .twister:
 
-	git clone git@github.com:miguelfreitas/twister-html.git
-	ln -s twister-html /Users/${USER}/.twister/html
+     git clone git@github.com:miguelfreitas/twister-html.git
+     ln -s twister-html /Users/${USER}/.twister/html
+
+Once you do that, it will be available at http://localhost:28332/home.html
