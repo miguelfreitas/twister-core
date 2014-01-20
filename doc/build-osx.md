@@ -60,7 +60,7 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
 1. Clone the github tree to get the source code and go into the directory.
 
 
-        git clone git@github.com:miguelfreitas/twister-core.git
+        git clone https://github.com/miguelfreitas/twister-core.git
         cd twister-core
 
 2. Set system variables to match your environment. THIS IS IMPORTANT!
@@ -77,13 +77,13 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
         export CPPFLAGS="-I$OPENSSL_INCLUDE_PATH -I$BDB_INCLUDE_PATH -I$BOOST_INCLUDE_PATH"
         export PATH=${BDB_INCLUDE_PATH}:${PATH}
 
-3. Build twister using autotools
+3. Build twister using autotool
 
 
-        ./autotools.sh
+        ./autotool.sh
         ./configure --enable-logging
         make
-
+(If you have multi core CPU, use "make -j N" where N = number of your cores)
 
 4. If things go south, before trying again, make sure you clean it up:
 
@@ -104,7 +104,7 @@ Installing the dependencies using MacPorts is very straightforward.
 
 Once installed dependencies, do:
 
-    ./autotools.sh
+    ./autotool.sh
     ./configure --enable-logging
     make
 
@@ -115,7 +115,7 @@ If things go south, before trying again, make sure you clean it up:
 Running
 -------
 
-It's now available at `./twisterd`, provided that you are still in the `src`
+It's now available at `./twisterd`, provided that you are still in the `twister-core`
 directory. We have to first create the RPC configuration file, though.
 
 Run `./twisterd` to get the filename where it should be put, or just try these
@@ -137,7 +137,12 @@ Other commands:
 
 In order to get the HTML interface, you'll have to download it and link it in .twister:
 
-     git clone git@github.com:miguelfreitas/twister-html.git
-     ln -s twister-html /Users/${USER}/.twister/html
+     git clone https://github.com/miguelfreitas/twister-html.git /Users/${USER}/.twister/html
 
 Once you do that, it will be available at http://localhost:28332/home.html
+
+Troubleshooting
+-------
+1) You get "DHT network down" in WEB interface on /network.html page 
+ - Reboot you Mac
+ 
