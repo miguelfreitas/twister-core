@@ -104,7 +104,7 @@ Installing the dependencies using MacPorts is very straightforward.
 
 Once installed dependencies, do:
 
-    ./autotools.sh
+    ./autotool.sh
     ./configure --enable-logging
     make
 
