@@ -9,6 +9,7 @@
 
 #include "main.h"
 #include "uint256.h"
+#include "softcheckpoint.h"
 
 namespace Checkpoints
 {
@@ -79,7 +80,8 @@ namespace Checkpoints
 
         MapCheckpoints::const_iterator i = checkpoints.find(nHeight);
         if (i == checkpoints.end()) return true;
-        return hash == i->second;
+        if (hash != i->second) return false;
+        return SoftCheckpoints::CheckBlock(nHeight, hash);
     }
 
     // Guess how far we are in the verification process at the given block index
@@ -138,5 +140,12 @@ namespace Checkpoints
                 return t->second;
         }
         return NULL;
+    }
+    
+    int GetHighestCheckpoint()
+    {
+        const MapCheckpoints& checkpoints = *Checkpoints().mapCheckpoints;
+        MapCheckpoints::const_reverse_iterator i = checkpoints.rbegin();
+        return (*i).first;
     }
 }

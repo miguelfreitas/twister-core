@@ -146,6 +146,7 @@ BITCOIN_TWISTER_SOURCES = \
     src/rpcrawtransaction.cpp \
     src/script.cpp \
     src/scrypt.cpp \
+    src/softcheckpoint.cpp \
     src/sync.cpp \
     src/util.cpp \
     src/wallet.cpp \

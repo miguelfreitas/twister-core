@@ -136,6 +136,7 @@ OBJS= \
     obj/rpcrawtransaction.o \
     obj/script.o \
     obj/scrypt.o \
+    obj/softcheckpoint.o \
     obj/sync.o \
     obj/util.o \
     obj/wallet.o \

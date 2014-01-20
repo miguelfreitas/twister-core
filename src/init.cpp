@@ -14,6 +14,7 @@
 #include "util.h"
 #include "ui_interface.h"
 #include "checkpoints.h"
+#include "softcheckpoint.h"
 #include "twister.h"
 
 #include <boost/filesystem.hpp>
@@ -402,6 +403,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     // ********************************************************* Step 2: parameter interactions
 
     Checkpoints::fEnabled = GetBoolArg("-checkpoints", true);
+    SoftCheckpoints::fEnabled = GetBoolArg("-softcheckpoints", true);
     if (!SelectParamsFromCommandLine()) {
         return InitError("Invalid combination of -testnet and -regtest.");
     }

@@ -23,6 +23,9 @@ namespace Checkpoints
     // Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
     CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex);
 
+    // Returns the height of the highest checkpoint
+    int GetHighestCheckpoint();
+
     double GuessVerificationProgress(CBlockIndex *pindex);
 
     extern bool fEnabled;

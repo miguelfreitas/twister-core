@@ -5,6 +5,7 @@
 
 #include "alert.h"
 #include "checkpoints.h"
+#include "softcheckpoint.h"
 #include "db.h"
 #include "txdb.h"
 #include "net.h"
@@ -1731,6 +1732,8 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp)
             if (nBestHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
     }
+    
+    SoftCheckpoints::NewBlockAccepted();
 
     return true;
 }
@@ -2753,6 +2756,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 item.second.RelayTo(pfrom);
         }
 
+        SoftCheckpoints::RelayLastCPToNode(pfrom);
+
         pfrom->fSuccessfullyConnected = true;
 
         printf("receive version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString().c_str(), addrFrom.ToString().c_str(), pfrom->addr.ToString().c_str());
@@ -3013,6 +3018,23 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         int nDoS;
         if (state.IsInvalid(nDoS))
             pfrom->Misbehaving(nDoS);
+    }
+
+
+    else if (strCommand == "cp")
+    {
+        CSoftCheckpoint cp;
+        vRecv >> cp;
+
+        const std::string username( cp.vchUsername.data(), cp.vchUsername.size() );
+        const std::string sign( cp.vchSign.data(), cp.vchSign.size() );
+        
+        if (SoftCheckpoints::CastVoteSoftCheckpoint(cp.nHeight,cp.blockHash,username,sign)) {
+            SoftCheckpoints::RelayCP(cp, pfrom);
+        } else {
+            //TODO: misbehaving only if invalid signature etc. not because we have it already.
+            //pfrom->Misbehaving(nDoS);
+        }
     }
 
 

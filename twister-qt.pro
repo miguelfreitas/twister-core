@@ -157,6 +157,7 @@ HEADERS +=  \
     src/bignum.h \
     src/chainparams.h \
     src/checkpoints.h \
+    src/softcheckpoint.h \
     src/compat.h \
     src/sync.h \
     src/util.h \
@@ -256,6 +257,7 @@ SOURCES += \ #src/qt/bitcoin.cpp \
     src/net.cpp \
     src/bloom.cpp \
     src/checkpoints.cpp \
+    src/softcheckpoint.cpp \
     src/addrman.cpp \
     src/db.cpp \
     src/walletdb.cpp \
