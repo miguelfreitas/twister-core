@@ -175,3 +175,16 @@ them:
 Visit [http://localhost:28332/index.html](http://localhost:28332/index.html)
 in your web browser and you should see a page asking you to choose between the
 Desktop and Mobile interfaces.
+
+Open Ports & Firewall
+-------------------------
+
+Twister use this ports:
+
+28333 inbound - must be open for blockchain sync operations. Supports UPNP.
+
+29333 inbound - must be open for DHT operations. Supports UPNP.
+
+4433 inbound - DHT-over-SSL, likely unused at this point
+
+20000+ outbound - twisterd will open outgoing connections on a number of ephemeral ports to manage both blockchain sync and DHT operations. Support UPNP.
