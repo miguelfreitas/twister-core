@@ -37,6 +37,10 @@ namespace SoftCheckpoints
     static std::set<std::string> uniqueUsersList =
             boost::assign::list_of
             ("mf1")("mf1a")("mf2")("mf2a")("mf3");
+            
+    static std::set<std::string> upcomingUsersList =
+            boost::assign::list_of
+            ("_gltest2")("wn41")("quietpatron");
 
 
     void SetSoftCPBestChain() {
@@ -84,13 +88,13 @@ namespace SoftCheckpoints
         
         if( (nBestHeight % SOFT_CHECKPOINT_PERIOD) == 0 &&
             nBestHeight > Checkpoints::GetHighestCheckpoint() &&
-            nBestHeight > lastSoftCP.first + SOFT_CHECKPOINT_PERIOD &&
+            nBestHeight >= lastSoftCP.first + SOFT_CHECKPOINT_PERIOD &&
             !fImporting && !fReindex) {
             LOCK(pwalletMain->cs_wallet);
             BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
             {
                 const std::string &username = item.second.username;
-                if(uniqueUsersList.count(username)) {
+                if(uniqueUsersList.count(username) || upcomingUsersList.count(username)) {
                     int height = nBestHeight - SOFT_CHECKPOINT_PERIOD;
                     dbgprintf("SoftCheckpoints::NewBlockAccepted: user '%s' will vote for %d\n", 
                               username.c_str(), height);
@@ -122,6 +126,14 @@ namespace SoftCheckpoints
                     break;
                 }
             }
+        }
+        
+                
+        if( uncheckedCandidates.size() && nBestHeight > Checkpoints::GetHighestCheckpoint() ) {
+            // pending unchecked
+            dbgprintf("SoftCheckpoints::NewBlockAccepted process %zd pending unchecked (not implemented)\n",
+                      uncheckedCandidates.size());
+            uncheckedCandidates.clear();
         }
     }
   
@@ -177,7 +189,7 @@ namespace SoftCheckpoints
             return false;
         }
         
-        if( !uniqueUsersList.count(username) ) {
+        if( !uniqueUsersList.count(username) && !upcomingUsersList.count(username) ) {
             dbgprintf("SoftCheckpoints::CastVoteSoftCheckpoint: username '%s' not accepted\n", username.c_str());
             return false;
         }
@@ -196,7 +208,8 @@ namespace SoftCheckpoints
             return false;
         }
         
-        dbgprintf("SoftCheckpoints::CastVoteSoftCheckpoint: signature by '%s' verified, casting vote\n", username.c_str());
+        dbgprintf("SoftCheckpoints::CastVoteSoftCheckpoint: signature by '%s' verified for %d, casting vote\n", 
+                  username.c_str(), height);
         return CastVerifiedVote( cp, username, sign );
     }
     
@@ -213,7 +226,8 @@ namespace SoftCheckpoints
 
     void RelayCP(const CSoftCheckpoint& cp, CNode* pfrom) {
         LOCK(cs_vNodes);
-        dbgprintf("SoftCheckpoints::RelayCP: relaying softCP height %d\n", cp.nHeight);
+        dbgprintf("SoftCheckpoints::RelayCP: relaying softCP height %d from %s\n", 
+                  cp.nHeight, !pfrom ? "localhost" : pfrom->addr.ToString().c_str());
         BOOST_FOREACH(CNode* pnode, vNodes) {
             if(pnode == pfrom)
                 continue;
