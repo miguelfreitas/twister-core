@@ -751,6 +751,7 @@ public:
     }
 
     CBlockIndex *GetNextInMainChain() const {
+        if( !IsInMainChain() ) return NULL;
         return nHeight+1 >= (int)vBlockIndexByHeight.size() ? NULL : vBlockIndexByHeight[nHeight+1];
     }
 
