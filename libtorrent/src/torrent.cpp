@@ -1716,7 +1716,10 @@ namespace libtorrent
 				{
 					policy::peer* p = m_policy.add_peer(read_v4_endpoint<tcp::endpoint>(ptr)
 						, id, peer_info::resume_data, 0);
+					/* [MF] relax peer banning: don't preserve on startup. peers could have been banned due to
+					 * changes in block chain (invalid key or height). we shouldn't keep them banned forever.
 					if (p) m_policy.ban_peer(p);
+					*/
 				}
 			}
 
@@ -1740,7 +1743,9 @@ namespace libtorrent
 				{
 					policy::peer* p = m_policy.add_peer(read_v6_endpoint<tcp::endpoint>(ptr)
 						, id, peer_info::resume_data, 0);
+					/* [MF] relax peer banning: see above
 					if (p) m_policy.ban_peer(p);
+					*/
 				}
 			}
 #endif
@@ -1776,7 +1781,9 @@ namespace libtorrent
 					tcp::endpoint a(address::from_string(ip, ec), (unsigned short)port);
 					if (ec) continue;
 					policy::peer* p = m_policy.add_peer(a, id, peer_info::resume_data, 0);
+					/* [MF] relax peer banning: see above
 					if (p) m_policy.ban_peer(p);
+					*/
 				}
 			}
 		}
