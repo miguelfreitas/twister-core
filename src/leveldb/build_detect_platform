@@ -68,6 +68,12 @@ if [ "$CXX" = "g++" ]; then
 fi
 
 case "$TARGET_OS" in
+    CYGWIN_*)
+		PLATFORM=OS_LINUX
+		COMMON_FLAGS="$MEMCMP_FLAG -lpthread -DOS_LINUX -DCYGWIN"
+		PLATFORM_LDFLAGS="-lpthread"
+		PORT_FILE=port/port_posix.cc
+		;;
     Darwin)
         PLATFORM=OS_MACOSX
         COMMON_FLAGS="$MEMCMP_FLAG -DOS_MACOSX"
