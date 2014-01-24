@@ -62,10 +62,10 @@ AC_DEFUN([AX_BERKELEY_DB_CXX],
   for version in "" 5.0 4.9 4.8 4.7 4.6 4.5 4.4 4.3 4.2 4.1 4.0 3.6 3.5 3.4 3.3 3.2 3.1 ; do
 
     if test -z $version ; then
-        db_cxx_lib="-ldb_cxx"
+        db_cxx_lib="-ldb_cxx -ldb"
         try_headers="db_cxx.h"
     else
-        db_cxx_lib="-ldb_cxx-$version"
+        db_cxx_lib="-ldb_cxx-$version -ldb-$version"
         try_headers="db$version/db_cxx.h db`echo $version | sed -e 's,\..*,,g'`/db_cxx.h"
     fi
 
