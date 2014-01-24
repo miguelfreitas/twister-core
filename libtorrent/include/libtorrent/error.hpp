@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/version.hpp>
 #include "libtorrent/config.hpp"
 
-#if defined TORRENT_WINDOWS || defined TORRENT_CYGWIN
+#if defined TORRENT_WINDOWS
 // asio assumes that the windows error codes are defined already
 #include <winsock2.h>
 #endif

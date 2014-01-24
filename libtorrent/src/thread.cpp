@@ -46,7 +46,7 @@ namespace libtorrent
 {
 	void sleep(int milliseconds)
 	{
-#if defined TORRENT_WINDOWS || defined TORRENT_CYGWIN
+#if defined TORRENT_WINDOWS
 		Sleep(milliseconds);
 #elif defined TORRENT_BEOS
 		snooze_until(system_time() + boost::int64_t(milliseconds) * 1000, B_SYSTEM_TIMEBASE);
