@@ -922,7 +922,8 @@ void JSONRequest::parse(const Value& valRequest)
     strMethod = valMethod.get_str();
     if (strMethod != "getwork" && strMethod != "getblocktemplate" &&
         strMethod != "getlasthave" && strMethod != "getnumpieces" &&
-        strMethod != "getinfo" && strMethod != "getbestblockhash" && strMethod != "getblock")
+        strMethod != "getinfo" && strMethod != "getbestblockhash" &&
+        strMethod != "getblock" && strMethod != "getmininginfo")
         printf("ThreadRPCServer method=%s\n", strMethod.c_str());
 
     // Parse params
