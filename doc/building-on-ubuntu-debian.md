@@ -1,13 +1,15 @@
 # Ubuntu / Debian building instructions
 
+Tested on a pristine:
+ - Ubuntu 13.10 amd64
+
 ## Install
 
 1. sudo apt-get update
 1. sudo apt-get install build-essential libssl-dev libboost-all-dev libdb++-dev libminiupnpc-dev git openssl autoconf libtool
 1. git clone https://github.com/miguelfreitas/twister-core.git
 1. cd twister-core/libtorrent
-1. ./bootstrap.sh
-1. ./configure --enable-logging --enable-debug --enable-dht
+1. ./bootstrap.sh --with-boost-libdir=/usr/lib/x86_64-linux-gnu
 1. cd ../src
 1. make -f makefile.unix
 
