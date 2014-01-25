@@ -468,6 +468,8 @@ AS_CASE(["$ARG_ENABLE_SSE2"],
       AC_MSG_RESULT([yes])
       AC_DEFINE([USE_SSE2],[1],[Enable SSE2])
       COMPILETIME_OPTIONS="$COMPILETIME_OPTIONS -DUSE_SSE2 -msse2 "
+      CFLAGS="-DUSE_SSE2 -msse2 $CFLAGS"
+      CXXFLAGS="-DUSE_SSE2 -msse2 $CXXFLAGS"
     ],
   ["no"|"off"], [
       AC_MSG_RESULT([no])
