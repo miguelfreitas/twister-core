@@ -63,6 +63,7 @@ public:
         assert(hashGenesisBlock == uint256("9915158279673d101912be80f25c20627f1dd8bf5231e7c46bfec5ed19737f44"));
 
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed.twister.net.co"));
+        vSeeds.push_back(CDNSSeedData("gombadi.com", "dnsseed.gombadi.com"));
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed2.twister.net.co"));
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed3.twister.net.co"));
 
