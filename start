@@ -1,0 +1,2 @@
+cd src
+./twisterd -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1 --daemon
