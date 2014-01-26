@@ -88,7 +88,6 @@ LIBTORRENT_SOURCES = \
   libtorrent/src/session.cpp                     \
   libtorrent/src/session_impl.cpp                \
   libtorrent/src/settings.cpp                    \
-  libtorrent/src/sha1.cpp                        \
   libtorrent/src/smart_ban.cpp                   \
   libtorrent/src/socket_io.cpp                   \
   libtorrent/src/socket_type.cpp                 \

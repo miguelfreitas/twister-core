@@ -39,38 +39,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/config.hpp"
 #include "libtorrent/assert.hpp"
 
-#ifdef TORRENT_USE_GCRYPT
-#include <gcrypt.h>
-
-#elif TORRENT_USE_COMMONCRYPTO
-
-#include <CommonCrypto/CommonDigest.h>
-
-#elif defined TORRENT_USE_OPENSSL
-
 extern "C"
 {
 #include <openssl/sha.h>
 }
-
-#else
-// from sha1.cpp
-namespace libtorrent
-{
-
-	struct TORRENT_EXTRA_EXPORT sha_ctx
-	{
-		boost::uint32_t state[5];
-		boost::uint32_t count[2];
-		boost::uint8_t buffer[64];
-	};
-
-	TORRENT_EXTRA_EXPORT void SHA1_init(sha_ctx* context);
-	TORRENT_EXTRA_EXPORT void SHA1_update(sha_ctx* context, boost::uint8_t const* data, boost::uint32_t len);
-	TORRENT_EXTRA_EXPORT void SHA1_final(boost::uint8_t* digest, sha_ctx* context);
-} // namespace libtorrent
-
-#endif
 
 namespace libtorrent
 {
@@ -81,32 +53,15 @@ namespace libtorrent
 		hasher();
 		hasher(const char* data, int len);
 
-#ifdef TORRENT_USE_GCRYPT
-		hasher(hasher const& h);
-		hasher& operator=(hasher const& h);
-#endif
-
 		void update(std::string const& data) { update(data.c_str(), data.size()); }
 		void update(const char* data, int len);
 		sha1_hash final();
 
 		void reset();
 
-#ifdef TORRENT_USE_GCRYPT
-		~hasher();
-#endif
-
 	private:
 
-#ifdef TORRENT_USE_GCRYPT
-		gcry_md_hd_t m_context;
-#elif TORRENT_USE_COMMONCRYPTO
-		CC_SHA1_CTX m_context;
-#elif defined TORRENT_USE_OPENSSL
 		SHA_CTX m_context;
-#else
-		sha_ctx m_context;
-#endif
 	};
 }
 
