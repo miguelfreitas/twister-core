@@ -25,7 +25,7 @@ Compiling
 ----------------
 You can build you own twister with this docs: 
 
-[Ubuntu/Debian](https://github.com/miguelfreitas/twister-core/blob/master/doc/bulding-on-ubuntu-debian.md)
+[Ubuntu/Debian](https://github.com/miguelfreitas/twister-core/blob/master/doc/building-on-ubuntu-debian.md)
 
 [Mac OS X](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-osx.md)
 
