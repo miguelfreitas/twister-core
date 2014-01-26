@@ -481,7 +481,8 @@ void ThreadMaintainDHTNodes()
 
 void ThreadSessionAlerts()
 {
-    static map<sha1_hash, entry> neighborCheck;
+    static map<sha1_hash, bool> neighborCheck;
+    static map<sha1_hash, bool> statusCheck;
 
     while(!ses) {
         MilliSleep(200);
@@ -563,14 +564,22 @@ void ThreadSessionAlerts()
                                         LOCK(cs_twister);
                                         knownTorrent = m_userTorrent.count(n->string());
                                     }
-                                    if( !neighborCheck.count(ih) && !knownTorrent ) {
-                                        printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
-                                               n->string().c_str(),
-                                               r->string().c_str(),
-                                               t->string().c_str());
-
-                                        neighborCheck[ih] = gd->m_target;
-                                        ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                    if( !knownTorrent ) {
+                                        if( !neighborCheck.count(ih) ) {
+                                            printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
+                                                   n->string().c_str(),
+                                                   r->string().c_str(),
+                                                   t->string().c_str());
+                                            
+                                            neighborCheck[ih] = false;
+                                            ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                        } else if( neighborCheck[ih] ) {
+                                            printf("known neighbor. starting a new dhtget check of [%s,%s,%s]\n",
+                                                   n->string().c_str(), "status", "s");
+                                            sha1_hash ihStatus = dhtTargetHash(n->string(), "status", "s");
+                                            statusCheck[ihStatus] = false;
+                                            ses->dht_getData(n->string(), "status", false);
+                                        }
                                     }
                                 }
                             }
@@ -599,13 +608,20 @@ void ThreadSessionAlerts()
                         }
                     }
 
-                    if( dd->m_is_neighbor && m_specialResources.count(dd->m_resource) &&
-                        neighborCheck.count(ih) ) {
-                        // Do something!
-                        if( dd->m_resource == "tracker" ) {
+                    if( neighborCheck.count(ih) ) {
+                        neighborCheck[ih] = dd->m_is_neighbor;
+                        if( dd->m_is_neighbor && dd->m_resource == "tracker" ) {
+                            printf("is neighbor. starting a new dhtget check of [%s,%s,%s]\n",
+                                   dd->m_username.c_str(), "status", "s");
+                            sha1_hash ihStatus = dhtTargetHash(dd->m_username, "status", "s");
+                            statusCheck[ihStatus] = false;
+                            ses->dht_getData(dd->m_username, "status", false);
+                        }
+                    }
+                    if( statusCheck.count(ih) ) {
+                        statusCheck[ih] = dd->m_got_data;
+                        if( dd->m_got_data ) {
                             startTorrentUser(dd->m_username, false);
-                        } else {
-                            printf("Neighbor of special resource - do something!\n");
                         }
                     }
                     continue;
