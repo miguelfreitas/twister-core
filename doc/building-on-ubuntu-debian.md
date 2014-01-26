@@ -6,12 +6,12 @@ Tested on a pristine:
 ## Install
 
 1. sudo apt-get update
-1. sudo apt-get install build-essential libssl-dev libboost-all-dev libdb++-dev libminiupnpc-dev git openssl autoconf libtool
+1. sudo apt-get install git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev
 1. git clone https://github.com/miguelfreitas/twister-core.git
-1. cd twister-core/libtorrent
-1. ./bootstrap.sh --with-boost-libdir=/usr/lib/x86_64-linux-gnu
-1. cd ../src
-1. make -f makefile.unix
+1. cd twister-core
+1. ./autotool.sh
+1. ./configure
+1. make
 
 ## Configuration & web gui
 
@@ -22,7 +22,7 @@ Tested on a pristine:
 
 ## Start
 
-1. cd twister-core/src
-1. ./twisterd -rpcuser=user -rpcpassword=pwd
+1. cd twister-core
+1. ./twisterd -rpcuser=user -rpcpassword=pwd -rpcallowip=127.0.0.1
 1. Open http://127.0.0.1:28332/index.html and use the user/pwd credentials
 1. Create your account !
