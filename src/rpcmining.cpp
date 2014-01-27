@@ -116,7 +116,7 @@ Value getwork(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Twister is downloading blocks...");
 
-    typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
+    typedef map<uint256, pair<CBlock*, CTransaction> > mapNewBlock_t;
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
     static vector<CBlockTemplate*> vNewBlockTemplate;
 
@@ -167,9 +167,7 @@ Value getwork(const Array& params, bool fHelp)
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
         // Save
-        /* [MF] Check!
-        mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
-        */
+        mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0]);
 
         // Pre-build hash buffers
         char pmidstate[32];
@@ -205,9 +203,7 @@ Value getwork(const Array& params, bool fHelp)
 
         pblock->nTime = pdata->nTime;
         pblock->nNonce = pdata->nNonce;
-        /* [MF]
-        pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
-        */
+        pblock->vtx[0] = mapNewBlock[pdata->hashMerkleRoot].second;
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
         return CheckWork(pblock, *pwalletMain);
