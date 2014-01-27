@@ -520,6 +520,11 @@ bool node_impl::refresh_storage() {
             // FIXME: optimize to avoid bdecode (store seq separated, etc)
             int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
 
+            int height = p.dict_find_int_value("height");
+            if( height > getBestHeight() ) {
+                continue;  // how?
+            }
+
             const lazy_entry *target = p.dict_find_dict("target");
             std::string username = target->dict_find_string_value("n");
             std::string resource = target->dict_find_string_value("r");
@@ -1263,7 +1268,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
-		if (msg_keys[mk_height]->int_value() > getBestHeight() && getBestHeight() > 0) {
+		if (msg_keys[mk_height]->int_value() > getBestHeight()+1 && getBestHeight() > 0) {
 			incoming_error(e, "height > getBestHeight");
 			return;
 		}
