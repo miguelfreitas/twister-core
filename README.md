@@ -29,7 +29,7 @@ You can build you own twister with this docs:
 
 [Mac OS X](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-osx.md)
 
-[Windows (untested)](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-msw.md)
+[Windows (untested)](https://github.com/miguelfreitas/twister-core/wiki/Compiling-for-Windows)
 
 [Unix](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-unix.md)
 
