@@ -4569,7 +4569,7 @@ namespace libtorrent
 			return;
 		}
 		
-        if (ret <= 0)
+		if (ret <= 0)
 		{
 			if (t->has_picker() && t->have_piece(j.piece) ) {
 				printf("on_disk_read_complete: read error (database corrupt?) - setting we_dont_have(%d)\n", j.piece);
@@ -4592,8 +4592,8 @@ namespace libtorrent
 			}
 			return;
 		}
-        //[MF]
-        r.length = j.buffer_size;
+		//[MF]
+		r.length = j.buffer_size;
 
 		if (t)
 		{
@@ -4609,7 +4609,18 @@ namespace libtorrent
 #if TORRENT_DISK_STATS
 		if (j.buffer) m_ses.m_disk_thread.rename_buffer(j.buffer, "dispatched send buffer");
 #endif
-		write_piece(r, buffer);
+		// [MF] recheck piece just before sending (issue #15)
+		std::string errmsg;
+		if( acceptSignedPost(j.buffer, j.buffer_size, j.storage->info()->name(),
+				     j.piece, errmsg, NULL ) ) {
+			write_piece(r, buffer);
+		} else {
+			printf("on_disk_read_complete: [piece: %d l: %d] failed! (%s)\n",
+			       j.piece, j.buffer_size, errmsg.c_str());
+			t->we_dont_have(j.piece);
+			m_ses.free_disk_buffer(buffer.get());
+			buffer.release();
+		}
 	}
 
 	void peer_connection::assign_bandwidth(int channel, int amount)
