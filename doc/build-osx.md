@@ -90,7 +90,7 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
 
         make clean
 
-If all went well, you should now have a twisterd executable in the src directory. 
+If all went well, you should now have a twisterd executable in the twister-core directory. 
 See the Running instructions below.
 
 Instructions: MacPorts (UNTESTED!!)
