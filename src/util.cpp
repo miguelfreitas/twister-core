@@ -96,6 +96,11 @@ void locking_callback(int mode, int i, const char* file, int line)
     }
 }
 
+static unsigned long id_callback(void)
+{
+  return ((unsigned long)pthread_self());
+}
+
 LockedPageManager LockedPageManager::instance;
 
 // Init
@@ -108,6 +113,7 @@ public:
         ppmutexOpenSSL = (CCriticalSection**)OPENSSL_malloc(CRYPTO_num_locks() * sizeof(CCriticalSection*));
         for (int i = 0; i < CRYPTO_num_locks(); i++)
             ppmutexOpenSSL[i] = new CCriticalSection();
+        CRYPTO_set_id_callback(id_callback);
         CRYPTO_set_locking_callback(locking_callback);
 
 #ifdef WIN32
@@ -121,6 +127,7 @@ public:
     ~CInit()
     {
         // Shutdown OpenSSL library multithreading support
+        CRYPTO_set_id_callback(NULL);
         CRYPTO_set_locking_callback(NULL);
         for (int i = 0; i < CRYPTO_num_locks(); i++)
             delete ppmutexOpenSSL[i];
