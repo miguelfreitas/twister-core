@@ -181,7 +181,7 @@ public:
 
 	void tick();
     bool refresh_storage();
-    bool has_expired(dht_storage_item const& item);
+    bool has_expired(dht_storage_item const& item, bool skipSigCheck=false);
     bool save_storage(entry &save) const;
     void refresh(node_id const& id, find_data::nodes_callback const& f);
 	void bootstrap(std::vector<udp::endpoint> const& nodes

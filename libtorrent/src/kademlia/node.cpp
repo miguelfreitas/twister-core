@@ -509,7 +509,7 @@ bool node_impl::refresh_storage() {
             }
 
 #ifdef ENABLE_DHT_ITEM_EXPIRE
-            if( has_expired(item) ) {
+            if( has_expired(item, true) ) {
                 continue;
             }
 #endif
@@ -580,12 +580,12 @@ bool node_impl::refresh_storage() {
     return did_something;
 }
 
-bool node_impl::has_expired(dht_storage_item const& item) {
+bool node_impl::has_expired(dht_storage_item const& item, bool skipSigCheck) {
     // dont expire if block chain is invalid
     if( getBestHeight() < 1 )
         return false;
 
-    if (!verifySignature(item.p, item.sig_user, item.sig_p)) {
+    if (!skipSigCheck && !verifySignature(item.p, item.sig_user, item.sig_p)) {
         // invalid signature counts as expired
         printf("node_impl::has_expired verifySignature failed\n");
         return true;
