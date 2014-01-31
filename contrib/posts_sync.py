@@ -84,7 +84,10 @@ for i in xrange(len(items)-1,0,-1):
         ptext = ptext.replace(":// ","://").replace("# ","#").replace("@ ","@")
         print "newpostmsg", username, lastK+1, ptext
         if not options.dryRun:
-            twister.newpostmsg(username, lastK+1, ptext)
+            try:
+                twister.newpostmsg(username, lastK+1, ptext)
+            except:
+                pass
         lastK = lastK+1
 
 if not options.dryRun:
