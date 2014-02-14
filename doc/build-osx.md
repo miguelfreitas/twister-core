@@ -144,5 +144,5 @@ Once you do that, it will be available at http://localhost:28332/home.html
 Troubleshooting
 -------
 1) You get "DHT network down" in WEB interface on /network.html page 
- - Reboot you Mac
+ - Reboot your Mac
  
