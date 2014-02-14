@@ -5,6 +5,7 @@
 
 #include "main.h"
 #include "bitcoinrpc.h"
+#include "softcheckpoint.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -203,3 +204,29 @@ Value verifychain(const Array& params, bool fHelp)
     return VerifyDB(nCheckLevel, nCheckDepth);
 }
 
+
+Value getlastsoftcheckpoint(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getlastsoftcheckpoint"
+            "Returns votes of last soft checkpoint.");
+
+    Object result;
+    
+    int height;
+    uint256 hash;
+    std::set<std::string> usernamesSet;
+    if( SoftCheckpoints::GetLastCPVotes(height, hash, usernamesSet) ) {
+        result.push_back(Pair("height", height));
+        result.push_back(Pair("hash", hash.GetHex()));
+        
+        Array usernames;
+        BOOST_FOREACH(const std::string &user, usernamesSet) {
+            usernames.push_back(user);
+        }
+        result.push_back(Pair("usernames", usernames));
+    }
+    
+    return result;
+}

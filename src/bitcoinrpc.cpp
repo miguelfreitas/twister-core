@@ -241,6 +241,7 @@ static const CRPCCommand vRPCCommands[] =
     { "sendrawtransaction",     &sendrawtransaction,     false,     false },
     { "sendnewusertransaction", &sendnewusertransaction, false,     false },
     { "verifychain",            &verifychain,            true,      false },
+    { "getlastsoftcheckpoint",  &getlastsoftcheckpoint,  true,      false },
     // twister dht network
     { "dhtput",                 &dhtput,                 false,     true },
     { "dhtget",                 &dhtget,                 false,     true },

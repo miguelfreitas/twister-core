@@ -16,8 +16,8 @@
 #include "init.h"
 #include "twister.h"
 
-#define dbgprintf OutputDebugStringF
-//#define dbgprintf(...) // no debug printf
+//#define dbgprintf OutputDebugStringF
+#define dbgprintf(...) // no debug printf
 
 namespace SoftCheckpoints
 {
@@ -265,5 +265,20 @@ namespace SoftCheckpoints
                 pnode->PushMessage("cp", cp);
             }
         }
+    }
+
+    bool GetLastCPVotes(int &height, uint256 &hash, std::set<std::string> &usernames) {
+        LOCK(cs_softCP);
+        if (!lastSoftCP.first)
+            return false;
+        
+        height = lastSoftCP.first;
+        hash = lastSoftCP.second;
+
+        usernames.clear();
+        BOOST_FOREACH(const CPSigMap::value_type& i, lastSoftCPSigs) {
+                usernames.insert(i.first);
+        }
+        return true;
     }
 }

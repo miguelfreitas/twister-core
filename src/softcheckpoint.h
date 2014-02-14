@@ -31,6 +31,8 @@ namespace SoftCheckpoints
     void RelayCP(const CSoftCheckpoint& cp, CNode* pfrom);
     
     void RelayLastCPToNode(CNode* pnode);
+    
+    bool GetLastCPVotes(int &height, uint256 &hash, std::set<std::string> &usernames);
 }
 
 class CSoftCheckpoint
