@@ -813,8 +813,10 @@ void udp_socket::on_name_lookup(error_code const& e, tcp::resolver::iterator i)
 void udp_socket::on_timeout()
 {
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
-	TORRENT_ASSERT(m_outstanding_timeout > 0);
-	--m_outstanding_timeout;
+	if(m_outstanding_timeout > 0) { // without this check it breaks using socks5
+		TORRENT_ASSERT(m_outstanding_timeout > 0);
+		--m_outstanding_timeout;
+	}
 #endif
 	TORRENT_ASSERT(m_outstanding_ops > 0);
 	--m_outstanding_ops;

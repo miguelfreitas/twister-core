@@ -38,6 +38,7 @@ twister::twister()
 
 using namespace libtorrent;
 static session *ses = NULL;
+static bool m_usingProxy;
 static int num_outstanding_resume_data;
 
 static CCriticalSection cs_dhtgetMap;
@@ -216,14 +217,27 @@ void ThreadWaitExtIP()
 
     int listen_port = GetListenPort() + LIBTORRENT_PORT_OFFSET;
     std::string bind_to_interface = "";
+    proxyType proxyInfoOut;
+    m_usingProxy = GetProxy(NET_IPV4, proxyInfoOut);
 
-    printf("Creating new libtorrent session ext_ip=%s port=%d\n", ipStr.c_str(), listen_port);
+    printf("Creating new libtorrent session ext_ip=%s port=%d proxy=%s\n", 
+           ipStr.c_str(), !m_usingProxy ? listen_port : 0,
+           m_usingProxy ? proxyInfoOut.first.ToStringIPPort().c_str() : "");
 
     ses = new session(*m_swarmDb, fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
             , alert::dht_notification
             , ipStr.size() ? ipStr.c_str() : NULL
-            , std::make_pair(listen_port, listen_port));
+            , !m_usingProxy ? std::make_pair(listen_port, listen_port) : std::make_pair(0, 0) );
+
+    if( m_usingProxy ) {
+        proxy_settings proxy;
+        proxy.hostname = proxyInfoOut.first.ToStringIP();
+        proxy.port     = proxyInfoOut.first.GetPort();
+        proxy.type     = HaveNameProxy() ? proxy_settings::socks5 :
+                                           proxy_settings::socks4;
+        ses->set_proxy(proxy);
+    }
 
     // session will be paused until we have an up-to-date blockchain
     ses->pause();
@@ -237,32 +251,39 @@ void ThreadWaitExtIP()
                     ses->load_state(e);
     }
 
-    ses->start_upnp();
-    ses->start_natpmp();
-
-    ses->listen_on(std::make_pair(listen_port, listen_port)
-            , ec, bind_to_interface.c_str());
-    if (ec)
-    {
+    if( !m_usingProxy ) {
+        ses->start_upnp();
+        ses->start_natpmp();
+        
+        ses->listen_on(std::make_pair(listen_port, listen_port)
+                       , ec, bind_to_interface.c_str());
+        if (ec)
+        {
             fprintf(stderr, "failed to listen%s%s on ports %d-%d: %s\n"
                     , bind_to_interface.empty() ? "" : " on ", bind_to_interface.c_str()
                     , listen_port, listen_port+1, ec.message().c_str());
+        }
+    
+        dht_settings dhts;
+        // settings to test local connections
+        //dhts.restrict_routing_ips = false;
+        //dhts.restrict_search_ips = false;
+        ses->set_dht_settings(dhts);
+        ses->start_dht();
     }
-
-    dht_settings dhts;
-    // settings to test local connections
-    dhts.restrict_routing_ips = false;
-    dhts.restrict_search_ips = false;
-    ses->set_dht_settings(dhts);
-    ses->start_dht();
-
+    
     session_settings settings;
     // settings to test local connections
     settings.allow_multiple_connections_per_ip = true;
     //settings.enable_outgoing_utp = false; // (false to see connections in netstat)
     //settings.dht_announce_interval = 60; // test
     //settings.min_announce_interval = 60; // test
-    settings.anonymous_mode = false; // (false => send peer_id, avoid connecting to itself)
+    if( !m_usingProxy ) {
+        settings.anonymous_mode = false; // (false => send peer_id, avoid connecting to itself)
+    } else {
+        settings.anonymous_mode = true;
+        settings.force_proxy = true; // DHT won't work
+    }
     // disable read cache => there is still some bug due to twister piece size changes
     settings.use_read_cache = false;
     settings.cache_size = 0;
@@ -392,7 +413,8 @@ void ThreadMaintainDHTNodes()
             int totalNodesCandidates = (int)(vNodesSize + vAddr.size());
             if( ((!dht_nodes && totalNodesCandidates) ||
                  (dht_nodes < 5 && totalNodesCandidates > 10)) &&
-                 totalNodesCandidates != lastTotalNodesCandidates ) {
+                 !m_usingProxy &&
+                 totalNodesCandidates != lastTotalNodesCandidates) {
                 lastTotalNodesCandidates = totalNodesCandidates;
                 printf("ThreadMaintainDHTNodes: too few dht_nodes, trying to add some...\n");
                 BOOST_FOREACH(const CAddress &a, vAddr) {
@@ -682,7 +704,13 @@ void stopSessionTorrent()
             printf("\nsaving session state\n");
 
             entry session_state;
-            ses->save_state(session_state);
+            ses->save_state(session_state,
+                            session::save_settings |
+                            session::save_dht_settings |
+                            session::save_dht_state |
+                            session::save_encryption_settings |
+                            session::save_as_map |
+                            session::save_feeds);
 
             std::vector<char> out;
             bencode(std::back_inserter(out), session_state);
