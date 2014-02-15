@@ -260,6 +260,7 @@ static const CRPCCommand vRPCCommands[] =
     { "listusernamespartial",   &listusernamespartial,   false,     true },
     { "rescandirectmsgs",       &rescandirectmsgs,       false,     true },
     { "recheckusertorrent",     &recheckusertorrent,     false,     true },
+    { "gettrendinghashtags",    &gettrendinghashtags,    false,     true },
 };
 
 CRPCTable::CRPCTable()
@@ -1281,6 +1282,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "unfollow"               && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 2) ConvertTo<bool>(params[2]);
+    if (strMethod == "gettrendinghashtags"    && n > 0) ConvertTo<boost::int64_t>(params[0]);
 
     return params;
 }

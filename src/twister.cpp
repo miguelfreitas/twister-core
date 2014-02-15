@@ -58,6 +58,9 @@ static std::string m_receivedSpamUserStr;
 static int64       m_lastSpamTime = 0;
 static std::map<std::string,UserData> m_users;
 
+static CCriticalSection cs_seenHashtags;
+static std::map<std::string,double> m_seenHashtags;
+
 #define USER_DATA_FILE "user_data"
 #define GLOBAL_DATA_FILE "global_data"
 
@@ -1174,6 +1177,44 @@ void receivedSpamMessage(std::string const &message, std::string const &user)
     }
 }
 
+void updateSeenHashtags(std::string &message, int64_t msgTime)
+{
+    boost::int64_t curTime = GetAdjustedTime();
+    if( msgTime > curTime ) msgTime = curTime;
+    
+    double vote = 1.0;
+    if( msgTime + (2*3600) < curTime ) {
+        double timeDiff = (curTime - msgTime);
+        timeDiff /= (2*3600);
+        vote /= timeDiff;
+    }
+
+    // split and look for hashtags
+    vector<string> tokens;
+    set<string> hashtags;
+    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(" \n\t.,:/?!"),
+                            boost::algorithm::token_compress_on);
+    BOOST_FOREACH(string const& token, tokens) {
+        if( token.length() >= 2 ) {
+            string word = token.substr(1);
+            boost::algorithm::to_lower(word);
+            if( token.at(0) == '#') {
+                hashtags.insert(word);
+            }
+        }
+    }
+    
+    if( hashtags.size() ) {
+        LOCK(cs_seenHashtags);
+        BOOST_FOREACH(string const& word, hashtags) {
+            if( m_seenHashtags.count(word) ) {
+                m_seenHashtags[word] += vote;
+            } else {
+                m_seenHashtags[word] = vote;
+            }
+        }
+    }
+}
 
 Value dhtput(const Array& params, bool fHelp)
 {
@@ -1902,4 +1943,30 @@ Value recheckusertorrent(const Array& params, bool fHelp)
     return Value();
 }
 
+Value gettrendinghashtags(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "gettrendinghashtags <count>\n"
+            "obtain list of trending hashtags");
+
+    size_t count = params[0].get_int();
+
+    std::map<double,std::string> sortedHashtags;
+    {
+        LOCK(cs_seenHashtags);
+        BOOST_FOREACH(const PAIRTYPE(std::string,double)& item, m_seenHashtags) {
+            sortedHashtags[item.second]=item.first;
+        }
+    }
+
+    Array ret;
+    BOOST_REVERSE_FOREACH(const PAIRTYPE(double, std::string)& item, sortedHashtags) {
+        if( ret.size() >= count )
+            break;
+        ret.push_back(item.second);
+    }
+
+    return ret;
+}
 

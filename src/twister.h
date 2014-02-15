@@ -39,4 +39,6 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height);
 
 int getDhtNodes(boost::int64_t *dht_global_nodes = NULL);
 
+void updateSeenHashtags(std::string &message, int64_t msgTime);
+
 #endif // TWISTER_H

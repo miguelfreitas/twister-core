@@ -212,5 +212,6 @@ extern json_spirit::Value getnumpieces(const json_spirit::Array& params, bool fH
 extern json_spirit::Value listusernamespartial(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value rescandirectmsgs(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value recheckusertorrent(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value gettrendinghashtags(const json_spirit::Array& params, bool fHelp);
 
 #endif

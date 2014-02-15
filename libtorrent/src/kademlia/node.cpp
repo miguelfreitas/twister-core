@@ -489,6 +489,22 @@ void node_impl::tick()
     }
 }
 
+static void processEntryForHashtags(lazy_entry &p)
+{
+    const lazy_entry *target = p.dict_find_dict("target");
+    bool multi = (target && target->dict_find_string_value("t") == "m");
+    
+    const lazy_entry *v = p.dict_find_dict("v");
+    if( v && !multi ) {
+        const lazy_entry *userpost = v->dict_find_dict("userpost");
+        if( userpost ) {
+            int64_t time = p.dict_find_int_value("time");
+            std::string msg = userpost->dict_find_string_value("msg");
+            updateSeenHashtags(msg,time);
+        }
+    }
+}
+
 bool node_impl::refresh_storage() {
     bool did_something = false;
     bool refresh_next_item = false;
@@ -524,7 +540,7 @@ bool node_impl::refresh_storage() {
             if( height > getBestHeight() ) {
                 continue;  // how?
             }
-
+            
             const lazy_entry *target = p.dict_find_dict("target");
             std::string username = target->dict_find_string_value("n");
             std::string resource = target->dict_find_string_value("r");
@@ -543,6 +559,8 @@ bool node_impl::refresh_storage() {
                            resource.c_str(),
                            target->dict_find_string_value("t").c_str());
 #endif
+
+                    processEntryForHashtags(p);
 
                     entry entryP;
                     entryP = p; // lazy to non-lazy
@@ -689,6 +707,13 @@ void node_impl::load_storage(entry const* e) {
 #ifdef ENABLE_DHT_ITEM_EXPIRE
             if( !expired ) {
 #endif
+                lazy_entry p;
+                int pos;
+                error_code err;
+                // FIXME: optimize to avoid bdecode (store seq separated, etc)
+                int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+                processEntryForHashtags(p);
+
                 to_add.push_back(item);
 #ifdef ENABLE_DHT_ITEM_EXPIRE
             }
