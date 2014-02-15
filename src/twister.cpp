@@ -1223,9 +1223,9 @@ Value dhtput(const Array& params, bool fHelp)
 
 Value dhtget(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3)
+    if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
-            "dhtget <username> <resource> <s(ingle)/m(ulti)>\n"
+            "dhtget <username> <resource> <s(ingle)/m(ulti)> [timeout_ms] [timeout_multi_ms] [min_multi]\n"
             "Get resource from dht network");
 
     if( !ses )
@@ -1234,8 +1234,18 @@ Value dhtget(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     string strResource = params[1].get_str();
     string strMulti    = params[2].get_str();
-
     bool multi = (strMulti == "m");
+
+    time_duration timeToWait = seconds(10);
+    time_duration timeToWaitMulti = milliseconds(100);
+    int minMultiReplies = 3;
+
+    if( params.size() > 3 )
+        timeToWait = milliseconds(params[3].get_int());
+    if( params.size() > 4 )
+        timeToWaitMulti = milliseconds(params[4].get_int());
+    if( params.size() > 5 )
+        minMultiReplies = params[5].get_int();
 
     alert_manager am(10, alert::dht_notification);
     sha1_hash ih = dhtTargetHash(strUsername,strResource,strMulti);
@@ -1250,7 +1260,6 @@ Value dhtget(const Array& params, bool fHelp)
     Array ret;
     std::set<std::string> uniqueSigPs;
 
-    time_duration timeToWait = seconds(10);
     int repliesReceived = 0;
     while( am.wait_for_alert(timeToWait) ) {
         std::auto_ptr<alert> a(am.get());
@@ -1279,8 +1288,8 @@ Value dhtget(const Array& params, bool fHelp)
         }
 
         if( multi ) {
-            if( repliesReceived++ < 3 && uniqueSigPs.size() ) {
-                timeToWait = milliseconds(100 / repliesReceived);
+            if( repliesReceived++ < minMultiReplies && uniqueSigPs.size() ) {
+                timeToWait = timeToWaitMulti;
                 //printf("dhtget: wait again %d\n", repliesReceived);
             } else {
                 break;

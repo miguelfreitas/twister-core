@@ -1264,6 +1264,9 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "verifychain"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "dhtput"                 && n > 3) ConvertToValue(params[3]);
     if (strMethod == "dhtput"                 && n > 5) ConvertTo<boost::int64_t>(params[5]);
+    if (strMethod == "dhtget"                 && n > 3) ConvertTo<boost::int64_t>(params[3]);
+    if (strMethod == "dhtget"                 && n > 4) ConvertTo<boost::int64_t>(params[4]);
+    if (strMethod == "dhtget"                 && n > 5) ConvertTo<boost::int64_t>(params[5]);
     if (strMethod == "newpostmsg"             && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newpostmsg"             && n > 4) ConvertTo<boost::int64_t>(params[4]);
     if (strMethod == "newdirectmsg"           && n > 1) ConvertTo<boost::int64_t>(params[1]);
