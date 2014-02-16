@@ -1179,6 +1179,9 @@ void receivedSpamMessage(std::string const &message, std::string const &user)
 
 void updateSeenHashtags(std::string &message, int64_t msgTime)
 {
+    if( message.find('#') == string::npos )
+        return;
+
     boost::int64_t curTime = GetAdjustedTime();
     if( msgTime > curTime ) msgTime = curTime;
     
@@ -1214,6 +1217,23 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
             }
         }
     }
+}
+
+entry formatSpamPost(const string &msg, const string &username, uint64_t utcTime = 0, int height = 0)
+{
+    entry v;
+    entry &userpost = v["userpost"];
+    
+    userpost["n"] = username;
+    userpost["k"] = height ? height : 1;
+    userpost["time"] = utcTime ? utcTime : GetAdjustedTime();
+    userpost["height"] = height ? height : getBestHeight();
+    userpost["msg"] = msg;
+    
+    unsigned char vchSig[65];
+    RAND_bytes(vchSig,sizeof(vchSig));
+    v["sig_userpost"] = HexStr( string((const char *)vchSig, sizeof(vchSig)) );
+    return v;
 }
 
 Value dhtput(const Array& params, bool fHelp)
@@ -1631,19 +1651,7 @@ Value getposts(const Array& params, bool fHelp)
         if( m_receivedSpamMsgStr.length() && GetAdjustedTime() > m_lastSpamTime + (8*3600) ) {
             m_lastSpamTime = GetAdjustedTime();
 
-            entry v;
-            entry &userpost = v["userpost"];
-
-            userpost["n"] = m_receivedSpamUserStr;
-            userpost["k"] = 1;
-            userpost["time"] = GetAdjustedTime();
-            userpost["height"] = getBestHeight();
-
-            userpost["msg"] = m_receivedSpamMsgStr;
-
-            unsigned char vchSig[65];
-            RAND_bytes(vchSig,sizeof(vchSig));
-            v["sig_userpost"] = HexStr( string((const char *)vchSig, sizeof(vchSig)) );
+            entry v = formatSpamPost(m_receivedSpamMsgStr, m_receivedSpamUserStr);
             ret.insert(ret.begin(),entryToJson(v));
 
             m_receivedSpamMsgStr = "";
@@ -1970,3 +1978,45 @@ Value gettrendinghashtags(const Array& params, bool fHelp)
     return ret;
 }
 
+Value getspamposts(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "getspamposts <count> [max_id] [since_id]\n"
+            "get spam posts from blockchain\n"
+            "max_id and since_id may be omited (or -1)");
+
+    int count          = params[0].get_int();
+    int max_id         = getBestHeight();
+    if (params.size() > 1 && params[1].get_int() != -1)
+        max_id = std::min(params[1].get_int(), max_id);
+    int since_id       = -1;
+    if (params.size() > 2)
+        since_id = std::max(params[2].get_int(), since_id);
+
+    Array ret;
+    std::string lastMsg;
+    
+    for( int height = max_id; height > since_id && (int)ret.size() < count; height-- ) {
+        CBlockIndex* pblockindex = FindBlockByHeight(height);
+        CBlock block;
+        ReadBlockFromDisk(block, pblockindex);
+        
+        const CTransaction &tx = block.vtx[0];
+        if( tx.IsSpamMessage() ) {
+            std::string spamMessage = tx.message.ExtractPushDataString(0);
+            std::string spamUser = tx.userName.ExtractPushDataString(0);
+
+            // remove consecutive duplicates
+            if( spamMessage == lastMsg)
+                continue;
+            lastMsg = spamMessage;
+
+            entry v = formatSpamPost(spamMessage, spamUser,
+                                     block.GetBlockTime(), height);
+            ret.insert(ret.begin(),entryToJson(v));
+        }
+    }
+
+    return ret;
+}

@@ -499,8 +499,16 @@ static void processEntryForHashtags(lazy_entry &p)
         const lazy_entry *userpost = v->dict_find_dict("userpost");
         if( userpost ) {
             int64_t time = p.dict_find_int_value("time");
-            std::string msg = userpost->dict_find_string_value("msg");
-            updateSeenHashtags(msg,time);
+            const lazy_entry *rt = userpost->dict_find_dict("rt");
+            std::string msg;
+            if( rt ) {
+                msg = rt->dict_find_string_value("msg");
+            } else {
+                msg = userpost->dict_find_string_value("msg");
+            }
+            if( msg.size() ) {
+                updateSeenHashtags(msg,time);
+            }
         }
     }
 }
