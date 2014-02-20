@@ -819,18 +819,21 @@ namespace libtorrent
 		if (m_ses.m_listen_sockets.empty()) return false;
 
 		if (!m_ses.m_dht) return false;
-		if (m_torrent_file->is_valid() && !m_files_checked) return false;
-		if (!m_announce_to_dht) return false;
-		if (!m_allow_peers) return false;
+		//if (m_torrent_file->is_valid() && !m_files_checked) return false;
+		//if (!m_announce_to_dht) return false;
+		//if (!m_allow_peers) return false;
+		
+		//if !m_following => we're tracker. announce even if paused.
+		if(!m_allow_peers && m_following) return false;
 
 		// if we don't have the metadata, and we're waiting
 		// for a web server to serve it to us, no need to announce
 		// because the info-hash is just the URL hash
-		if (!m_torrent_file->is_valid() && !m_url.empty()) return false;
+		//if (!m_torrent_file->is_valid() && !m_url.empty()) return false;
 
 		// try to reduce the level of useless dht tracker requests by not
 		// announcing empty torrents we do not follow.
-		if (!m_following && last_have() == -1 ) return false;
+		//if (!m_following && last_have() == -1 ) return false;
 
 		// don't announce private torrents
 		if (m_torrent_file->is_valid() && m_torrent_file->priv()) return false;
@@ -2078,7 +2081,7 @@ namespace libtorrent
 		if (!m_name) return;
 		if (!should_announce_dht()) return;
 
-		TORRENT_ASSERT(m_allow_peers);
+		//TORRENT_ASSERT(m_allow_peers);
 
 		// [MF] use m_dht->announce with myself=false to update dht tracker with peers we know
 		{
@@ -7333,6 +7336,7 @@ namespace libtorrent
 		// if we don't have metadata, we need to announce
 		// before checking files, to get peers to
 		// request the metadata from
+#if 0
 		if (!m_files_checked && valid_metadata())
 		{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
@@ -7340,6 +7344,7 @@ namespace libtorrent
 #endif
 			return;
 		}
+#endif
 		if (!m_torrent_file->is_valid() && !m_url.empty())
 		{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
@@ -7359,6 +7364,8 @@ namespace libtorrent
 			m_ses.prioritize_dht(shared_from_this());
 		}
 #endif
+		//[MF] return from here. just DHT trackers used.
+		return;
 
 		if (!m_trackers.empty())
 		{
