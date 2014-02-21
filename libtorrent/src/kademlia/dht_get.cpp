@@ -132,10 +132,13 @@ void dht_get_observer::reply(msg const& m)
 		// pretend it is a normal dht resource to the caller
 		dht_get *dget( static_cast<dht_get*>(m_algorithm.get()) );
 		if( dget->m_targetResource == "tracker" && dget->m_multi ) {
-			const lazy_entry *followers = r->dict_find("followers");
+			int followers = r->dict_find_int_value("followers");
 			if( followers ) {
 				entry::dictionary_type v;
-				v["followers"] = followers->int_value();
+				v["followers"] = followers;
+				const lazy_entry *values = r->dict_find_list("values");
+				if( values )
+					v["values_size"] = values->list_size();
 
 				entry::dictionary_type target;
 				target["n"] = dget->m_targetUser;
