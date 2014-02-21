@@ -2083,19 +2083,24 @@ namespace libtorrent
 
 		//TORRENT_ASSERT(m_allow_peers);
 
-		// [MF] use m_dht->announce with myself=false to update dht tracker with peers we know
-		{
+		// [MF] use m_dht->announce with myself=false to update dht tracker with peers we know.
+		// in case we are short of "known good" peers (recently connected), in second pass we report the others.
+		int minPeersToAnnounce = 10;
+		for(int pass = 0; pass < 2 && minPeersToAnnounce > 0; pass++) {
 			policy::const_iterator i = get_policy().begin_peer();
 			policy::const_iterator end = get_policy().end_peer();
-			for (; i != end; ++i) {
+			for (; i != end && (!pass || minPeersToAnnounce > 0); ++i) {
 				policy::peer const* p = *i;
 
-				bool connect_recently = !p->banned && int(p->failcount) < settings().max_failcount &&
-						p->last_connected && (m_ses.session_time() - p->last_connected) < (4*3600);
-				if( p->connectable && ( p->connection || connect_recently) ) {
+				if( !p->banned && int(p->failcount) < settings().max_failcount ) {
+					bool connect_recently = !p->failcount && p->last_connected &&
+								(m_ses.session_time() - p->last_connected) < (4*3600);
+					if( p->connectable && (p->connection || connect_recently || pass) ) {
 						m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
 						  , p->address(), p->port, p->seed, false, m_policy.num_peers()
 						  , boost::bind(&nop));
+						minPeersToAnnounce--;
+					}
 				}
 			}
 		}
