@@ -7,6 +7,7 @@
 #include "bitcoinrpc.h"
 #include "txdb.h"
 #include "utf8core.h"
+#include "libtorrent/peer_info.hpp"
 
 using namespace json_spirit;
 using namespace std;
@@ -2019,4 +2020,64 @@ Value getspamposts(const Array& params, bool fHelp)
     }
 
     return ret;
+}
+
+Value torrentstatus(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "torrentstatus <username>\n"
+            "report torrent status");
+
+    string localUser = params[0].get_str();
+
+    torrent_handle h = getTorrentUser(localUser);
+    if( !h.is_valid() ){
+        return Value();
+    }
+    
+    torrent_status status = h.status();
+    
+    Object result;
+    result.push_back(Pair("state", status.state));
+    result.push_back(Pair("paused", status.paused));
+    result.push_back(Pair("auto_managed", status.auto_managed));
+    result.push_back(Pair("num_peers", status.num_peers));
+    result.push_back(Pair("list_peers", status.list_peers));
+    result.push_back(Pair("connect_candidates", status.connect_candidates));
+    result.push_back(Pair("num_connections", status.num_connections));
+    result.push_back(Pair("num_complete", status.num_complete));
+    result.push_back(Pair("num_pieces", status.num_pieces));
+    string bitfield;
+    for(int i = 0; i < status.pieces.size(); i++) {
+        bitfield.append( status.pieces[i]?"1":"0" );
+    }
+    result.push_back(Pair("bitfield", bitfield));
+    result.push_back(Pair("has_incoming", status.has_incoming));
+    result.push_back(Pair("priority", status.priority));
+    result.push_back(Pair("queue_position", status.queue_position));
+    
+    Array peers;
+    std::vector<peer_info> peerInfos;
+    h.get_peer_info(peerInfos);
+    BOOST_FOREACH(const peer_info &p, peerInfos) {
+        Object info;
+        info.push_back(Pair("addr", p.ip.address().to_string() + ":" + 
+                            boost::lexical_cast<std::string>(p.ip.port())));
+        char flags[10];
+        sprintf(flags,"0x%x",p.flags);
+        info.push_back(Pair("flags",flags));
+        info.push_back(Pair("connection_type", p.connection_type));
+        info.push_back(Pair("download_queue_length", p.download_queue_length));
+        info.push_back(Pair("failcount", p.failcount));
+        bitfield = "";
+        for(int i = 0; i < p.pieces.size(); i++) {
+            bitfield.append( p.pieces[i]?"1":"0" );
+        }
+        info.push_back(Pair("bitfield", bitfield));
+        peers.push_back(info);
+    }
+    result.push_back(Pair("peers", peers));
+    
+    return result;
 }

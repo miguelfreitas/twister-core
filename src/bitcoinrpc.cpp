@@ -262,6 +262,7 @@ static const CRPCCommand vRPCCommands[] =
     { "recheckusertorrent",     &recheckusertorrent,     false,     true },
     { "gettrendinghashtags",    &gettrendinghashtags,    false,     true },
     { "getspamposts",           &getspamposts,           false,     true },
+    { "torrentstatus",          &torrentstatus,          false,     true },
 };
 
 CRPCTable::CRPCTable()
