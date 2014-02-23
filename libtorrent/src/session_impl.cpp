@@ -3243,6 +3243,28 @@ retry:
 		if (!m_paused) m_auto_manage_time_scaler--;
 		if (m_auto_manage_time_scaler < 0)
 		{
+			// [MF] first torrent is sent to the end of the queue
+			torrent* first = NULL;
+			for (torrent_map::iterator i = m_torrents.begin()
+			, end(m_torrents.end()); i != end; ++i) {
+				torrent* t = i->second.get();
+				TORRENT_ASSERT(t);
+
+				// checking torrents are not subject to auto-management
+				if (t->state() == torrent_status::checking_files
+					|| t->state() == torrent_status::queued_for_checking) 
+				{
+					if (t->is_auto_managed() && t->is_paused()) t->resume();
+					continue;
+				}
+				if (t->is_auto_managed() && !t->has_error()) {
+					if( !first || t->sequence_number() < first->sequence_number() )
+						first = t;
+				}
+			}
+			if( first )
+				first->set_queue_position((std::numeric_limits<int>::max)());
+		
 			m_auto_manage_time_scaler = settings().auto_manage_interval;
 			recalculate_auto_managed_torrents();
 		}
