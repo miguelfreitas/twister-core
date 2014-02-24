@@ -508,7 +508,7 @@ void ThreadMaintainDHTNodes()
 void ThreadSessionAlerts()
 {
     static map<sha1_hash, bool> neighborCheck;
-    static map<sha1_hash, bool> statusCheck;
+    static map<sha1_hash, int64_t> statusCheck;
 
     while(!ses) {
         MilliSleep(200);
@@ -600,11 +600,16 @@ void ThreadSessionAlerts()
                                             neighborCheck[ih] = false;
                                             ses->dht_getData(n->string(), r->string(), t->string() == "m");
                                         } else if( neighborCheck[ih] ) {
-                                            printf("known neighbor. starting a new dhtget check of [%s,%s,%s]\n",
-                                                   n->string().c_str(), "status", "s");
                                             sha1_hash ihStatus = dhtTargetHash(n->string(), "status", "s");
-                                            statusCheck[ihStatus] = false;
-                                            ses->dht_getData(n->string(), "status", false);
+
+                                            if( !statusCheck.count(ihStatus) ||
+                                                statusCheck[ihStatus] + 3600 < GetTime() ) {
+                                                printf("known neighbor. starting a new dhtget check of [%s,%s,%s]\n",
+                                                        n->string().c_str(), "status", "s");
+
+                                                statusCheck[ihStatus] = GetTime();
+                                                ses->dht_getData(n->string(), "status", false);
+                                            }
                                         }
                                     }
                                 }
@@ -640,12 +645,11 @@ void ThreadSessionAlerts()
                             printf("is neighbor. starting a new dhtget check of [%s,%s,%s]\n",
                                    dd->m_username.c_str(), "status", "s");
                             sha1_hash ihStatus = dhtTargetHash(dd->m_username, "status", "s");
-                            statusCheck[ihStatus] = false;
+                            statusCheck[ihStatus] = GetTime();
                             ses->dht_getData(dd->m_username, "status", false);
                         }
                     }
                     if( statusCheck.count(ih) ) {
-                        statusCheck[ih] = dd->m_got_data;
                         if( dd->m_got_data ) {
                             startTorrentUser(dd->m_username, false);
                         }
