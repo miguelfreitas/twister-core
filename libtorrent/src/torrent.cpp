@@ -2111,10 +2111,15 @@ namespace libtorrent
 		int port = m_ses.listen_port();
 #endif
 
-		boost::weak_ptr<torrent> self(shared_from_this());
-		m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
-			, m_ses.external_address().external_address(address_v4()), port, is_seed(), true, m_policy.num_peers()
-			, boost::bind(&torrent::on_dht_announce_response_disp, self, _1));
+		// this is where the tracker request is made. if we have enough connections already don't bother
+		// invoking the tracker again so we should prevent useless traffic.
+		// peer exchange protocol will obtain new peers anyway.
+		if( m_allow_peers && int(m_connections.size()) < 8 ) {
+			boost::weak_ptr<torrent> self(shared_from_this());
+			m_ses.m_dht->announce(name(), m_torrent_file->info_hash()
+				, m_ses.external_address().external_address(address_v4()), port, is_seed(), true, m_policy.num_peers()
+				, boost::bind(&torrent::on_dht_announce_response_disp, self, _1));
+		}
 	}
 
 	void torrent::on_dht_announce_response_disp(boost::weak_ptr<libtorrent::torrent> t
