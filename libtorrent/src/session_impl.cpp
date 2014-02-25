@@ -4256,7 +4256,7 @@ retry:
 			else
 			{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING
-				t->log_to_all_peers("AUTO MANAGER PAUSING TORRENT");
+				//t->log_to_all_peers("AUTO MANAGER PAUSING TORRENT");
 #endif
 				// use graceful pause for auto-managed torrents
 				t->set_allow_peers(false, true);
@@ -4321,7 +4321,10 @@ retry:
 				else
 					downloaders.push_back(t);
 			}
-			else if (!t->is_paused())
+			//else if (!t->is_paused())
+			// [MF] don't check non-auto managed torrents against limits for now.
+			// FIXME: another strategy is required as definitive fix.
+			else if (!t->is_paused() && t->is_auto_managed())
 			{
 				TORRENT_ASSERT(t->m_resume_data_loaded || !t->valid_metadata());
 				--hard_limit;

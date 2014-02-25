@@ -1321,7 +1321,7 @@ namespace libtorrent
 		, dht_upload_rate_limit(8000)
 		, unchoke_slots_limit(8)
 		, half_open_limit(0)
-		, connections_limit(200)
+		, connections_limit(600)
 		, connections_slack(10)
 		, utp_target_delay(100) // milliseconds
 		, utp_gain_factor(1500) // bytes per rtt
