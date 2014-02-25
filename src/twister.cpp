@@ -297,6 +297,21 @@ void ThreadWaitExtIP()
     // disable read cache => there is still some bug due to twister piece size changes
     settings.use_read_cache = false;
     settings.cache_size = 0;
+
+    // more connections. less memory per connection.
+    settings.connections_limit = 800;
+    settings.recv_socket_buffer_size = 16*1024;
+    settings.send_socket_buffer_size = 16*1024;
+    settings.max_peerlist_size = 1000;
+    settings.max_paused_peerlist_size = 1000;
+    // reduce timeouts
+    settings.peer_timeout = 60;
+    settings.request_timeout = 20;
+    // more torrents in auto manager
+    settings.active_downloads     = 20;
+    settings.active_limit         = 25;
+    settings.unchoke_slots_limit  = 20;
+    settings.auto_manage_interval = 30;
     ses->set_settings(settings);
 
     printf("libtorrent + dht started\n");
