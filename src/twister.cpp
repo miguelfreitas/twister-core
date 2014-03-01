@@ -99,16 +99,16 @@ torrent_handle startTorrentUser(std::string const &username, bool following)
         load_file(filename.c_str(), tparams.resume_data);
 
         m_userTorrent[username] = ses->add_torrent(tparams);
-        if( following ) {
-            m_userTorrent[username].auto_managed(false);
-            m_userTorrent[username].resume();
-        } else {
+        if( !following ) {
             m_userTorrent[username].auto_managed(true);
         }
         m_userTorrent[username].force_dht_announce();
     }
-    if( following ) 
+    if( following ) {
         m_userTorrent[username].set_following(true);
+        m_userTorrent[username].auto_managed(false);
+        m_userTorrent[username].resume();
+    }
     return m_userTorrent[username];
 }
 
