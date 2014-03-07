@@ -1312,7 +1312,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		// check distance between target, nodes and our own id
 		// n is sorted from closer(begin) to more distant (end)
 		nodes_t n;
-		m_table.find_node(target, n, 0);
+		m_table.find_node(target, n, 0, m_table.bucket_size() * 2);
 		bool possiblyNeighbor = false;
 		if( n.size() < m_table.bucket_size() ) {
 			possiblyNeighbor = true;
