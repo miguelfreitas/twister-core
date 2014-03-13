@@ -1007,6 +1007,8 @@ void ServiceConnection(AcceptedConnection *conn)
                     contentType = "text/css";
                 if( strURI.find(".png") != std::string::npos )
                     contentType = "image/png";
+                if( strURI.find(".gif") != std::string::npos )
+                    contentType = "image/gif";
                 if( strURI.find(".ttf") != std::string::npos )
                     contentType = "application/x-font-ttf";
                 if( strURI.find(".jpg") != std::string::npos ||
