@@ -1014,6 +1014,10 @@ void ServiceConnection(AcceptedConnection *conn)
                 if( strURI.find(".jpg") != std::string::npos ||
                     strURI.find(".jpeg") != std::string::npos )
                     contentType = "image/jpeg";
+                if( strURI.find(".mp3") != std::string::npos )
+                    contentType = "audio/mpeg";
+                if( strURI.find(".ogg") != std::string::npos )
+                    contentType = "audio/ogg";
                 conn->stream() << HTTPReply(HTTP_OK, str, false, contentType) << std::flush;
             } else {
                 printf("ServiceConnection: file %s not found\n", fname.c_str());
