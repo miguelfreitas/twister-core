@@ -156,6 +156,12 @@ To obtain the full list of commands
 
     ./twisterd help
 
+Open Ports on firewall
+-------------------------
+Twister need these ports to be open:
+28333, 4433, 29333, 28333, 28332, 50929
+
+You can verify that by write "netstat -tulpn | grep twisterd" in terminal
 
 Running the web interface
 -------------------------
