@@ -1,27 +1,37 @@
+Security
+================
+
 - Encrypt user_data (which contains all DMs)
 
 - Test wallet encrypt to see if it still works from original bitcoin implementation and what
 are the implications to our code.
 
-- Rescan directmessages after importing a privatekey (importprivkey)
+- Move all crypto to javascript, store only encrypted version of the privatekey (which would be
+decrypted only in browser memory). getposts may obtain all DMs encrypted to browser, another
+newpostmsg needs to be provided to receive posts with signature field added.
 
-- Check libtorrent's limitation on the number of pieces (max_pieces in piece_picker.hpp = 1<<19)
-Since post number is constrained by max of 288 posts per day in average, that means we have 5 years
-to think about it (for the really heavy users).
 
+Features
+================
 - Besides increasing the maximum number of pieces, a more pressing issue to save bandwidth and
 torrent download time would be to define the first piece to download/store locally. People don't
 need to maintain the entire post history for everybody they follow, they could just keep the last
 ones. This has to be implemented.
 
-- Move all crypto to javascript, store only encrypted version of the privatekey (which would be
-decrypted only in browser memory). getposts may obtain all DMs encrypted to browser, another
-newpostmsg needs to be provided to receive posts with signature field added.
-
 - Store a dht resource "publickey" containing not only the public key itself but also information
 needed to validate it by a lightweight client. That includes: block hash, block height and partial
 merkle tree inside that block. This resource propagation cannot be sent right after user
 registration for obvious reasons (no block yet, other nodes wouldn't accept the signed dht put).
+
+- Share images
+
+Kill bugs
+================
+- Rescan directmessages after importing a privatekey (importprivkey)
+
+- Check libtorrent's limitation on the number of pieces (max_pieces in piece_picker.hpp = 1<<19)
+Since post number is constrained by max of 288 posts per day in average, that means we have 5 years
+to think about it (for the really heavy users).
 
 - Implement the mention forwarding mechanism discussed in the paper so user don't need to do polling
 and can also be sure to receive all mentions.
@@ -38,8 +48,6 @@ of his own torrent)
 
 - Estimate number of online followers by quering the "tracker" resource (implement a value within
 this resource to report the number of torrent peers)
-
-- Define and enforce html directory to serve from. Do installation scripts.
 
 - Don't accept dht "post"+k if k violates the validatePostNumberForUser() rule.
 
