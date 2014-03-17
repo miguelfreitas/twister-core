@@ -39,6 +39,7 @@ LIBS= \
  -l boost_program_options$(BOOST_SUFFIX) \
  -l boost_thread$(BOOST_SUFFIX) \
  -l boost_chrono$(BOOST_SUFFIX) \
+ -l boost_locale$(BOOST_SUFFIX) \
  -l db_cxx \
  -l ssl \
  -l crypto

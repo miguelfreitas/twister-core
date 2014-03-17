@@ -22,6 +22,8 @@
 #include <boost/filesystem/convenience.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/locale.hpp>
+#include <boost/locale/generator.hpp>
 #include <openssl/crypto.h>
 
 #ifndef WIN32
@@ -399,6 +401,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 #endif
 #endif
 #endif
+    std::locale::global(boost::locale::generator().generate(""));
 
     // ********************************************************* Step 2: parameter interactions
 
