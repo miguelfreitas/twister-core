@@ -21,28 +21,52 @@
 #   in your C/C++ code. DB_CXX_LIBS is set to linker flags needed to link
 #   against the library (e.g. -ldb3.1_cxx) and AC_SUBST is called on it.
 #
+#   when specified user-selected spot (via --with-libdb) also sets
+#
+#     DB_CXX_CPPFLAGS to the include directives required
+#     DB_CXX_LDFLAGS to the -L flags required
+#
 # LICENSE
 #
 #   Copyright (c) 2008 Vaclav Slavik <vaclav.slavik@matfyz.cz>
 #   Copyright (c) 2011 Stephan Suerken <absurd@debian.org>
+#   Copyright (c) 2014 Kirill A. Korinskiy <catap@catap.ru>
 #
 #   Copying and distribution of this file, with or without modification, are
 #   permitted in any medium without royalty provided the copyright notice
 #   and this notice are preserved. This file is offered as-is, without any
 #   warranty.
 
-#serial 3
+#serial 4
 
 AC_DEFUN([AX_BERKELEY_DB_CXX],
 [
   AC_LANG_ASSERT(C++)
 
   old_LIBS="$LIBS"
+  old_LDFLAGS="$LDFLAGS"
+  old_CPPFLAGS="$CPPFLAGS"
+
+  libdbdir=""
+  AC_ARG_WITH(libdb,
+    AS_HELP_STRING([--with-libdb=DIR],
+        [root of the Berkeley DB directory]),
+    [
+        case "$withval" in
+        "" | y | ye | yes | n | no)
+        AC_MSG_ERROR([Invalid --with-libdb value])
+          ;;
+        *) libdbdir="$withval"
+          ;;
+        esac
+    ], [])
 
   minversion=ifelse([$1], ,,$1)
 
   DB_CXX_HEADER=""
   DB_CXX_LIBS=""
+  DB_CXX_LDFLAGS=""
+  DB_CXX_CPPFLAGS=""
 
   if test -z $minversion ; then
       minvermajor=0
@@ -59,13 +83,20 @@ AC_DEFUN([AX_BERKELEY_DB_CXX],
       AC_MSG_CHECKING([for Berkeley DB (C++) >= $minversion])
   fi
 
+  if test x$libdbdir != x""; then
+    DB_CXX_CPPFLAGS="-I${libdbdir}/include"
+    DB_CXX_LDFLAGS="-L${libdbdir}/lib"
+    LDFLAGS="$DB_CXX_LDFLAGS $old_LDFLAGS"
+    CPPFLAGS="$DB_CXX_CPPFLAGS $old_CPPFLAGS"
+  fi
+
   for version in "" 5.0 4.9 4.8 4.7 4.6 4.5 4.4 4.3 4.2 4.1 4.0 3.6 3.5 3.4 3.3 3.2 3.1 ; do
 
     if test -z $version ; then
         db_cxx_lib="-ldb_cxx -ldb"
         try_headers="db_cxx.h"
     else
-        db_cxx_lib="-ldb_cxx-$version -ldb-$version"
+        db_cxx_lib="$libdbdir -ldb_cxx-$version -ldb-$version"
         try_headers="db$version/db_cxx.h db`echo $version | sed -e 's,\..*,,g'`/db_cxx.h"
     fi
 
@@ -102,13 +133,19 @@ AC_DEFUN([AX_BERKELEY_DB_CXX],
   done
 
   LIBS="$old_LIBS"
+  LDFLAGS="$old_LDFLAGS"
+  CPPFLAGS="$old_CPPFLAGS"
 
   if test -z $DB_CXX_HEADER ; then
     AC_MSG_RESULT([not found])
+    DB_CXX_LDFLAGS=""
+    DB_CXX_CPPFLAGS=""
     ifelse([$3], , :, [$3])
   else
     AC_DEFINE_UNQUOTED(DB_CXX_HEADER, ["$DB_CXX_HEADER"], ["Berkeley DB C++ Header File"])
     AC_SUBST(DB_CXX_LIBS)
+    AC_SUBST(DB_CXX_LDFLAGS)
+    AC_SUBST(DB_CXX_CPPFLAGS)
     ifelse([$2], , :, [$2])
   fi
 ])

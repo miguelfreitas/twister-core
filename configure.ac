@@ -83,26 +83,22 @@ AC_CACHE_CHECK([for __attribute__((visibility("hidden")))],
 AS_ECHO
 AS_ECHO "Checking for boost libraries:"
 
-AX_BOOST_BASE([1.44])
+AX_BOOST_BASE([1.44], [],
+ [AC_MSG_ERROR(Boost library not found. Try using --with-boost=)])
 
 AX_BOOST_SYSTEM()
-AS_IF([test -z "$BOOST_SYSTEM_LIB"],
-      [AC_MSG_ERROR(Boost.System library not found. Try using --with-boost-libdir=)])
 AX_BOOST_FILESYSTEM()
 AX_BOOST_PROGRAM_OPTIONS()
 AX_BOOST_THREAD()
 AX_BOOST_CHRONO()
-
-CPPFLAGS="$BOOST_CPPFLAGS $CPPFLAGS"
-LDFLAGS="$BOOST_LDFLAGS $LDFLAGS $BOOST_CHRONO_LIB"
-
 
 ###############################################################################
 # Checking for Berkeley DB C++
 ###############################################################################
 
 AC_LANG([C++])
-AX_BERKELEY_DB_CXX(4.8)
+AX_BERKELEY_DB_CXX(4.8, [],
+  [AC_MSG_ERROR(Berkeley DB C++ library not found. Try using --with-libdb=)])
 
 ###############################################################################
 # Checking for functions and other stuffs
@@ -772,6 +768,15 @@ Boost libraries:
   CPPFlags:             ${BOOST_CPPFLAGS}
   LDFlags:              ${BOOST_LDFLAGS}
   boost.system:         ${BOOST_SYSTEM_LIB}
+  boost.filesystem:     ${BOOST_FILESYSTEM_LIB}
+  boost.program_opts:   ${BOOST_PROGRAM_OPTIONS_LIB}
+  boost.thread:         ${BOOST_THREAD_LIB}
+
+Berkeley DB C++ library:
+  header:               ${DB_CXX_HEADER}
+  libraries:            ${DB_CXX_LIBS}
+  LDFlags:              ${DB_CXX_LDFLAGS}
+  CPPFlags:             ${DB_CXX_CPPFLAGS}
 END
 
 AS_IF([test "x$ARG_ENABLE_PYTHON_BINDING" = "xyes"], [
@@ -830,7 +835,7 @@ OpenSSL library:
   OpenSSL Libs:         ${OPENSSL_LIBS}
   OpenSSL LDFlags:      ${OPENSSL_LDFLAGS}
   OpenSSL Includes:     ${OPENSSL_INCLUDES}
-END 
+END
 ])
 
 cat config.report
