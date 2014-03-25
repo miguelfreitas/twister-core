@@ -23,7 +23,7 @@ not interoperate with existing networks (on purpose).
 
 Compiling
 ----------------
-You can build you own twister with this docs: 
+You can build twister using these docs: 
 
 [Ubuntu/Debian](https://github.com/miguelfreitas/twister-core/blob/master/doc/building-on-ubuntu-debian.md)
 
