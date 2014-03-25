@@ -166,7 +166,7 @@ endif
 
 twisterd_SOURCES = $(LIBTORRENT_SOURCES) $(BITCOIN_TWISTER_SOURCES)
 
-twisterd_LDFLAGS =
+twisterd_LDFLAGS = @OPENSSL_LDFLAGS@ @DB_CXX_LDFLAGS@
 
 twisterd_DEPENDENCIES = $(LEVELDB_LIB)
 
@@ -178,7 +178,6 @@ AM_CPPFLAGS = -ftemplate-depth-100 -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS
     -I$(top_srcdir)/libtorrent/include \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/src/leveldb/include -I$(top_srcdir)/src/leveldb/helpers \
-    @DEBUGFLAGS@ @OPENSSL_INCLUDES@
+    @DEBUGFLAGS@ @OPENSSL_INCLUDES@ @DB_CXX_CPPFLAGS@
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@
-

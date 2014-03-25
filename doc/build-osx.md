@@ -43,18 +43,6 @@ Instructions: HomeBrew
 
     brew install boost miniupnpc openssl berkeley-db4 autoconf automake libtool
 
-Note: After you have installed the dependencies, you should check that the Brew-installed 
-version of OpenSSL is the one available for compilation. You can check this by typing
-
-    openssl version
-
-into Terminal. You should see OpenSSL 1.0.1e 11 Feb 2013.
-
-If that's not the case, you *could* `brew link --force openssl` but it's a bad idea. 
-Instead, it's enough to make sure the right openssl binary is on your $PATH:
-
-    export PATH=/usr/local/opt/openssl/bin:$PATH
-
 ### Building `twisterd`
 
 1. Clone the github tree to get the source code and go into the directory.
@@ -63,29 +51,14 @@ Instead, it's enough to make sure the right openssl binary is on your $PATH:
         git clone https://github.com/miguelfreitas/twister-core.git
         cd twister-core
 
-2. Set system variables to match your environment. THIS IS IMPORTANT!
-
-
-        export OPENSSL_INCLUDE_PATH=/usr/local/opt/openssl/include
-        export OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
-        export BDB_INCLUDE_PATH=/usr/local/opt/berkeley-db4/include
-        export BDB_LIB_PATH=/usr/local/opt/berkeley-db4/lib
-        export BOOST_INCLUDE_PATH=/usr/local/opt/boost/include
-        export BOOST_LIB_PATH=/usr/local/opt/boost/lib
-        export BOOST_LIB_SUFFIX=-mt
-        export LDFLAGS="-L$OPENSSL_LIB_PATH -L$BDB_LIB_PATH -L$BOOST_LIB_PATH"
-        export CPPFLAGS="-I$OPENSSL_INCLUDE_PATH -I$BDB_INCLUDE_PATH -I$BOOST_INCLUDE_PATH"
-        export PATH=${BDB_INCLUDE_PATH}:${PATH}
-
-3. Build twister using autotool
-
+2. Build twister using autotool
 
         ./autotool.sh
-        ./configure --enable-logging
+        ./configure --enable-logging --with-openssl=/usr/local/opt/openssl --with-libdb=/usr/local/opt/berkeley-db4
         make
 (If you have multi core CPU, use "make -j N" where N = number of your cores)
 
-4. If things go south, before trying again, make sure you clean it up:
+3. If things go south, before trying again, make sure you clean it up:
 
 
         make clean
