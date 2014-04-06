@@ -71,6 +71,7 @@ int save_file(std::string const& filename, std::vector<char>& v)
 	libtorrent::error_code ec;
 	if (!f.open(filename, file::write_only, ec)) return -1;
 	if (ec) return -1;
+	f.set_size(0, ec);
 	file::iovec_t b = {&v[0], v.size()};
 	size_type written = f.writev(0, &b, 1, ec);
 	if (written != int(v.size())) return -3;
