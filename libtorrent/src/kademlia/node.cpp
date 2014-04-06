@@ -464,6 +464,7 @@ void node_impl::putData(std::string const &username, std::string const &resource
 
     // store it locally so it will be automatically refreshed with the rest
     dht_storage_item item(str_p, sig_p, sig_user);
+    item.local_add_time = time(NULL);
     std::vector<char> vbuf;
     bencode(std::back_inserter(vbuf), value);
     std::pair<char const*, int> bufv = std::make_pair(vbuf.data(), vbuf.size());
@@ -566,7 +567,8 @@ bool node_impl::refresh_storage() {
             bool multi = (target->dict_find_string_value("t") == "m");
 
             // refresh only signed single posts and mentions
-            if( !multi || (multi && resource == "mention") ) {
+            if( !multi || (multi && resource == "mention") ||
+                (multi && item.local_add_time && item.local_add_time + 60*60*24*2 > time(NULL)) ) {
                 num_refreshable++;
 
                 if( refresh_next_item ) {
@@ -689,6 +691,8 @@ bool node_impl::save_storage(entry &save) const {
                 entry_item["p"] = item.p;
                 entry_item["sig_p"] = item.sig_p;
                 entry_item["sig_user"] = item.sig_user;
+                if( item.local_add_time )
+                    entry_item["local_add_time"] = item.local_add_time;
                 save_list.list().push_back(entry_item);
             }
         }
@@ -720,6 +724,9 @@ void node_impl::load_storage(entry const* e) {
             item.p = j->find_key("p")->string();
             item.sig_p = j->find_key("sig_p")->string();
             item.sig_user = j->find_key("sig_user")->string();
+            entry const *local_add_time( j->find_key("local_add_time") );
+            if(local_add_time)
+                item.local_add_time = local_add_time->integer();
 
             // just for printf for now
             bool expired = has_expired(item);
