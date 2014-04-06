@@ -119,8 +119,10 @@ struct dht_storage_item
 {
     // FIXME: optimize so bdecode is not needed all the time
     dht_storage_item() : p(), sig_p(), sig_user() {}
-    dht_storage_item(std::string &_p, lazy_entry const *_sig_p, lazy_entry const *_sig_user)
+    dht_storage_item(std::string const &_p, lazy_entry const *_sig_p, lazy_entry const *_sig_user)
         : p(_p), sig_p(_sig_p->string_value()), sig_user(_sig_user->string_value()) {}
+    dht_storage_item(std::string const &_p, std::string const &_sig_p, std::string const &_sig_user)
+        : p(_p), sig_p(_sig_p), sig_user(_sig_user) {}
         std::string p;
         std::string sig_p;
         std::string sig_user;
@@ -282,6 +284,8 @@ private:
 	std::set<traversal_algorithm*> m_running_requests;
 
 	void incoming_request(msg const& h, entry& e);
+	void store_dht_item(dht_storage_item &item, big_number const &target, 
+	                    bool multi, int seq, int height, std::pair<char const*, int> &bufv);
 
 	node_id m_id;
 

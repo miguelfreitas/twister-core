@@ -444,11 +444,13 @@ void node_impl::putData(std::string const &username, std::string const &resource
     if (seq >= 0 && !multi) p["seq"] = seq;
     p["v"] = value;
     p["time"] = timeutc;
-    p["height"] = getBestHeight()-1; // be conservative
+    int height = getBestHeight()-1; // be conservative
+    p["height"] = height;
 
     std::vector<char> pbuf;
     bencode(std::back_inserter(pbuf), p);
-    std::string sig_p = createSignature(std::string(pbuf.data(),pbuf.size()), sig_user);
+    std::string str_p = std::string(pbuf.data(),pbuf.size());
+    std::string sig_p = createSignature(str_p, sig_user);
     if( !sig_p.size() ) {
         printf("putData: createSignature error (this should have been caught earlier)\n");
         return;
@@ -459,7 +461,16 @@ void node_impl::putData(std::string const &username, std::string const &resource
 	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
 		 boost::bind(&nop),
          boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
-	ta->start();
+
+    // store it locally so it will be automatically refreshed with the rest
+    dht_storage_item item(str_p, sig_p, sig_user);
+    std::vector<char> vbuf;
+    bencode(std::back_inserter(vbuf), value);
+    std::pair<char const*, int> bufv = std::make_pair(vbuf.data(), vbuf.size());
+    store_dht_item(item, ta->target(), multi, seq, height, bufv);
+    
+    // now send it to the network (start transversal algorithm)
+    ta->start();
 }
 
 void node_impl::getData(std::string const &username, std::string const &resource, bool multi,
@@ -1327,71 +1338,13 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		// attack this resource by storing value into non-final nodes.
 		if( !possiblyNeighbor ) {
 			printf("putData with possiblyNeighbor=false, ignoring request.\n");
+			return;
 		}
 
 		dht_storage_item item(str_p, msg_keys[mk_sig_p], msg_keys[mk_sig_user]);
-		dht_storage_table_t::iterator i = m_storage_table.find(target);
-		if (i == m_storage_table.end()) {
-			// make sure we don't add too many items
-			if (int(m_storage_table.size()) >= m_settings.max_dht_items)
-			{
-				// FIXME: erase one? preferably a multi
-			}
-
-			dht_storage_list_t to_add;
-			to_add.push_back(item);
-
-			boost::tie(i, boost::tuples::ignore) = m_storage_table.insert(
-				std::make_pair(target, to_add));
-		} else {
-			dht_storage_list_t & lsto = i->second;
-
-			dht_storage_list_t::reverse_iterator j, rend(lsto.rend());
-			dht_storage_list_t::iterator insert_pos = lsto.end();
-			for( j = lsto.rbegin(); j != rend; ++j) {
-				dht_storage_item &olditem = *j;
-
-				lazy_entry p;
-				int pos;
-				error_code err;
-				// FIXME: optimize to avoid bdecode (store seq separated, etc)
-				int ret = lazy_bdecode(olditem.p.data(), olditem.p.data() + olditem.p.size(), p, err, &pos, 10, 500);
-
-				if( !multi ) {
-                    if( msg_keys[mk_seq]->int_value() > p.dict_find_int("seq")->int_value() ) {
-					    olditem = item;
-				    } else {
-                        // don't report this error (because of refresh storage)
-                        //incoming_error(e, "old sequence number");
-					    return;
-				    }
-				} else {
-				    std::pair<char const*, int> bufv = msg_keys[mk_v]->data_section();
-
-				    // compare contents before adding to the list
-				    std::pair<char const*, int> bufoldv = p.dict_find("v")->data_section();
-					if( bufv.second == bufoldv.second && !memcmp(bufv.first, bufoldv.first,bufv.second) ) {
-						// break so it wont be inserted
-					    break;
-				    }
-
-					// if new entry is newer than existing one, it will be inserted before
-					if( msg_keys[mk_height]->int_value() >= p.dict_find_int_value("height") ) {
-						insert_pos = j.base();
-						insert_pos--;
-					}
-				}
-			}
-			if(multi && j == rend) {
-				// new entry
-				lsto.insert(insert_pos, item);
-			}
-
-			if(lsto.size() > m_settings.max_entries_per_multi) {
-				lsto.resize(m_settings.max_entries_per_multi);
-			}
-
-		}
+		std::pair<char const*, int> bufv = msg_keys[mk_v]->data_section();
+		store_dht_item(item, target, multi, !multi ? msg_keys[mk_seq]->int_value() : 0,
+		               msg_keys[mk_height]->int_value(), bufv);
 	}
 	else if (strcmp(query, "getData") == 0)
 	{
@@ -1517,6 +1470,69 @@ void node_impl::incoming_request(msg const& m, entry& e)
 	}
 }
 
+void node_impl::store_dht_item(dht_storage_item &item, const big_number &target, 
+                               bool multi, int seq, int height, std::pair<char const*, int> &bufv)
+{
+    dht_storage_table_t::iterator i = m_storage_table.find(target);
+    if (i == m_storage_table.end()) {
+        // make sure we don't add too many items
+        if (int(m_storage_table.size()) >= m_settings.max_dht_items)
+        {
+            // FIXME: erase one? preferably a multi
+        }
+
+        dht_storage_list_t to_add;
+        to_add.push_back(item);
+
+        boost::tie(i, boost::tuples::ignore) = m_storage_table.insert(
+            std::make_pair(target, to_add));
+    } else {
+        dht_storage_list_t & lsto = i->second;
+
+        dht_storage_list_t::reverse_iterator j, rend(lsto.rend());
+        dht_storage_list_t::iterator insert_pos = lsto.end();
+        for( j = lsto.rbegin(); j != rend; ++j) {
+            dht_storage_item &olditem = *j;
+
+            lazy_entry p;
+            int pos;
+            error_code err;
+            // FIXME: optimize to avoid bdecode (store seq separated, etc)
+            int ret = lazy_bdecode(olditem.p.data(), olditem.p.data() + olditem.p.size(), p, err, &pos, 10, 500);
+
+            if( !multi ) {
+                if( seq > p.dict_find_int("seq")->int_value() ) {
+                    olditem = item;
+                } else {
+                    // don't report this error (because of refresh storage)
+                    //incoming_error(e, "old sequence number");
+                    return;
+                }
+            } else {
+                // compare contents before adding to the list
+                std::pair<char const*, int> bufoldv = p.dict_find("v")->data_section();
+                if( bufv.second == bufoldv.second && !memcmp(bufv.first, bufoldv.first,bufv.second) ) {
+                    // break so it wont be inserted
+                    break;
+                }
+
+                // if new entry is newer than existing one, it will be inserted before
+                if( height >= p.dict_find_int_value("height") ) {
+                    insert_pos = j.base();
+                    insert_pos--;
+                }
+            }
+        }
+        if(multi && j == rend) {
+            // new entry
+            lsto.insert(insert_pos, item);
+        }
+
+        if(lsto.size() > m_settings.max_entries_per_multi) {
+            lsto.resize(m_settings.max_entries_per_multi);
+        }
+    }
+}
 
 } } // namespace libtorrent::dht
 
