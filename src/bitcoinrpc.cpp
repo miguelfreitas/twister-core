@@ -195,74 +195,74 @@ Value stop(const Array& params, bool fHelp)
 
 
 static const CRPCCommand vRPCCommands[] =
-{ //  name                      actor (function)         okSafeMode threadSafe
-  //  ------------------------  -----------------------  ---------- ----------
-    { "help",                   &help,                   true,      true },
-    { "stop",                   &stop,                   true,      true },
-    { "getblockcount",          &getblockcount,          true,      false },
-    { "getbestblockhash",       &getbestblockhash,       true,      false },
-    { "getconnectioncount",     &getconnectioncount,     true,      false },
-    { "getpeerinfo",            &getpeerinfo,            true,      false },
-    { "addnode",                &addnode,                true,      true },
-    { "adddnsseed",             &adddnsseed,             true,      true },
-    { "getaddednodeinfo",       &getaddednodeinfo,       true,      true },
-    { "getdifficulty",          &getdifficulty,          true,      false },
-    { "getgenerate",            &getgenerate,            true,      false },
-    { "setgenerate",            &setgenerate,            true,      false },
-    { "gethashespersec",        &gethashespersec,        true,      false },
-    { "getinfo",                &getinfo,                true,      true },
-    { "getmininginfo",          &getmininginfo,          true,      false },
-    { "createwalletuser",       &createwalletuser,       true,      false },
-    { "listwalletusers",        &listwalletusers,        true,      false },
-    { "backupwallet",           &backupwallet,           true,      false },
-    { "walletpassphrase",       &walletpassphrase,       true,      false },
-    { "walletpassphrasechange", &walletpassphrasechange, false,     false },
-    { "walletlock",             &walletlock,             true,      false },
-    { "encryptwallet",          &encryptwallet,          false,     false },
-    { "getrawmempool",          &getrawmempool,          true,      false },
-    { "getblock",               &getblock,               false,     false },
-    { "getblockhash",           &getblockhash,           false,     false },
-    { "gettransaction",         &gettransaction,         false,     false },
-    { "listtransactions",       &listtransactions,       false,     false },
-    { "signmessage",            &signmessage,            false,     false },
-    { "verifymessage",          &verifymessage,          false,     false },
-    { "getwork",                &getwork,                true,      false },
-    { "getblocktemplate",       &getblocktemplate,       true,      false },
-    { "submitblock",            &submitblock,            false,     false },
-    { "listsinceblock",         &listsinceblock,         false,     false },
-    { "dumpprivkey",            &dumpprivkey,            true,      false },
-    { "dumppubkey",             &dumppubkey,             false,     false },
-    { "dumpwallet",             &dumpwallet,             true,      false },
-    { "importprivkey",          &importprivkey,          false,     false },
-    { "importwallet",           &importwallet,           false,     false },
-    { "getrawtransaction",      &getrawtransaction,      false,     false },
-    { "createrawtransaction",   &createrawtransaction,   false,     false },
-    { "decoderawtransaction",   &decoderawtransaction,   false,     false },
-    { "sendrawtransaction",     &sendrawtransaction,     false,     false },
-    { "sendnewusertransaction", &sendnewusertransaction, false,     false },
-    { "verifychain",            &verifychain,            true,      false },
-    { "getlastsoftcheckpoint",  &getlastsoftcheckpoint,  true,      false },
+{ //  name                      actor (function)         okSafeMode threadSafe  allowOnPublicServer
+  //  ------------------------  -----------------------  ---------- ----------  -------------------
+    { "help",                   &help,                   true,      true,       true },
+    { "stop",                   &stop,                   true,      true,       false },
+    { "getblockcount",          &getblockcount,          true,      false,      false },
+    { "getbestblockhash",       &getbestblockhash,       true,      false,      true },
+    { "getconnectioncount",     &getconnectioncount,     true,      false,      false },
+    { "getpeerinfo",            &getpeerinfo,            true,      false,      false },
+    { "addnode",                &addnode,                true,      true,       false },
+    { "adddnsseed",             &adddnsseed,             true,      true,       false },
+    { "getaddednodeinfo",       &getaddednodeinfo,       true,      true,       false },
+    { "getdifficulty",          &getdifficulty,          true,      false,      false },
+    { "getgenerate",            &getgenerate,            true,      false,      false },
+    { "setgenerate",            &setgenerate,            true,      false,      false },
+    { "gethashespersec",        &gethashespersec,        true,      false,      false },
+    { "getinfo",                &getinfo,                true,      true,       true },
+    { "getmininginfo",          &getmininginfo,          true,      false,      false },
+    { "createwalletuser",       &createwalletuser,       true,      false,      false },
+    { "listwalletusers",        &listwalletusers,        true,      false,      true },
+    { "backupwallet",           &backupwallet,           true,      false,      false },
+    { "walletpassphrase",       &walletpassphrase,       true,      false,      false },
+    { "walletpassphrasechange", &walletpassphrasechange, false,     false,      false },
+    { "walletlock",             &walletlock,             true,      false,      false },
+    { "encryptwallet",          &encryptwallet,          false,     false,      false },
+    { "getrawmempool",          &getrawmempool,          true,      false,      false },
+    { "getblock",               &getblock,               false,     false,      true },
+    { "getblockhash",           &getblockhash,           false,     false,      false },
+    { "gettransaction",         &gettransaction,         false,     false,      false },
+    { "listtransactions",       &listtransactions,       false,     false,      false },
+    { "signmessage",            &signmessage,            false,     false,      false },
+    { "verifymessage",          &verifymessage,          false,     false,      false },
+    { "getwork",                &getwork,                true,      false,      false },
+    { "getblocktemplate",       &getblocktemplate,       true,      false,      false },
+    { "submitblock",            &submitblock,            false,     false,      false },
+    { "listsinceblock",         &listsinceblock,         false,     false,      false },
+    { "dumpprivkey",            &dumpprivkey,            true,      false,      false },
+    { "dumppubkey",             &dumppubkey,             false,     false,      false },
+    { "dumpwallet",             &dumpwallet,             true,      false,      false },
+    { "importprivkey",          &importprivkey,          false,     false,      false },
+    { "importwallet",           &importwallet,           false,     false,      false },
+    { "getrawtransaction",      &getrawtransaction,      false,     false,      false },
+    { "createrawtransaction",   &createrawtransaction,   false,     false,      false },
+    { "decoderawtransaction",   &decoderawtransaction,   false,     false,      false },
+    { "sendrawtransaction",     &sendrawtransaction,     false,     false,      false },
+    { "sendnewusertransaction", &sendnewusertransaction, false,     false,      false },
+    { "verifychain",            &verifychain,            true,      false,      false },
+    { "getlastsoftcheckpoint",  &getlastsoftcheckpoint,  true,      false,      false },
     // twister dht network
-    { "dhtput",                 &dhtput,                 false,     true },
-    { "dhtget",                 &dhtget,                 false,     true },
-    { "newpostmsg",             &newpostmsg,             false,     true },
-    { "newdirectmsg",           &newdirectmsg,           false,     true },
-    { "newrtmsg",               &newrtmsg,               false,     true },
-    { "getposts",               &getposts,               false,     true },
-    { "getdirectmsgs",          &getdirectmsgs,          false,     true },
-    { "setspammsg",             &setspammsg,             false,     false },
-    { "getspammsg",             &getspammsg,             false,     false },
-    { "follow",                 &follow,                 false,     true },
-    { "unfollow",               &unfollow,               false,     true },
-    { "getfollowing",           &getfollowing,           false,     true },
-    { "getlasthave",            &getlasthave,            false,     true },
-    { "getnumpieces",           &getnumpieces,           false,     true },
-    { "listusernamespartial",   &listusernamespartial,   false,     true },
-    { "rescandirectmsgs",       &rescandirectmsgs,       false,     true },
-    { "recheckusertorrent",     &recheckusertorrent,     false,     true },
-    { "gettrendinghashtags",    &gettrendinghashtags,    false,     true },
-    { "getspamposts",           &getspamposts,           false,     true },
-    { "torrentstatus",          &torrentstatus,          false,     true },
+    { "dhtput",                 &dhtput,                 false,     true,       false },
+    { "dhtget",                 &dhtget,                 false,     true,       true },
+    { "newpostmsg",             &newpostmsg,             false,     true,       false },
+    { "newdirectmsg",           &newdirectmsg,           false,     true,       false },
+    { "newrtmsg",               &newrtmsg,               false,     true,       false },
+    { "getposts",               &getposts,               false,     true,       false },
+    { "getdirectmsgs",          &getdirectmsgs,          false,     true,       false },
+    { "setspammsg",             &setspammsg,             false,     false,      false },
+    { "getspammsg",             &getspammsg,             false,     false,      false },
+    { "follow",                 &follow,                 false,     true,       false },
+    { "unfollow",               &unfollow,               false,     true,       false },
+    { "getfollowing",           &getfollowing,           false,     true,       false },
+    { "getlasthave",            &getlasthave,            false,     true,       false },
+    { "getnumpieces",           &getnumpieces,           false,     true,       false },
+    { "listusernamespartial",   &listusernamespartial,   false,     true,       true },
+    { "rescandirectmsgs",       &rescandirectmsgs,       false,     true,       false },
+    { "recheckusertorrent",     &recheckusertorrent,     false,     true,       false },
+    { "gettrendinghashtags",    &gettrendinghashtags,    false,     true,       true },
+    { "getspamposts",           &getspamposts,           false,     true,       false },
+    { "torrentstatus",          &torrentstatus,          false,     true,       false },
 };
 
 CRPCTable::CRPCTable()
@@ -989,6 +989,9 @@ void ServiceConnection(AcceptedConnection *conn)
         // Read HTTP message headers and body
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
+        if(strMethod == "GET" && strURI == "/")
+            strURI="/home.html";
+
         if (strURI != "/" && strURI.find("..") == std::string::npos ) {
             filesystem::path pathFile = filesystem::path(GetHTMLDir()) / strURI;
             std::string fname = pathFile.string();
@@ -1093,6 +1096,9 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
     const CRPCCommand *pcmd = tableRPC[strMethod];
     if (!pcmd)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
+    
+    if(!pcmd->allowOnPublicServer && GetBoolArg("-public_server_mode",false))
+        throw JSONRPCError(RPC_FORBIDDEN_ON_PUBLIC_SERVER, "Forbidden: accessing this method is not allowed on a public server");
 
     // Observe safe mode
     string strWarning = GetWarnings("rpc");
