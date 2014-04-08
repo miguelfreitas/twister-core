@@ -96,6 +96,7 @@ Value getinfo(const Array& params, bool fHelp)
             if (pwalletMain->IsCrypted())
                 obj.push_back(Pair("unlocked_until", (boost::int64_t)nWalletUnlockTime));
         }
+        obj.push_back(Pair("public_server_mode", GetBoolArg("-public_server_mode",false)));
         obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     }
     return obj;
@@ -155,6 +156,11 @@ Value listwalletusers(const Array& params, bool fHelp)
 
     // Find all addresses that have the given account
     Array ret;
+    
+    // Always return an empty array on a public server
+    if(GetBoolArg("-public_server_mode",false))
+        return ret;
+    
     LOCK(pwalletMain->cs_wallet);
     BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
     {
