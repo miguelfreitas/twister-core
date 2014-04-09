@@ -175,3 +175,12 @@ them:
 Visit [http://localhost:28332/index.html](http://localhost:28332/index.html)
 in your web browser and you should see a page asking you to choose between the
 Desktop and Mobile interfaces.
+
+Different themes
+-------------------------
+
+If you prefer new modern look of twister with new untested things, you can try twister-calm theme
+But be careful, it is in beta stage.
+
+    cd ~/.twister/
+    git clone https://github.com/iHedgehog/twister-calm.git ./html
