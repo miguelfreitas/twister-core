@@ -772,6 +772,7 @@ Boost libraries:
   boost.filesystem:     ${BOOST_FILESYSTEM_LIB}
   boost.program_opts:   ${BOOST_PROGRAM_OPTIONS_LIB}
   boost.thread:         ${BOOST_THREAD_LIB}
+  boost.locale:         ${BOOST_LOCALE_LIB}
 
 Berkeley DB C++ library:
   header:               ${DB_CXX_HEADER}
