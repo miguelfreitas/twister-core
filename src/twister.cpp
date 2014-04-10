@@ -1691,7 +1691,7 @@ Value getposts(const Array& params, bool fHelp)
 
 Value getdirectmsgs(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (fHelp || params.size() != 3)
         throw runtime_error(
             "getdirectmsgs <localuser> <count_per_user> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]'\n"
             "get (locally stored) decrypted direct messages sent/received by user <localuser>\n"

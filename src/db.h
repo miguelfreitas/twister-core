@@ -13,7 +13,11 @@
 #include <vector>
 
 #include <boost/filesystem.hpp>
-#include <db_cxx.h>
+#ifdef DB_CXX_HEADER
+  #include DB_CXX_HEADER
+#else
+  #include <db_cxx.h>
+#endif
 
 class CAddrMan;
 class CBlockLocator;

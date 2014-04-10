@@ -48,6 +48,7 @@ enum RPCErrorCode
     RPC_INVALID_PARAMETER           = -8,  // Invalid, missing or duplicate parameter
     RPC_DATABASE_ERROR              = -20, // Database error
     RPC_DESERIALIZATION_ERROR       = -22, // Error parsing or validating structure in raw format
+    RPC_FORBIDDEN_ON_PUBLIC_SERVER  = -23, // public server mode is activated, this method is not allowed
 
     // P2P client errors
     RPC_CLIENT_NOT_CONNECTED        = -9,  // Bitcoin is not connected
@@ -103,6 +104,7 @@ public:
     rpcfn_type actor;
     bool okSafeMode;
     bool threadSafe;
+    bool allowOnPublicServer;
 };
 
 /**
