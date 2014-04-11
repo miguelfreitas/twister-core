@@ -2747,7 +2747,7 @@ retry:
 		if (m_paused)
 		{
 #if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
-			session_log(" <== INCOMING CONNECTION [ ignored, paused ]");
+			//session_log(" <== INCOMING CONNECTION [ ignored, paused ]");
 #endif
 			return;
 		}
@@ -2768,10 +2768,12 @@ retry:
 
 		TORRENT_ASSERT(endp.address() != address_v4::any());
 
+/*
 #if defined(TORRENT_VERBOSE_LOGGING) || defined(TORRENT_LOGGING)
 		session_log(" <== INCOMING CONNECTION %s type: %s"
 			, print_endpoint(endp).c_str(), s->type_name());
 #endif
+*/
 
 		if (m_alerts.should_post<incoming_connection_alert>())
 		{

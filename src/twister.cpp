@@ -39,6 +39,7 @@ twister::twister()
 #define DEBUG_ACCEPT_POST 1
 //#define DEBUG_EXPIRE_DHT_ITEM 1
 //#define DEBUG_MAINTAIN_DHT_NODES 1
+//#define DEBUG_NEIGHBOR_TORRENT 1
 
 using namespace libtorrent;
 static session *ses = NULL;
@@ -616,11 +617,12 @@ void ThreadSessionAlerts()
                                     }
                                     if( !knownTorrent ) {
                                         if( !neighborCheck.count(ih) ) {
+#if DEBUG_NEIGHBOR_TORRENT
                                             printf("possiblyNeighbor of [%s,%s,%s] - starting a new dhtget to be sure\n",
                                                    n->string().c_str(),
                                                    r->string().c_str(),
                                                    t->string().c_str());
-                                            
+#endif
                                             neighborCheck[ih] = false;
                                             ses->dht_getData(n->string(), r->string(), t->string() == "m");
                                         } else if( neighborCheck[ih] ) {
@@ -628,9 +630,10 @@ void ThreadSessionAlerts()
 
                                             if( !statusCheck.count(ihStatus) ||
                                                 statusCheck[ihStatus] + 3600 < GetTime() ) {
+#if DEBUG_NEIGHBOR_TORRENT
                                                 printf("known neighbor. starting a new dhtget check of [%s,%s,%s]\n",
                                                         n->string().c_str(), "status", "s");
-
+#endif
                                                 statusCheck[ihStatus] = GetTime();
                                                 ses->dht_getData(n->string(), "status", false);
                                             }
@@ -647,10 +650,11 @@ void ThreadSessionAlerts()
                 dht_reply_data_done_alert const* dd = alert_cast<dht_reply_data_done_alert>(*i);
                 if (dd)
                 {
+#if DEBUG_NEIGHBOR_TORRENT
                     printf("get_data_done [%s,%s,%s] is_neighbor=%d got_data=%d\n",
                            dd->m_username.c_str(), dd->m_resource.c_str(), dd->m_multi ? "m" : "s",
                            dd->m_is_neighbor, dd->m_got_data);
-
+#endif
                     sha1_hash ih = dhtTargetHash(dd->m_username, dd->m_resource, dd->m_multi ? "m" : "s");
 
                     {
@@ -666,8 +670,10 @@ void ThreadSessionAlerts()
                     if( neighborCheck.count(ih) ) {
                         neighborCheck[ih] = dd->m_is_neighbor;
                         if( dd->m_is_neighbor && dd->m_resource == "tracker" ) {
+#if DEBUG_NEIGHBOR_TORRENT
                             printf("is neighbor. starting a new dhtget check of [%s,%s,%s]\n",
                                    dd->m_username.c_str(), "status", "s");
+#endif
                             sha1_hash ihStatus = dhtTargetHash(dd->m_username, "status", "s");
                             statusCheck[ihStatus] = GetTime();
                             ses->dht_getData(dd->m_username, "status", false);
