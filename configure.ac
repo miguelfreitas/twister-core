@@ -91,6 +91,7 @@ AX_BOOST_FILESYSTEM()
 AX_BOOST_PROGRAM_OPTIONS()
 AX_BOOST_THREAD()
 AX_BOOST_CHRONO()
+AX_BOOST_LOCALE()
 
 ###############################################################################
 # Checking for Berkeley DB C++
@@ -771,6 +772,7 @@ Boost libraries:
   boost.filesystem:     ${BOOST_FILESYSTEM_LIB}
   boost.program_opts:   ${BOOST_PROGRAM_OPTIONS_LIB}
   boost.thread:         ${BOOST_THREAD_LIB}
+  boost.locale:         ${BOOST_LOCALE_LIB}
 
 Berkeley DB C++ library:
   header:               ${DB_CXX_HEADER}
