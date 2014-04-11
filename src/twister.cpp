@@ -13,7 +13,9 @@ using namespace json_spirit;
 using namespace std;
 
 #include <boost/filesystem.hpp>
-#include <boost/locale.hpp>
+#ifdef HAVE_BOOST_LOCALE
+  #include <boost/locale.hpp>
+#endif
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -1227,7 +1229,11 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
             string word = token.substr(1);
+#ifdef HAVE_BOOST_LOCALE
             word = boost::locale::to_lower(word);
+#else
+            boost::algorithm::to_lower(word);
+#endif
             if( token.at(0) == '#') {
                 hashtags.insert(word);
             }
@@ -1490,7 +1496,11 @@ Value newpostmsg(const Array& params, bool fHelp)
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
             string word = token.substr(1);
+#ifdef HAVE_BOOST_LOCALE
             word = boost::locale::to_lower(word);
+#else
+            boost::algorithm::to_lower(word);
+#endif
             if( token.at(0) == '#') {
                 ses->dht_putData(word, "hashtag", true,
                                  v, strUsername, GetAdjustedTime(), 0);
