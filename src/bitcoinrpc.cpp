@@ -385,19 +385,6 @@ bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
 
     // HTTP methods permitted: GET, POST
     http_method = vWords[0];
-    if (http_method == "OPTIONS") {
-        string replyOptions= strprintf(
-                "HTTP/1.1 %d %s\r\n"
-                "Date: %s\r\n"
-                "Connection: close\r\n"
-                "Allow: GET,POST,OPTIONS\r\n"
-                "Access-Control-Allow-Origin: *\r\n"
-                "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
-                "Access-Control-Allow-Headers: origin, x-csrf-token, content-type, accept, authorization\r\n"
-                "Server: bitcoin-json-rpc/%s\r\n"
-                "\r\n", HTTP_OK, "OK", rfc1123Time().c_str(), FormatFullVersion().c_str());
-        (*static_cast<std::iostream*>(&stream)) << replyOptions << std::flush;
-    }
     if (http_method != "GET" && http_method != "POST")
         return false;
 
