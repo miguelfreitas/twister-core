@@ -94,6 +94,7 @@ directory. We have to first create the RPC configuration file, though.
 Run `./twisterd` to get the filename where it should be put, or just try these
 commands:
 
+    mkdir -p "/Users/${USER}/.twister"
     echo -e "rpcuser=user\nrpcpassword=pwd\nrpcallowip=127.0.0.1" > "/Users/${USER}/.twister/twister.conf"
     chmod 600 "/Users/${USER}/.twister/twister.conf"
 
