@@ -35,7 +35,7 @@ Or, alternatively, you can build Twister on an isolated Linux container, using
     docker run -d -p 127.0.0.1:1234:28332 twister
     # now try to access http://127.0.0.1:1234/ on docker host
 
-> According to our tests, at least 1GB of RAM is neede to compile Twister.
+> According to our tests, at least 1GB of RAM is needed to compile Twister.
 
 ## License
 
