@@ -1339,6 +1339,7 @@ Value dhtget(const Array& params, bool fHelp)
     time_duration timeToWait = seconds(10);
     time_duration timeToWaitMulti = milliseconds(100);
     int minMultiReplies = 3;
+    int lastSeq = -1;
 
     if( params.size() > 3 )
         timeToWait = milliseconds(params[3].get_int());
@@ -1372,12 +1373,17 @@ Value dhtget(const Array& params, bool fHelp)
                 libtorrent::entry &e = *it;
                 hexcapeDht( e );
                 string sig_p = safeGetEntryString(e, "sig_p");
-                if( !sig_p.length() ) {
+                int seq = (multi) ? 0 : safeGetEntryInt( safeGetEntryDict(e,"p"), "seq" );
+                bool acceptEntry = (multi) ? (!sig_p.length() || !uniqueSigPs.count(sig_p)) :
+                                             (seq > lastSeq);
+                if( acceptEntry ) {
+                    if( !multi) {
+                        ret.clear();
+                    }
                     ret.push_back( entryToJson(e) );
-                } else {
-                    if( !uniqueSigPs.count(sig_p) ) {
+                    lastSeq = seq;
+                    if( sig_p.length() ) {
                         uniqueSigPs.insert(sig_p);
-                        ret.push_back( entryToJson(e) );
                     }
                 }
             }
@@ -1387,13 +1393,9 @@ Value dhtget(const Array& params, bool fHelp)
             break;
         }
 
-        if( multi ) {
-            if( repliesReceived++ < minMultiReplies && uniqueSigPs.size() ) {
-                timeToWait = timeToWaitMulti;
-                //printf("dhtget: wait again %d\n", repliesReceived);
-            } else {
-                break;
-            }
+        if( repliesReceived++ < minMultiReplies ) {
+            timeToWait = timeToWaitMulti;
+            //printf("dhtget: wait again repliesReceived=%d lastSeq=%d\n", repliesReceived, lastSeq);
         } else {
             break;
         }

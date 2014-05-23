@@ -329,13 +329,34 @@ void unHexcapeDht(libtorrent::entry &e)
     }
 }
 
-std::string safeGetEntryString(libtorrent::entry &e, std::string const& key)
+std::string safeGetEntryString(libtorrent::entry const &e, std::string const& key)
 {
     if( e.type() == libtorrent::entry::dictionary_t &&
         e.find_key(key) && e[key].type() == libtorrent::entry::string_t ) {
         return e[key].string();
     } else {
         return "";
+    }
+}
+
+int safeGetEntryInt(libtorrent::entry const &e, std::string const& key)
+{
+    if( e.type() == libtorrent::entry::dictionary_t &&
+        e.find_key(key) && e[key].type() == libtorrent::entry::int_t ) {
+        return e[key].integer();
+    } else {
+        return 0;
+    }
+}
+
+libtorrent::entry safeGetEntryDict(libtorrent::entry const &e, std::string const& key)
+{
+    static libtorrent::entry::dictionary_type dummy;
+    if( e.type() == libtorrent::entry::dictionary_t &&
+        e.find_key(key) && e[key].type() == libtorrent::entry::dictionary_t ) {
+        return e[key].dict();
+    } else {
+        return dummy;
     }
 }
 

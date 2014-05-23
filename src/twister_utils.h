@@ -44,6 +44,8 @@ void unHexcapePost(libtorrent::entry &e);
 void hexcapeDht(libtorrent::entry &e);
 void unHexcapeDht(libtorrent::entry &e);
 
-std::string safeGetEntryString(libtorrent::entry &e, std::string const& key);
+std::string safeGetEntryString(libtorrent::entry const &e, std::string const& key);
+int safeGetEntryInt(libtorrent::entry const &e, std::string const& key);
+libtorrent::entry safeGetEntryDict(libtorrent::entry const &e, std::string const& key);
 
 #endif // TWISTER_UTILS_H
