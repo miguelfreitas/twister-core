@@ -201,6 +201,7 @@ HEADERS +=  \
     src/scrypt.h \
     src/utf8core.h \
     src/twister.h \
+    src/twister_rss.h \
     src/twister_utils.h
 
 #    src/qt/bitcoingui.h
@@ -277,6 +278,7 @@ SOURCES += \ #src/qt/bitcoin.cpp \
     src/txdb.cpp \
     src/scrypt.cpp \
     src/twister.cpp \
+    src/twister_rss.cpp \
     src/twister_utils.cpp
 
 #    src/qt/guiutil.cpp \

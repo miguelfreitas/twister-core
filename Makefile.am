@@ -157,6 +157,7 @@ BITCOIN_TWISTER_SOURCES = \
     src/txdb.cpp \
     src/chainparams.cpp \
     src/twister.cpp \
+    src/twister_rss.cpp \
     src/twister_utils.cpp \
     $(SSE2_SOURCES)
 
