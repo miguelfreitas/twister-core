@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# Build or run a docker image of twister
+#
+
+ACTION=${1:-run}
+MODE=${2:---local}
+
+IMAGE_NAME=twister
+REMOTE_IMAGE_NAME=mazzolino/twister
+
+set -e
+
+case $ACTION in
+
+build)
+  echo Building $IMAGE_NAME
+  docker build -t $IMAGE_NAME .
+  ;;
+
+run)
+  if [ $MODE == "--remote" ]; then
+    IMAGE_NAME=$REMOTE_IMAGE_NAME
+  fi
+  echo Running $IMAGE_NAME
+  docker run -d -p 28332:28332 -v $HOME/.twister:/root/.twister $IMAGE_NAME
+  echo Twister should now be running at http://localhost:28332
+  ;;
+
+stop)
+  CID=$(docker ps | grep twister | awk '{print $1}')
+  if [ "$CID" ]; then
+    echo Stopping container $CID
+    docker stop $CID
+    docker rm $CID
+  fi
+  ;;
+
+*)
+  echo Usage:
+  echo "         $0 run"
+  echo "         Run twister from a local docker build (default)"
+  echo
+  echo "         $0 run --remote"
+  echo "         Run twister from the remote docker build at \"$REMOTE_IMAGE_NAME\""
+  echo
+  echo "         $0 build"
+  echo "         Build a local docker image for twister"
+
+  exit 2
+
+esac
