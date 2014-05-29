@@ -1,8 +1,8 @@
 # Vagrant + Ubuntu building instructions
 
 This will run a virtual machine with all tools required to build and run twister
-using Vagrant. 
-This will probably work wherever vagrant can be installed so Windows, Mac, Linux 
+using Vagrant.
+This will probably work wherever vagrant can be installed so Windows, Mac, Linux
 at least
 
 ## Dependencies
@@ -19,7 +19,7 @@ at least
 
 ## Tweeking
 If you have lots of ram and CPU in your machine, feel free to use it.
-Before running vagrant up please set 
+Before running vagrant up please set
 VAGRANT_RAM and/or VAGRANT_CPU environment variables to whatever is fitting.
 Default is 1 CPU and 1024 MB RAM.
 
