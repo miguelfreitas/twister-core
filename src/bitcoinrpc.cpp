@@ -980,29 +980,7 @@ void ServiceConnection(AcceptedConnection *conn)
         if(strMethod == "GET" && strURI == "/")
             strURI="/home.html";
 
-        if(strMethod == "GET" && strURI.substr(0, 4) == "/rss" && !GetBoolArg("-public_server_mode",false))
-        {
-            string rssOutput;
-            int rssResult = generateRSS(strURI, &rssOutput);
-
-            switch(rssResult)
-            {
-                case RSS_OK:
-                    conn->stream() << HTTPReply(HTTP_OK, rssOutput, false, "application/rss+xml") << std::flush;
-                    continue;
-                case RSS_ERROR_NO_ACCOUNT:
-                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "No accounts found - please register a username", false) << std::flush;
-                    continue;
-                case RSS_ERROR_BAD_ACCOUNT:
-                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "Requested account is not registered on this node", false) << std::flush;
-                    continue;
-                case RSS_ERROR_NOT_A_NUMBER:
-                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "Parameter 'max' must be a number", false) << std::flush;
-                    continue;
-            }
-        }
-
-        if (strURI != "/" && strURI.find("..") == std::string::npos ) {
+        if (strURI != "/" && strURI.substr(0, 4) != "/rss" && strURI.find("..") == std::string::npos ) {
             filesystem::path pathFile = filesystem::path(GetHTMLDir()) / strURI;
             std::string fname = pathFile.string();
             size_t qMarkIdx = fname.find('?');
@@ -1059,6 +1037,28 @@ void ServiceConnection(AcceptedConnection *conn)
         }
         if (mapHeaders["connection"] == "close")
             fRun = false;
+        
+        if(strMethod == "GET" && strURI.substr(0, 4) == "/rss" && !GetBoolArg("-public_server_mode",false))
+        {
+            string rssOutput;
+            int rssResult = generateRSS(strURI, &rssOutput);
+
+            switch(rssResult)
+            {
+                case RSS_OK:
+                    conn->stream() << HTTPReply(HTTP_OK, rssOutput, false, "application/rss+xml") << std::flush;
+                    continue;
+                case RSS_ERROR_NO_ACCOUNT:
+                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "No accounts found - please register a username", false) << std::flush;
+                    continue;
+                case RSS_ERROR_BAD_ACCOUNT:
+                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "Requested account is not registered on this node", false) << std::flush;
+                    continue;
+                case RSS_ERROR_NOT_A_NUMBER:
+                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "Parameter 'max' must be a number", false) << std::flush;
+                    continue;
+            }
+        }
 
         JSONRequest jreq;
         try
