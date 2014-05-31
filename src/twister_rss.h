@@ -3,6 +3,7 @@
 
 #include "json/json_spirit.h"
 #include <string>
+#include <map>
 
 enum RSSResultCode
 {
@@ -13,6 +14,7 @@ enum RSSResultCode
 };
 
 extern bool sortByTime (json_spirit::Object i,json_spirit::Object j);
+extern std::map<std::string, std::string> parseQuery(const std::string& query);
 extern int generateRSS(std::string uri, std::string *output);
 
 #endif // TWISTER_RSS_H

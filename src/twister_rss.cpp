@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include <ctime>
+#include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>
 
 using namespace std;
@@ -14,36 +15,20 @@ using namespace json_spirit;
 
 int generateRSS(string uri, string *output)
 {
-    string account = "";
-    int max = 20;
-
-    // get URI parameters if available
-    size_t startPosition, endPosition;
-    if(uri.find("max=")!=string::npos)
+    map<string, string> parameterMap = parseQuery(uri);
+    int max = 20; //default value
+    string account = parameterMap["account"];
+    string strMax = parameterMap["max"];
+    if(strMax!="")
     {
-        startPosition = uri.find("max=")+4;
-        if(uri.find("&",startPosition)!=string::npos)
-            endPosition=uri.find("&",startPosition);
-        else
-            endPosition=uri.length();
         try
         {
-            max = boost::lexical_cast<int>(uri.substr(startPosition,endPosition-startPosition));
+            max = boost::lexical_cast<int>(strMax);
         }
         catch(boost::bad_lexical_cast e)
         {
             return RSS_ERROR_NOT_A_NUMBER;
         }
-    }
-    if(uri.find("account=")!=string::npos)
-    {
-        startPosition = uri.find("account=")+8;
-        if(uri.find("&",startPosition)!=string::npos)
-            endPosition=uri.find("&",startPosition);
-        else
-            endPosition=uri.length();
-
-        account = uri.substr(startPosition,endPosition-startPosition);
     }
 
     const Array emptyArray;
@@ -199,6 +184,23 @@ int generateRSS(string uri, string *output)
 
     *output = ret.str();
     return RSS_OK;
+}
+
+map<string, string> parseQuery(const string& query)
+{
+    map<string, string> data;
+    boost::regex pattern("([\\w+%]+)=([^&]*)");
+    boost::sregex_iterator words_begin = boost::sregex_iterator(query.begin(), query.end(), pattern);
+    boost::sregex_iterator words_end = boost::sregex_iterator();
+
+    for (boost::sregex_iterator i = words_begin; i != words_end; i++)
+    {
+        string key = (*i)[1].str();
+        string value = (*i)[2].str();
+        data[key] = value;
+    }
+
+    return data;
 }
 
 bool sortByTime (Object i,Object j)
