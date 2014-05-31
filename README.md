@@ -31,12 +31,12 @@ Please follow the instructions for your platform:
 Or, alternatively, you can run Twister on an isolated Linux container, using [docker](http://docker.io/). Quickstart:
 
     # Prepend "sudo -E" if you are not logged in as root
-    ./docker-container run --remote
+    ./twister-on-docker run --remote
 
 The above command downloads and runs a [pre-built image](https://index.docker.io/u/mazzolino/twister/) from the Docker index. You can also build and run your own container:
 
-    ./docker-container build
-    ./docker-container run
+    ./twister-on-docker build
+    ./twister-on-docker run
 
 > According to our tests, at least 1GB of RAM is needed to compile Twister.
 
