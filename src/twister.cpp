@@ -43,6 +43,7 @@ twister::twister()
 
 using namespace libtorrent;
 static session *ses = NULL;
+static bool m_shuttingDownSession = false;
 static bool m_usingProxy;
 static int num_outstanding_resume_data;
 
@@ -55,6 +56,7 @@ enum ExpireResType { SimpleNoExpire, NumberedNoExpire, PostNoExpireRecent };
 static map<std::string, ExpireResType> m_noExpireResources;
 static map<std::string, torrent_handle> m_userTorrent;
 static boost::scoped_ptr<CLevelDB> m_swarmDb;
+static int m_threadsToJoin;
 
 static CCriticalSection cs_spamMsg;
 static std::string m_preferredSpamLang = "[en]";
@@ -65,6 +67,25 @@ static std::map<std::string,UserData> m_users;
 
 static CCriticalSection cs_seenHashtags;
 static std::map<std::string,double> m_seenHashtags;
+
+class SimpleThreadCounter {
+public:
+    SimpleThreadCounter(CCriticalSection *lock, int *counter, const char *name) :
+        m_lock(lock), m_counter(counter), m_name(name) {
+        RenameThread(m_name);
+        LOCK(*m_lock);
+        (*m_counter)++;
+    }
+    ~SimpleThreadCounter() {
+        printf("%s thread exit\n", m_name);
+        LOCK(*m_lock);
+        (*m_counter)--;
+    }
+private:
+    CCriticalSection *m_lock;
+    int *m_counter;
+    const char *m_name;
+};
 
 #define USER_DATA_FILE "user_data"
 #define GLOBAL_DATA_FILE "global_data"
@@ -84,7 +105,7 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
 torrent_handle startTorrentUser(std::string const &username, bool following)
 {
     bool userInTxDb = usernameExists(username); // keep this outside cs_twister to avoid deadlock
-    if( !userInTxDb )
+    if( !userInTxDb || !ses)
         return torrent_handle();
 
     LOCK(cs_twister);
@@ -205,10 +226,9 @@ data_error:
     return -2;
 }
 
-
 void ThreadWaitExtIP()
 {
-    RenameThread("wait-extip");
+    SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "wait-extip");
 
     std::string ipStr;
 
@@ -418,16 +438,16 @@ int getDhtNodes(boost::int64_t *dht_global_nodes)
 
 void ThreadMaintainDHTNodes()
 {
-    RenameThread("maintain-dht-nodes");
+    SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "maintain-dht-nodes");
 
-    while(!ses) {
+    while(!ses && !m_shuttingDownSession) {
         MilliSleep(200);
     }
 
     int64 lastSaveResumeTime = GetTime();
     int   lastTotalNodesCandidates = 0;
 
-    while(1) {
+    while(ses && !m_shuttingDownSession) {
         session_status ss = ses->status();
         int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
@@ -535,11 +555,14 @@ void ThreadSessionAlerts()
     static map<sha1_hash, bool> neighborCheck;
     static map<sha1_hash, int64_t> statusCheck;
 
-    while(!ses) {
+    SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "session-alerts");
+    
+
+    while(!ses && !m_shuttingDownSession) {
         MilliSleep(200);
     }
-    while (ses) {
-        alert const* a = ses->wait_for_alert(seconds(10));
+    while (ses && !m_shuttingDownSession) {
+        alert const* a = ses->wait_for_alert(seconds(1));
         if (a == 0) continue;
 
         std::deque<alert*> alerts;
@@ -721,6 +744,7 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     m_noExpireResources["status"] = SimpleNoExpire;
     m_noExpireResources["post"] = PostNoExpireRecent;
 
+    m_threadsToJoin = 0;
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
     threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
@@ -739,6 +763,17 @@ void stopSessionTorrent()
                 MilliSleep(100);
             }
 
+            m_shuttingDownSession = true;
+            int threadsToJoin = 0;
+            do {
+                MilliSleep(100);
+                LOCK(cs_twister);
+                if( threadsToJoin != m_threadsToJoin ) {
+                    threadsToJoin = m_threadsToJoin;
+                    printf("twister threads to join = %d\n", threadsToJoin);
+                }
+            } while( threadsToJoin );
+
             printf("\nsaving session state\n");
 
             entry session_state;
@@ -755,6 +790,8 @@ void stopSessionTorrent()
             boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
             save_file(sesStatePath.string(), out);
 
+            ses->stop_dht();
+            
             delete ses;
             ses = NULL;
     }
@@ -2093,7 +2130,7 @@ Value torrentstatus(const Array& params, bool fHelp)
     result.push_back(Pair("num_complete", status.num_complete));
     result.push_back(Pair("num_pieces", status.num_pieces));
     string bitfield;
-    for(int i = 0; i < status.pieces.size(); i++) {
+    for(std::size_t i = 0; i < status.pieces.size(); i++) {
         bitfield.append( status.pieces[i]?"1":"0" );
     }
     result.push_back(Pair("bitfield", bitfield));
@@ -2115,7 +2152,7 @@ Value torrentstatus(const Array& params, bool fHelp)
         info.push_back(Pair("download_queue_length", p.download_queue_length));
         info.push_back(Pair("failcount", p.failcount));
         bitfield = "";
-        for(int i = 0; i < p.pieces.size(); i++) {
+        for(std::size_t i = 0; i < p.pieces.size(); i++) {
             bitfield.append( p.pieces[i]?"1":"0" );
         }
         info.push_back(Pair("bitfield", bitfield));
