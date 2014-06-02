@@ -73,7 +73,7 @@ pq = PyQuery(html.decode('utf8'))
 
 ### parse html
 
-items = pq(".content")
+items = pq(".StreamItem")
 for i in xrange(len(items)-1,0,-1):
     item = items.eq(i)
     datatime = int(item.find("[data-time]").attr("data-time"))
