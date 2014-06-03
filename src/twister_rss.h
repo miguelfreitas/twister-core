@@ -15,6 +15,7 @@ enum RSSResultCode
 };
 
 extern bool sortByTime (json_spirit::Object i,json_spirit::Object j);
+extern void encodeXmlCharacters (std::string& data);
 #ifdef HAVE_BOOST_REGEX
     extern std::map<std::string, std::string> parseQuery(const std::string& query);
 #endif
