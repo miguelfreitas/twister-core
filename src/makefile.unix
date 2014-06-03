@@ -151,6 +151,7 @@ OBJS= \
     obj/txdb.o \
     obj/chainparams.o \
     obj/twister.o \
+    obj/twister_rss.o \
     obj/twister_utils.o
 
 ifdef USE_SSE2
