@@ -102,6 +102,7 @@ int generateRSS(string uri, string *output)
                     postTitle="Direct Message from "+postAuthor;
                     postMsg=find_value(userArray[i].get_obj(),"text").get_str();            
                     Value postTime = find_value(userArray[i].get_obj(),"time");
+                    encodeXmlCharacters(postMsg);
 
                     Object item;
                     item.push_back(Pair("time",postTime));
@@ -146,6 +147,7 @@ int generateRSS(string uri, string *output)
             }
             
             Value postTime = find_value(userpost,"time");
+            encodeXmlCharacters(postMsg);
             
             Object item;
             item.push_back(Pair("time",postTime));
@@ -218,4 +220,21 @@ map<string, string> parseQuery(const string& query)
 bool sortByTime (Object i,Object j)
 { 
     return (find_value(i,"time").get_int64()>find_value(j,"time").get_int64());
+}
+
+void encodeXmlCharacters(std::string& data)
+{
+    std::string buffer;
+    buffer.reserve(data.size());
+    for(size_t pos = 0; pos != data.size(); ++pos) {
+        switch(data[pos]) {
+            case '&':  buffer.append("&amp;");       break;
+            case '\"': buffer.append("&quot;");      break;
+            case '\'': buffer.append("&apos;");      break;
+            case '<':  buffer.append("&lt;");        break;
+            case '>':  buffer.append("&gt;");        break;
+            default:   buffer.append(&data[pos], 1); break;
+        }
+    }
+    data.swap(buffer);
 }
