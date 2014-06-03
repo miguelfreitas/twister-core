@@ -1057,6 +1057,9 @@ void ServiceConnection(AcceptedConnection *conn)
                 case RSS_ERROR_NOT_A_NUMBER:
                     conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "Parameter 'max' must be a number", false) << std::flush;
                     continue;
+                case RSS_ERROR_BOOST_REGEX:
+                    conn->stream() << HTTPReply(HTTP_BAD_REQUEST, "boost-regex support missing", false) << std::flush;
+                    continue;
             }
         }
 

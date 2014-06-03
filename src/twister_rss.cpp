@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <vector>
 #include <ctime>
-#include <boost/regex.hpp>
+#ifdef HAVE_BOOST_REGEX
+    #include <boost/regex.hpp>
+#endif
 #include <boost/lexical_cast.hpp>
 
 using namespace std;
@@ -15,6 +17,9 @@ using namespace json_spirit;
 
 int generateRSS(string uri, string *output)
 {
+#ifndef HAVE_BOOST_REGEX
+    return RSS_ERROR_BOOST_REGEX;
+#else
     map<string, string> parameterMap = parseQuery(uri);
     int max = 20; //default value
     string account = parameterMap["account"];
@@ -188,8 +193,10 @@ int generateRSS(string uri, string *output)
 
     *output = ret.str();
     return RSS_OK;
+#endif
 }
 
+#ifdef HAVE_BOOST_REGEX
 map<string, string> parseQuery(const string& query)
 {
     map<string, string> data;
@@ -206,6 +213,7 @@ map<string, string> parseQuery(const string& query)
 
     return data;
 }
+#endif
 
 bool sortByTime (Object i,Object j)
 { 
