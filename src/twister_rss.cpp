@@ -72,40 +72,44 @@ int generateRSS(string uri, string *output)
     params2.push_back(max);
     params2.push_back(postSources);
     Array posts = getposts(params2,false).get_array();
-    Array params3;
-    params3.push_back(account);
-    params3.push_back(max);
-    params3.push_back(postSources);
-    Object messages = getdirectmsgs(params3,false).get_obj();
     vector<Object> outputVector;   
-          
-    for(int j=0;j<messages.size();j++)
+    
+    if(GetBoolArg("-rss_dm",false))     //synchronizing direct messages is disabled by default
     {
-        Array userArray = messages[j].value_.get_array();
-        for(int i=0;i<userArray.size();i++)
+        Array params3;
+        params3.push_back(account);
+        params3.push_back(max);
+        params3.push_back(postSources);
+        Object messages = getdirectmsgs(params3,false).get_obj();
+              
+        for(int j=0;j<messages.size();j++)
         {
-            try
+            Array userArray = messages[j].value_.get_array();
+            for(int i=0;i<userArray.size();i++)
             {
-                if(find_value(userArray[i].get_obj(),"fromMe").get_bool())      //only report received messages
-                  continue;
-                
-                string postTitle, postAuthor, postMsg;
-                postAuthor=messages[j].name_;
-                postTitle="Direct Message from "+postAuthor;
-                postMsg=find_value(userArray[i].get_obj(),"text").get_str();            
-                time_t postTime(find_value(userArray[i].get_obj(),"time").get_int64());
+                try
+                {
+                    if(find_value(userArray[i].get_obj(),"fromMe").get_bool())      //only report received messages
+                      continue;
+                    
+                    string postTitle, postAuthor, postMsg;
+                    postAuthor=messages[j].name_;
+                    postTitle="Direct Message from "+postAuthor;
+                    postMsg=find_value(userArray[i].get_obj(),"text").get_str();            
+                    time_t postTime(find_value(userArray[i].get_obj(),"time").get_int64());
 
-                Object item;
-                item.push_back(Pair("time",postTime));
-                item.push_back(Pair("title",postTitle));
-                item.push_back(Pair("author",postAuthor));
-                item.push_back(Pair("msg",postMsg));
-                outputVector.push_back(item);
-            }
-            catch(exception ex)
-            {
-                fprintf(stderr, "Warning: RSS couldn't parse a direct message, skipping.\n");
-                continue;
+                    Object item;
+                    item.push_back(Pair("time",postTime));
+                    item.push_back(Pair("title",postTitle));
+                    item.push_back(Pair("author",postAuthor));
+                    item.push_back(Pair("msg",postMsg));
+                    outputVector.push_back(item);
+                }
+                catch(exception ex)
+                {
+                    fprintf(stderr, "Warning: RSS couldn't parse a direct message, skipping.\n");
+                    continue;
+                }
             }
         }
     }
