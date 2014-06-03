@@ -92,6 +92,7 @@ AX_BOOST_PROGRAM_OPTIONS()
 AX_BOOST_THREAD()
 AX_BOOST_CHRONO()
 AX_BOOST_LOCALE()
+AX_BOOST_REGEX()
 
 ###############################################################################
 # Checking for Berkeley DB C++
@@ -773,6 +774,7 @@ Boost libraries:
   boost.program_opts:   ${BOOST_PROGRAM_OPTIONS_LIB}
   boost.thread:         ${BOOST_THREAD_LIB}
   boost.locale:         ${BOOST_LOCALE_LIB}
+  boost.regex:          ${BOOST_REGEX_LIB}
 
 Berkeley DB C++ library:
   header:               ${DB_CXX_HEADER}

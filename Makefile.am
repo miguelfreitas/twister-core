@@ -157,6 +157,7 @@ BITCOIN_TWISTER_SOURCES = \
     src/txdb.cpp \
     src/chainparams.cpp \
     src/twister.cpp \
+    src/twister_rss.cpp \
     src/twister_utils.cpp \
     $(SSE2_SOURCES)
 
@@ -172,7 +173,7 @@ twisterd_DEPENDENCIES = $(LEVELDB_LIB)
 
 twisterd_LDADD = $(LEVELDB_LIB) $(UPNP_LIB) \
     @BOOST_SYSTEM_LIB@ @BOOST_FILESYSTEM_LIB@ @BOOST_PROGRAM_OPTIONS_LIB@ @BOOST_THREAD_LIB@ @BOOST_CHRONO_LIB@ @BOOST_LOCALE_LIB@ \
-    @DB_CXX_LIBS@ @OPENSSL_LIBS@
+    @BOOST_REGEX_LIB@ @DB_CXX_LIBS@ @OPENSSL_LIBS@
 
 AM_CPPFLAGS = -ftemplate-depth-100 -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS=64 \
     -I$(top_srcdir)/libtorrent/include \
