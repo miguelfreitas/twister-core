@@ -101,7 +101,7 @@ int generateRSS(string uri, string *output)
                     postAuthor=messages[j].name_;
                     postTitle="Direct Message from "+postAuthor;
                     postMsg=find_value(userArray[i].get_obj(),"text").get_str();            
-                    time_t postTime(find_value(userArray[i].get_obj(),"time").get_int64());
+                    Value postTime = find_value(userArray[i].get_obj(),"time");
 
                     Object item;
                     item.push_back(Pair("time",postTime));
@@ -145,7 +145,7 @@ int generateRSS(string uri, string *output)
                 postMsg = find_value(rt.get_obj(),"msg").get_str();
             }
             
-            time_t postTime(find_value(userpost,"time").get_int64());
+            Value postTime = find_value(userpost,"time");
             
             Object item;
             item.push_back(Pair("time",postTime));
