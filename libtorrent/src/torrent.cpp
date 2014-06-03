@@ -954,6 +954,7 @@ namespace libtorrent
 			printf("piece read error (database corrupt?) - setting we_dont_have(%d)\n", j.piece);
 			we_dont_have(j.piece);
 		}
+		if (j.buffer) m_ses.free_disk_buffer(j.buffer);
 		(*reqs)--;
 
 		if (!(*reqs)) cond->notify_all();
