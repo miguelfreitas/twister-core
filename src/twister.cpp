@@ -41,6 +41,8 @@ twister::twister()
 //#define DEBUG_MAINTAIN_DHT_NODES 1
 //#define DEBUG_NEIGHBOR_TORRENT 1
 
+#define TWIST_TOKEN_DELIMITERS " \n\t.,:/?!;'\"()[]{}*"
+
 using namespace libtorrent;
 static session *ses = NULL;
 static bool m_shuttingDownSession = false;
@@ -1267,7 +1269,7 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
     // split and look for hashtags
     vector<string> tokens;
     set<string> hashtags;
-    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*"),
+    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(TWIST_TOKEN_DELIMITERS),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
@@ -1352,6 +1354,70 @@ Value dhtput(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Username must be the same as sig_user for single");
 
     boost::int64_t timeutc = GetAdjustedTime();
+
+    if (strResource == "profile")
+    {
+        if (value.type() == entry::dictionary_t)
+        {
+            for (entry::dictionary_type::const_iterator i = value.dict().begin(); i != value.dict().end(); ++i) {
+                //before registering tokens, we register full "fullaname" and "location" to dht
+                if( i->first == "fullname" )
+                {
+                    ses->dht_putData(i->second.string(), "fullname", true,
+                                     strUsername, strUsername, timeutc, 0);
+                }
+                else if( i->first == "location" )
+                {
+                    ses->dht_putData(i->second.string(), "location", true,
+                                     strUsername, strUsername, timeutc, 0);
+                }
+
+                vector<string> tokens;
+                boost::algorithm::split(tokens, i->second.string(), boost::algorithm::is_any_of(TWIST_TOKEN_DELIMITERS),
+                                        boost::algorithm::token_compress_on);
+                BOOST_FOREACH(string const& token, tokens) {
+                    if( token.length() >= 2 ) {
+                        string word = token;
+#ifdef HAVE_BOOST_LOCALE
+                    word = boost::locale::to_lower(word);
+#else
+                        boost::algorithm::to_lower(word);
+#endif
+                        if( i->first == "bio" )
+                        {
+                            if( word.at(0) == '#')
+                            {
+                                ses->dht_putData(word.substr(1), "bio", true,
+                                                 strUsername, strUsername, timeutc, 0);
+                            } 
+                            else if( word.at(0) == '@')
+                            {
+                                ses->dht_putData(word.substr(1), "related", true,
+                                                 strUsername, strUsername, timeutc, 0);
+                                ses->dht_putData(strUsername, "related", true,
+                                                 word.substr(1), strUsername, timeutc, 0);
+                            }
+                            else
+                            {
+                                ses->dht_putData(word, "bio", true,
+                                                 strUsername, strUsername, timeutc, 0);
+                            }
+                        }
+                        else if( i->first == "fullname" )
+                        {
+                            ses->dht_putData(word, "fullname", true,
+                                             strUsername, strUsername, timeutc, 0);
+                        }
+                        else if( i->first == "location" )
+                        {
+                            ses->dht_putData(word, "location", true,
+                                             strUsername, strUsername, timeutc, 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     ses->dht_putData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
 
@@ -1536,7 +1602,7 @@ Value newpostmsg(const Array& params, bool fHelp)
 
     // split and look for mentions and hashtags
     vector<string> tokens;
-    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*"),
+    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(TWIST_TOKEN_DELIMITERS),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
@@ -1985,6 +2051,106 @@ Value listusernamespartial(const Array& params, bool fHelp)
     Array ret;
     BOOST_FOREACH(string username, retStrings) {
         ret.push_back(username);
+    }
+
+    return ret;
+}
+
+Value usersearch(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() < 3 || params.size() > 4))
+        throw runtime_error(
+            "usersearch <keyword> <type> <count> [offset=0]\n"
+            "search users with given keyword and type\n"
+            "type=all|username|fullname|bio|location|related\n"
+            "'count' is max. results count for each type.");
+
+    string sKeyword = params[0].get_str();
+    string sType = params[1].get_str();
+    /* since RPCConvertValues@bitcoinrpc.cpp:1239 isn't functional
+     * for "usersearch" method, conversions of parameters are made here.
+     */
+    size_t sCount = (size_t)atoi(params[2].get_str().c_str());
+    size_t sOffset = 0;
+    if (params.size() > 3)
+        sOffset = (size_t)atoi(params[3].get_str().c_str());
+
+    Object ret;
+    if (sType == "all" || sType == "username")
+    {
+        Array _params;
+
+        _params.push_back(sKeyword);
+        _params.push_back(sOffset + sCount);
+
+        Array retValues;
+        if (sOffset)
+        {
+            Array usernames = listusernamespartial(_params, false).get_array();
+
+            for (size_t i = sOffset; i < usernames.size(); i++)
+                retValues.push_back(usernames[i]);
+
+            
+        }
+        else
+            retValues = listusernamespartial(_params, false).get_array();
+
+        ret.push_back(Pair("usernames", retValues));
+    }
+
+    set<string> types;
+    if (sType == "all")
+    {
+        types.insert("fullname");
+        types.insert("bio");
+        types.insert("location");
+        types.insert("related");
+    }
+    else if (sType != "username")
+        types.insert(sType);
+    else
+        return ret;
+
+    BOOST_FOREACH(string cType, types)
+    {
+        Array _params;
+
+        _params.push_back(sKeyword);
+        _params.push_back(cType);
+        _params.push_back("m");
+
+        Array retValues;
+        Array dhtValues = dhtget(_params, false).get_array();
+
+        for (size_t i = sOffset; i < dhtValues.size() && i < sCount + sOffset; i++)
+        {
+            if (dhtValues[i].type() == obj_type)
+            {
+                Object obj = dhtValues[i].get_obj();
+                for (Object::const_iterator it = obj.begin(); it != obj.end(); ++it)
+                {
+                    if (it->name_ == "p")
+                    {
+                        if (it->value_.type() == obj_type)
+                        {
+                            Object obj2 = Value(it->value_).get_obj();
+                            for (Object::const_iterator it2 = obj2.begin(); it2 != obj2.end(); ++it2)
+                            {
+                                if (it2->name_ == "v")
+                                {
+                                    retValues.push_back(it2->value_);
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        ret.push_back(Pair(cType, retValues));
     }
 
     return ret;
