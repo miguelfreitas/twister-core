@@ -12,6 +12,7 @@
 using namespace json_spirit;
 using namespace std;
 
+#include <boost/shared_ptr.hpp>
 #include <boost/filesystem.hpp>
 #ifdef HAVE_BOOST_LOCALE
   #include <boost/locale.hpp>
@@ -42,7 +43,7 @@ twister::twister()
 //#define DEBUG_NEIGHBOR_TORRENT 1
 
 using namespace libtorrent;
-static session *ses = NULL;
+static boost::shared_ptr<session> m_ses;
 static bool m_shuttingDownSession = false;
 static bool m_usingProxy;
 static int num_outstanding_resume_data;
@@ -105,7 +106,8 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
 torrent_handle startTorrentUser(std::string const &username, bool following)
 {
     bool userInTxDb = usernameExists(username); // keep this outside cs_twister to avoid deadlock
-    if( !userInTxDb || !ses)
+    boost::shared_ptr<session> ses(m_ses);
+    if( !userInTxDb || !ses )
         return torrent_handle();
 
     LOCK(cs_twister);
@@ -258,11 +260,12 @@ void ThreadWaitExtIP()
            ipStr.c_str(), !m_usingProxy ? listen_port : 0,
            m_usingProxy ? proxyInfoOut.first.ToStringIPPort().c_str() : "");
 
-    ses = new session(*m_swarmDb, fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
+    m_ses.reset(new session(*m_swarmDb, fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
             , alert::dht_notification
             , ipStr.size() ? ipStr.c_str() : NULL
-            , !m_usingProxy ? std::make_pair(listen_port, listen_port) : std::make_pair(0, 0) );
+            , !m_usingProxy ? std::make_pair(listen_port, listen_port) : std::make_pair(0, 0) ));
+    boost::shared_ptr<session> ses(m_ses);
 
     if( m_usingProxy ) {
         proxy_settings proxy;
@@ -385,6 +388,7 @@ bool yes(libtorrent::torrent_status const&)
 
 void saveTorrentResumeData()
 {
+    boost::shared_ptr<session> ses(m_ses);
     if( ses ){
             printf("saving resume data\n");
             std::vector<torrent_status> temp;
@@ -428,6 +432,7 @@ void lockAndSaveUserData()
 
 int getDhtNodes(boost::int64_t *dht_global_nodes)
 {
+    boost::shared_ptr<session> ses(m_ses);
     if( !ses )
         return 0;
     session_status ss = ses->status();
@@ -440,14 +445,16 @@ void ThreadMaintainDHTNodes()
 {
     SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "maintain-dht-nodes");
 
-    while(!ses && !m_shuttingDownSession) {
+    while(!m_ses && !m_shuttingDownSession) {
         MilliSleep(200);
     }
 
     int64 lastSaveResumeTime = GetTime();
     int   lastTotalNodesCandidates = 0;
 
-    while(ses && !m_shuttingDownSession) {
+    while(m_ses && !m_shuttingDownSession) {
+        boost::shared_ptr<session> ses(m_ses);
+        
         session_status ss = ses->status();
         int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
@@ -546,6 +553,7 @@ void ThreadMaintainDHTNodes()
             lockAndSaveUserData();
         }
 
+        ses.reset();
         MilliSleep(5000);
     }
 }
@@ -557,11 +565,11 @@ void ThreadSessionAlerts()
 
     SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "session-alerts");
     
-
-    while(!ses && !m_shuttingDownSession) {
+    while(!m_ses && !m_shuttingDownSession) {
         MilliSleep(200);
     }
-    while (ses && !m_shuttingDownSession) {
+    while (m_ses && !m_shuttingDownSession) {
+        boost::shared_ptr<session> ses(m_ses);
         alert const* a = ses->wait_for_alert(seconds(1));
         if (a == 0) continue;
 
@@ -752,8 +760,8 @@ void startSessionTorrent(boost::thread_group& threadGroup)
 
 void stopSessionTorrent()
 {
-    if( ses ){
-            ses->pause();
+    if( m_ses ){
+            m_ses->pause();
 
             saveTorrentResumeData();
 
@@ -777,7 +785,7 @@ void stopSessionTorrent()
             printf("\nsaving session state\n");
 
             entry session_state;
-            ses->save_state(session_state,
+            m_ses->save_state(session_state,
                             session::save_settings |
                             session::save_dht_settings |
                             session::save_dht_state |
@@ -790,10 +798,9 @@ void stopSessionTorrent()
             boost::filesystem::path sesStatePath = GetDataDir() / "ses_state";
             save_file(sesStatePath.string(), out);
 
-            ses->stop_dht();
+            m_ses->stop_dht();
             
-            delete ses;
-            ses = NULL;
+            m_ses.reset();
     }
 
     boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
@@ -1319,6 +1326,7 @@ Value dhtput(const Array& params, bool fHelp)
             "dhtput <username> <resource> <s(ingle)/m(ulti)> <value> <sig_user> <seq>\n"
             "Store resource in dht network");
 
+    boost::shared_ptr<session> ses(m_ses);
     if( !ses )
         return Value();
 
@@ -1365,6 +1373,7 @@ Value dhtget(const Array& params, bool fHelp)
             "dhtget <username> <resource> <s(ingle)/m(ulti)> [timeout_ms] [timeout_multi_ms] [min_multi]\n"
             "Get resource from dht network");
 
+    boost::shared_ptr<session> ses(m_ses);
     if( !ses )
         return Array();
 
@@ -1479,6 +1488,10 @@ Value newpostmsg(const Array& params, bool fHelp)
             "newpostmsg <username> <k> <msg> [reply_n] [reply_k]\n"
             "Post a new message to swarm");
 
+    boost::shared_ptr<session> ses(m_ses);
+    if( !ses )
+        return Array();
+    
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
@@ -1616,6 +1629,10 @@ Value newrtmsg(const Array& params, bool fHelp)
             "newrtmsg <username> <k> <rt_v_object>\n"
             "Post a new RT to swarm");
 
+    boost::shared_ptr<session> ses(m_ses);
+    if( !ses )
+        return Array();
+    
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
