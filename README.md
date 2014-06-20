@@ -31,7 +31,7 @@ Please follow the instructions for your platform:
 Or, alternatively, you can build Twister on an isolated Linux container, using
 [docker](http://docker.io/):
 
-    docker build -t twister https://github.com/miguelfreitas/twister-core/blob/master/Dockerfile
+    docker build -t twister https://raw.githubusercontent.com/miguelfreitas/twister-core/master/Dockerfile
     docker run -d -p 127.0.0.1:1234:28332 twister
     # now try to access http://127.0.0.1:1234/ on docker host
 
