@@ -1352,7 +1352,9 @@ void node_impl::incoming_request(msg const& m, entry& e)
 		// trust it to NOT store this value. someone might be trying to
 		// attack this resource by storing value into non-final nodes.
 		if( !possiblyNeighbor ) {
+#ifdef TORRENT_DHT_VERBOSE_LOGGING
 			printf("putData with possiblyNeighbor=false, ignoring request.\n");
+#endif
 			return;
 		}
 
