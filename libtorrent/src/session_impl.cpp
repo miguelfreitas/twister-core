@@ -5780,14 +5780,6 @@ retry:
 			boost::bind(&session_impl::on_dht_router_name_lookup, this, _1, _2));
 	}
 
-
-	void session_impl::dht_putData(std::string const &username, std::string const &resource, bool multi,
-		     entry const &value, std::string const &sig_user,
-             boost::int64_t timeutc, int seq)
-	{
-	    if (m_dht) m_dht->putData(username, resource, multi, value, sig_user, timeutc, seq);
-	}
-
 	void session_impl::dht_putDataSigned(std::string const &username, std::string const &resource, bool multi,
 		     entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
 	{

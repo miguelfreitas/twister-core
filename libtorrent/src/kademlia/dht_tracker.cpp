@@ -433,13 +433,6 @@ namespace libtorrent { namespace dht
 		m_dht.announce(trackerName, ih, addr, listen_port, seed, myself, list_peers, f);
 	}
 
-	void dht_tracker::putData(std::string const &username, std::string const &resource, bool multi,
-		     entry const &value, std::string const &sig_user,
-             boost::int64_t timeutc, int seq)
-	{
-		m_dht.putData(username,resource, multi, value, sig_user, timeutc, seq);
-	}
-
 	void dht_tracker::putDataSigned(std::string const &username, std::string const &resource, bool multi,
              entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
 	{

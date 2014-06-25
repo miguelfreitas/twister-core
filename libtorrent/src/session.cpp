@@ -854,15 +854,6 @@ namespace libtorrent
 #endif
 	}
 
-	void session::dht_putData(std::string const &username, std::string const &resource, bool multi,
-		     entry const &value, std::string const &sig_user,
-             boost::int64_t timeutc, int seq)
-	{
-#ifndef TORRENT_DISABLE_DHT
-		TORRENT_ASYNC_CALL7(dht_putData, username, resource, multi, value, sig_user, timeutc, seq);
-#endif
-	}
-
 	void session::dht_putDataSigned(std::string const &username, std::string const &resource, bool multi,
 		     entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
 	{

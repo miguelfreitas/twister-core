@@ -425,55 +425,6 @@ void node_impl::announce(std::string const& trackerName, sha1_hash const& info_h
 	}
 }
 
-void node_impl::putData(std::string const &username, std::string const &resource, bool multi,
-                        entry const &value, std::string const &sig_user,
-                        boost::int64_t timeutc, int seq)
-{
-#ifdef TORRENT_DHT_VERBOSE_LOGGING
-	TORRENT_LOG(node) << "putData [ username: " << info_hash << " res: " << resource << " ]" ;
-#endif
-	printf("putData: username=%s,res=%s,multi=%d sig_user=%s\n",
-		   username.c_str(), resource.c_str(), multi, sig_user.c_str());
-
-    // construct p dictionary and sign it
-    entry p;
-    entry& target = p["target"];
-    target["n"] = username;
-    target["r"] = resource;
-    target["t"] = (multi) ? "m" : "s";
-    if (seq >= 0 && !multi) p["seq"] = seq;
-    p["v"] = value;
-    p["time"] = timeutc;
-    int height = getBestHeight()-1; // be conservative
-    p["height"] = height;
-
-    std::vector<char> pbuf;
-    bencode(std::back_inserter(pbuf), p);
-    std::string str_p = std::string(pbuf.data(),pbuf.size());
-    std::string sig_p = createSignature(str_p, sig_user);
-    if( !sig_p.size() ) {
-        printf("putData: createSignature error (this should have been caught earlier)\n");
-        return;
-    }
-
-	// search for nodes with ids close to id or with peers
-	// for info-hash id. then send putData to them.
-	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
-		 boost::bind(&nop),
-         boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
-
-    // store it locally so it will be automatically refreshed with the rest
-    dht_storage_item item(str_p, sig_p, sig_user);
-    item.local_add_time = time(NULL);
-    std::vector<char> vbuf;
-    bencode(std::back_inserter(vbuf), value);
-    std::pair<char const*, int> bufv = std::make_pair(vbuf.data(), vbuf.size());
-    store_dht_item(item, ta->target(), multi, seq, height, bufv);
-    
-    // now send it to the network (start transversal algorithm)
-    ta->start();
-}
-
 void node_impl::putDataSigned(std::string const &username, std::string const &resource, bool multi,
              entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
 {
