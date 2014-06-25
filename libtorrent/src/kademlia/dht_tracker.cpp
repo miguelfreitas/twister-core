@@ -441,9 +441,9 @@ namespace libtorrent { namespace dht
 	}
 
 	void dht_tracker::putDataSigned(std::string const &username, std::string const &resource, bool multi,
-             entry const &p, std::string const &sig_p, std::string const &sig_user)
+             entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
 	{
-		m_dht.putDataSigned(username,resource, multi, p, sig_p, sig_user);
+		m_dht.putDataSigned(username,resource, multi, p, sig_p, sig_user, local);
 	}
 
 	void dht_tracker::getData(std::string const &username, std::string const &resource, bool multi,

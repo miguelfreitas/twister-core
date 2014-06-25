@@ -1365,7 +1365,7 @@ void dhtPutData(std::string const &username, std::string const &resource, bool m
         return;
     }
 
-    ses->dht_putDataSigned(username,resource,multi,p,sig_p,sig_user);
+    ses->dht_putDataSigned(username,resource,multi,p,sig_p,sig_user, true);
 }
 
 Value dhtput(const Array& params, bool fHelp)

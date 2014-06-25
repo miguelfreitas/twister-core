@@ -228,7 +228,7 @@ public:
              boost::int64_t timeutc, int seq);
 
 	void putDataSigned(std::string const &username, std::string const &resource, bool multi,
-             entry const &p, std::string const &sig_p, std::string const &sig_user);
+             entry const &p, std::string const &sig_p, std::string const &sig_user, bool local);
 
 	void getData(std::string const &username, std::string const &resource, bool multi,
 		     boost::function<void(entry::list_type const&)> fdata,

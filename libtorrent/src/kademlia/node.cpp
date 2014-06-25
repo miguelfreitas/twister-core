@@ -475,19 +475,59 @@ void node_impl::putData(std::string const &username, std::string const &resource
 }
 
 void node_impl::putDataSigned(std::string const &username, std::string const &resource, bool multi,
-             entry const &p, std::string const &sig_p, std::string const &sig_user)
+             entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
 {
     printf("putDataSigned: username=%s,res=%s,multi=%d sig_user=%s\n",
             username.c_str(), resource.c_str(), multi, sig_user.c_str());
 
-	// search for nodes with ids close to id or with peers
-	// for info-hash id. then send putData to them.
-	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
-		 boost::bind(&nop),
-         boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
+    // consistency checks
+    entry const* seqEntry = p.find_key("seq");
+    entry const* heightEntry = p.find_key("height");
+    entry const* target = p.find_key("target");
+    std::string n, r, t;
+    if( target ) {
+        entry const* nEntry = target->find_key("n");
+        entry const* rEntry = target->find_key("r");
+        entry const* tEntry = target->find_key("t");
+        if( nEntry && nEntry->type() == entry::string_t )
+            n = nEntry->string();
+        if( rEntry && rEntry->type() == entry::string_t )
+            r = rEntry->string();
+        if( tEntry && tEntry->type() == entry::string_t )
+            t = tEntry->string();
+    }
+    if( p.find_key("v") && heightEntry && heightEntry->type() == entry::int_t &&
+        (multi || (seqEntry && seqEntry->type() == entry::int_t)) && target &&
+        n == username && r == resource && ((!multi && t == "s") || (multi && t == "m")) ) {
 
-    // now send it to the network (start transversal algorithm)
-    ta->start();
+        // search for nodes with ids close to id or with peers
+        // for info-hash id. then send putData to them.
+        boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+             boost::bind(&nop),
+             boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
+    
+        if( local ) {
+            // store it locally so it will be automatically refreshed with the rest
+            std::vector<char> pbuf;
+            bencode(std::back_inserter(pbuf), p);
+            std::string str_p = std::string(pbuf.data(),pbuf.size());
+    
+            dht_storage_item item(str_p, sig_p, sig_user);
+            item.local_add_time = time(NULL);
+            std::vector<char> vbuf;
+            bencode(std::back_inserter(vbuf), p["v"]);
+            std::pair<char const*, int> bufv = std::make_pair(vbuf.data(), vbuf.size());
+    
+            int seq = (seqEntry && seqEntry->type() == entry::int_t) ? seqEntry->integer() : -1;
+            int height = heightEntry->integer();
+            store_dht_item(item, ta->target(), multi, seq, height, bufv);
+        }
+    
+        // now send it to the network (start transversal algorithm)
+        ta->start();
+    } else {
+        printf("putDataSigned: consistency checks failed!\n");
+    }
 }
 
 
