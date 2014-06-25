@@ -5788,6 +5788,12 @@ retry:
 	    if (m_dht) m_dht->putData(username, resource, multi, value, sig_user, timeutc, seq);
 	}
 
+	void session_impl::dht_putDataSigned(std::string const &username, std::string const &resource, bool multi,
+		     entry const &p, std::string const &sig_p, std::string const &sig_user)
+	{
+	    if (m_dht) m_dht->putDataSigned(username, resource, multi, p, sig_p, sig_user);
+	}
+
 	void post_dht_getData(aux::session_impl *si, entry::list_type const&lst)
 	{
 	    if( si->m_alerts.should_post<dht_reply_data_alert>() ) {

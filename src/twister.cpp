@@ -1333,16 +1333,47 @@ entry formatSpamPost(const string &msg, const string &username, uint64_t utcTime
     return v;
 }
 
+
+void dhtPutData(std::string const &username, std::string const &resource, bool multi,
+                entry const &value, std::string const &sig_user,
+                boost::int64_t timeutc, int seq)
+{
+    boost::shared_ptr<session> ses(m_ses);
+    if( !ses ) {
+        printf("dhtPutData: libtorrent session not ready\n");
+        return;
+    }
+    
+    // construct p dictionary and sign it
+    entry p;
+    entry& target = p["target"];
+    target["n"] = username;
+    target["r"] = resource;
+    target["t"] = (multi) ? "m" : "s";
+    if (seq >= 0 && !multi) p["seq"] = seq;
+    p["v"] = value;
+    p["time"] = timeutc;
+    int height = getBestHeight()-1; // be conservative
+    p["height"] = height;
+
+    std::vector<char> pbuf;
+    bencode(std::back_inserter(pbuf), p);
+    std::string str_p = std::string(pbuf.data(),pbuf.size());
+    std::string sig_p = createSignature(str_p, sig_user);
+    if( !sig_p.size() ) {
+        printf("dhtPutData: createSignature error for user '%s'\n", sig_user.c_str());
+        return;
+    }
+
+    ses->dht_putDataSigned(username,resource,multi,p,sig_p,sig_user);
+}
+
 Value dhtput(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 5 || params.size() > 6)
         throw runtime_error(
             "dhtput <username> <resource> <s(ingle)/m(ulti)> <value> <sig_user> <seq>\n"
             "Store resource in dht network");
-
-    boost::shared_ptr<session> ses(m_ses);
-    if( !ses )
-        return Value();
 
     EnsureWalletIsUnlocked();
 
@@ -1375,7 +1406,7 @@ Value dhtput(const Array& params, bool fHelp)
 
     boost::int64_t timeutc = GetAdjustedTime();
 
-    ses->dht_putData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
+    dhtPutData(strUsername, strResource, multi, value, strSigUser, timeutc, seq);
 
     return Value();
 }
@@ -1495,10 +1526,6 @@ Value newpostmsg(const Array& params, bool fHelp)
             "newpostmsg <username> <k> <msg> [reply_n] [reply_k]\n"
             "Post a new message to swarm");
 
-    boost::shared_ptr<session> ses(m_ses);
-    if( !ses )
-        return Array();
-    
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
@@ -1538,19 +1565,19 @@ Value newpostmsg(const Array& params, bool fHelp)
         h.add_piece(k,buf.data(),buf.size());
     } else {
         // TODO: swarm resource forwarding not implemented
-        ses->dht_putData(strUsername, "swarm", false,
+        dhtPutData(strUsername, "swarm", false,
                          v, strUsername, GetAdjustedTime(), 1);
     }
 
     // post to dht as well
-    ses->dht_putData(strUsername, string("post")+strK, false,
+    dhtPutData(strUsername, string("post")+strK, false,
                      v, strUsername, GetAdjustedTime(), 1);
-    ses->dht_putData(strUsername, string("status"), false,
+    dhtPutData(strUsername, string("status"), false,
                      v, strUsername, GetAdjustedTime(), k);
 
     // is this a reply? notify
     if( strReplyN.length() ) {
-        ses->dht_putData(strReplyN, string("replies")+strReplyK, true,
+        dhtPutData(strReplyN, string("replies")+strReplyK, true,
                          v, strUsername, GetAdjustedTime(), 0);
     }
 
@@ -1567,10 +1594,10 @@ Value newpostmsg(const Array& params, bool fHelp)
             boost::algorithm::to_lower(word);
 #endif
             if( token.at(0) == '#') {
-                ses->dht_putData(word, "hashtag", true,
+                dhtPutData(word, "hashtag", true,
                                  v, strUsername, GetAdjustedTime(), 0);
             } else if( token.at(0) == '@') {
-                ses->dht_putData(word, "mention", true,
+                dhtPutData(word, "mention", true,
                                  v, strUsername, GetAdjustedTime(), 0);
             }
         }
@@ -1636,10 +1663,6 @@ Value newrtmsg(const Array& params, bool fHelp)
             "newrtmsg <username> <k> <rt_v_object>\n"
             "Post a new RT to swarm");
 
-    boost::shared_ptr<session> ses(m_ses);
-    if( !ses )
-        return Array();
-    
     EnsureWalletIsUnlocked();
 
     string strUsername = params[0].get_str();
@@ -1674,21 +1697,21 @@ Value newrtmsg(const Array& params, bool fHelp)
         h.add_piece(k,buf.data(),buf.size());
     } else {
         // TODO: swarm resource forwarding not implemented
-        ses->dht_putData(strUsername, "swarm", false,
+        dhtPutData(strUsername, "swarm", false,
                          v, strUsername, GetAdjustedTime(), 1);
     }
 
     // post to dht as well
-    ses->dht_putData(strUsername, string("post")+strK, false,
+    dhtPutData(strUsername, string("post")+strK, false,
                      v, strUsername, GetAdjustedTime(), 1);
-    ses->dht_putData(strUsername, string("status"), false,
+    dhtPutData(strUsername, string("status"), false,
                      v, strUsername, GetAdjustedTime(), k);
 
     // notification to keep track of RTs of the original post
     if( rt ) {
         string rt_user = rt->find_key("n")->string();
         string rt_k    = boost::lexical_cast<std::string>(rt->find_key("k")->integer());
-        ses->dht_putData(rt_user, string("rts")+rt_k, true,
+        dhtPutData(rt_user, string("rts")+rt_k, true,
                          v, strUsername, GetAdjustedTime(), 0);
     }
 

@@ -474,6 +474,23 @@ void node_impl::putData(std::string const &username, std::string const &resource
     ta->start();
 }
 
+void node_impl::putDataSigned(std::string const &username, std::string const &resource, bool multi,
+             entry const &p, std::string const &sig_p, std::string const &sig_user)
+{
+    printf("putDataSigned: username=%s,res=%s,multi=%d sig_user=%s\n",
+            username.c_str(), resource.c_str(), multi, sig_user.c_str());
+
+	// search for nodes with ids close to id or with peers
+	// for info-hash id. then send putData to them.
+	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+		 boost::bind(&nop),
+         boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
+
+    // now send it to the network (start transversal algorithm)
+    ta->start();
+}
+
+
 void node_impl::getData(std::string const &username, std::string const &resource, bool multi,
 			boost::function<void(entry::list_type const&)> fdata,
 			boost::function<void(bool, bool)> fdone)

@@ -440,6 +440,12 @@ namespace libtorrent { namespace dht
 		m_dht.putData(username,resource, multi, value, sig_user, timeutc, seq);
 	}
 
+	void dht_tracker::putDataSigned(std::string const &username, std::string const &resource, bool multi,
+             entry const &p, std::string const &sig_p, std::string const &sig_user)
+	{
+		m_dht.putDataSigned(username,resource, multi, p, sig_p, sig_user);
+	}
+
 	void dht_tracker::getData(std::string const &username, std::string const &resource, bool multi,
 				  boost::function<void(entry::list_type const&)> fdata,
 				  boost::function<void(bool, bool)> fdone)
