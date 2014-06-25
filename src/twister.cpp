@@ -49,7 +49,7 @@ static bool m_usingProxy;
 static int num_outstanding_resume_data;
 
 static CCriticalSection cs_dhtgetMap;
-static map<sha1_hash, alert_manager*> m_dhtgetMap;
+static map<sha1_hash, std::list<alert_manager*> > m_dhtgetMap;
 
 static CCriticalSection cs_twister;
 static map<std::string, bool> m_specialResources;
@@ -101,6 +101,37 @@ sha1_hash dhtTargetHash(std::string const &username, std::string const &resource
     std::vector<char> buf;
     bencode(std::back_inserter(buf), target);
     return hasher(buf.data(), buf.size()).final();
+}
+
+void dhtgetMapAdd(sha1_hash &ih, alert_manager *am)
+{
+    LOCK(cs_dhtgetMap);
+    m_dhtgetMap[ih].push_back(am);
+}
+
+void dhtgetMapRemove(sha1_hash &ih, alert_manager *am)
+{
+    LOCK(cs_dhtgetMap);
+    std::map<sha1_hash, std::list<alert_manager*> >::iterator mi = m_dhtgetMap.find(ih);
+    if( mi != m_dhtgetMap.end() ) {
+        std::list<alert_manager *> &amList = (*mi).second;
+        amList.remove(am);
+        if( !amList.size() ) {
+            m_dhtgetMap.erase(ih);
+        }
+    }
+}
+
+void dhtgetMapPost(sha1_hash &ih, const alert &a)
+{
+    LOCK(cs_dhtgetMap);
+    std::map<sha1_hash, std::list<alert_manager*> >::iterator mi = m_dhtgetMap.find(ih);
+    if( mi != m_dhtgetMap.end() ) {
+        std::list<alert_manager *> &amList = (*mi).second;
+        BOOST_FOREACH(alert_manager *am, amList) {
+            am->post_alert(a);
+        }
+    }
 }
 
 torrent_handle startTorrentUser(std::string const &username, bool following)
@@ -598,18 +629,7 @@ void ThreadSessionAlerts()
                                     r && r->type() == entry::string_t &&
                                     t && t->type() == entry::string_t) {
                                     sha1_hash ih = dhtTargetHash(n->string(), r->string(), t->string());
-
-                                    LOCK(cs_dhtgetMap);
-                                    std::map<sha1_hash, alert_manager*>::iterator mi = m_dhtgetMap.find(ih);
-                                    if( mi != m_dhtgetMap.end() ) {
-                                        alert_manager *am = (*mi).second;
-                                        am->post_alert(*rd);
-                                    } else {
-/* FIXME: we could use multiple dht responses instead of ignoring here.
-                                        printf("ThreadSessionAlerts: received dht [%s,%s,%s] but no alert_manager registered\n",
-                                               n->string().c_str(), r->string().c_str(), t->string().c_str() );
-*/
-                                    }
+                                    dhtgetMapPost(ih,*rd);
                                 }
                             }
                         }
@@ -687,15 +707,9 @@ void ThreadSessionAlerts()
                            dd->m_is_neighbor, dd->m_got_data);
 #endif
                     sha1_hash ih = dhtTargetHash(dd->m_username, dd->m_resource, dd->m_multi ? "m" : "s");
-
-                    {
-                        LOCK(cs_dhtgetMap);
-                        std::map<sha1_hash, alert_manager*>::iterator mi = m_dhtgetMap.find(ih);
-                        if( mi != m_dhtgetMap.end() && !dd->m_got_data ) {
-                            // post alert to return from wait_for_alert in dhtget()
-                            alert_manager *am = (*mi).second;
-                            am->post_alert(*dd);
-                        }
+                    if( !dd->m_got_data ) {
+                        // no data: post alert to return from wait_for_alert in dhtget()
+                        dhtgetMapPost(ih,*dd);
                     }
 
                     if( neighborCheck.count(ih) ) {
@@ -1396,11 +1410,7 @@ Value dhtget(const Array& params, bool fHelp)
 
     alert_manager am(10, alert::dht_notification);
     sha1_hash ih = dhtTargetHash(strUsername,strResource,strMulti);
-
-    {
-        LOCK(cs_dhtgetMap);
-        m_dhtgetMap[ih] = &am;
-    }
+    dhtgetMapAdd(ih, &am);
 
     ses->dht_getData(strUsername, strResource, multi);
 
@@ -1447,10 +1457,7 @@ Value dhtget(const Array& params, bool fHelp)
         }
     }
 
-    {
-        LOCK(cs_dhtgetMap);
-        m_dhtgetMap.erase(ih);
-    }
+    dhtgetMapRemove(ih,&am);
 
     return ret;
 }
