@@ -360,3 +360,16 @@ libtorrent::entry safeGetEntryDict(libtorrent::entry const &e, std::string const
     }
 }
 
+sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
+{
+    entry target;
+    target["n"] = username;
+    target["r"] = resource;
+    target["t"] = type;
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), target);
+    return hasher(buf.data(), buf.size()).final();
+}
+
+

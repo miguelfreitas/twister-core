@@ -156,6 +156,7 @@ BITCOIN_TWISTER_SOURCES = \
     src/leveldb.cpp \
     src/txdb.cpp \
     src/chainparams.cpp \
+    src/dhtproxy.cpp \
     src/twister.cpp \
     src/twister_rss.cpp \
     src/twister_utils.cpp \

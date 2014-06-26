@@ -3,6 +3,7 @@
 
 #include "json/json_spirit.h"
 #include "libtorrent/entry.hpp"
+#include "libtorrent/peer_id.hpp"
 
 #include <string>
 #include <vector>
@@ -47,5 +48,7 @@ void unHexcapeDht(libtorrent::entry &e);
 std::string safeGetEntryString(libtorrent::entry const &e, std::string const& key);
 int safeGetEntryInt(libtorrent::entry const &e, std::string const& key);
 libtorrent::entry safeGetEntryDict(libtorrent::entry const &e, std::string const& key);
+
+libtorrent::sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type);
 
 #endif // TWISTER_UTILS_H

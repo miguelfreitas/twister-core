@@ -200,6 +200,7 @@ HEADERS +=  \
     src/limitedmap.h \
     src/scrypt.h \
     src/utf8core.h \
+    src/dhtproxy.h \
     src/twister.h \
     src/twister_rss.h \
     src/twister_utils.h
@@ -277,6 +278,7 @@ SOURCES += \ #src/qt/bitcoin.cpp \
     src/leveldb.cpp \
     src/txdb.cpp \
     src/scrypt.cpp \
+    src/dhtproxy.cpp \
     src/twister.cpp \
     src/twister_rss.cpp \
     src/twister_utils.cpp

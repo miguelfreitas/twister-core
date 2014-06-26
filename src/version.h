@@ -25,7 +25,7 @@ extern const std::string CLIENT_DATE;
 // network protocol versioning
 //
 
-static const int PROTOCOL_VERSION = 70002;
+static const int PROTOCOL_VERSION = 70003;
 
 // earlier versions not supported as of Feb 2012, and are disconnected
 static const int MIN_PROTO_VERSION = 209;
@@ -43,6 +43,9 @@ static const int BIP0031_VERSION = 60000;
 
 // soft checkpoint min version
 static const int SOFT_CHECKPOINT_VERSION = 70002;
+
+// dht proxy min version
+static const int DHT_PROXY_VERSION = 70003;
 
 // "mempool" command, enhanced "getdata" behavior starts with this version:
 static const int MEMPOOL_GD_VERSION = 60002;

@@ -13,6 +13,7 @@
 #include "ui_interface.h"
 #include "checkqueue.h"
 #include "chainparams.h"
+#include "dhtproxy.h"
 
 #include "twister.h"
 #include "utf8core.h"
@@ -3185,6 +3186,46 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         pfrom->fRelayTxes = true;
     }
 
+    else if (strCommand == "dhtgetreq")
+    {
+        CDHTGetRequest req;
+        vRecv >> req;
+
+        if( DhtProxy::dhtgetRequestReceived(req, pfrom) ) {
+            // ok
+        } else {
+            pfrom->Misbehaving(20);
+        }
+    }
+
+    else if (strCommand == "dhtputreq")
+    {
+        CDHTPutRequest req;
+        vRecv >> req;
+
+        if( DhtProxy::dhtputRequestReceived(req, pfrom) ) {
+            // ok
+        } else {
+            pfrom->Misbehaving(20);
+        }
+    }
+
+    else if (strCommand == "dhtgetreply")
+    {
+        CDHTGetReply reply;
+        vRecv >> reply;
+
+        if( DhtProxy::dhtgetReplyReceived(reply, pfrom) ) {
+            // ok
+        } else {
+            pfrom->Misbehaving(20);
+        }
+    }
+
+    else if (strCommand == "nodhtproxy")
+    {
+        pfrom->fNoDhtProxy = true;
+    }
 
     else
     {

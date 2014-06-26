@@ -203,6 +203,7 @@ public:
     // b) the peer may tell us in their version message that we should not relay tx invs
     //    until they have initialized their bloom filter.
     bool fRelayTxes;
+    bool fNoDhtProxy;
     CSemaphoreGrant grantOutbound;
     CCriticalSection cs_filter;
     CBloomFilter* pfilter;
@@ -266,6 +267,7 @@ public:
         fGetAddr = false;
         nMisbehavior = 0;
         fRelayTxes = false;
+        fNoDhtProxy = false;
         setInventoryKnown.max_size(SendBufferSize() / 1000);
         pfilter = NULL;
 

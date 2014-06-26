@@ -1,6 +1,7 @@
 #include "twister.h"
 
 #include "twister_utils.h"
+#include "dhtproxy.h"
 
 #include "main.h"
 #include "init.h"
@@ -90,18 +91,6 @@ private:
 
 #define USER_DATA_FILE "user_data"
 #define GLOBAL_DATA_FILE "global_data"
-
-sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type)
-{
-    entry target;
-    target["n"] = username;
-    target["r"] = resource;
-    target["t"] = type;
-
-    std::vector<char> buf;
-    bencode(std::back_inserter(buf), target);
-    return hasher(buf.data(), buf.size()).final();
-}
 
 void dhtgetMapAdd(sha1_hash &ih, alert_manager *am)
 {
@@ -337,7 +326,12 @@ void ThreadWaitExtIP()
         //dhts.restrict_routing_ips = false;
         //dhts.restrict_search_ips = false;
         ses->set_dht_settings(dhts);
-        ses->start_dht();
+        
+        if( !DhtProxy::fEnabled ) {
+            ses->start_dht();
+        } else {
+            ses->stop_dht();
+        }
     }
     
     session_settings settings;
@@ -495,7 +489,7 @@ void ThreadMaintainDHTNodes()
             vNodesSize = vNodes.size();
         }
 
-        if( !ses->is_paused() ) {
+        if( !ses->is_paused() && !DhtProxy::fEnabled ) {
             vector<CAddress> vAddr = addrman.GetAddr();
             int totalNodesCandidates = (int)(vNodesSize + vAddr.size());
             if( ((!dht_nodes && totalNodesCandidates) ||
@@ -630,6 +624,7 @@ void ThreadSessionAlerts()
                                     t && t->type() == entry::string_t) {
                                     sha1_hash ih = dhtTargetHash(n->string(), r->string(), t->string());
                                     dhtgetMapPost(ih,*rd);
+                                    DhtProxy::dhtgetPeerReqReply(ih,rd);
                                 }
                             }
                         }
@@ -675,7 +670,7 @@ void ThreadSessionAlerts()
                                                    t->string().c_str());
 #endif
                                             neighborCheck[ih] = false;
-                                            ses->dht_getData(n->string(), r->string(), t->string() == "m");
+                                            dhtGetData(n->string(), r->string(), t->string() == "m");
                                         } else if( neighborCheck[ih] ) {
                                             sha1_hash ihStatus = dhtTargetHash(n->string(), "status", "s");
 
@@ -686,7 +681,7 @@ void ThreadSessionAlerts()
                                                         n->string().c_str(), "status", "s");
 #endif
                                                 statusCheck[ihStatus] = GetTime();
-                                                ses->dht_getData(n->string(), "status", false);
+                                                dhtGetData(n->string(), "status", false);
                                             }
                                         }
                                     }
@@ -710,6 +705,7 @@ void ThreadSessionAlerts()
                     if( !dd->m_got_data ) {
                         // no data: post alert to return from wait_for_alert in dhtget()
                         dhtgetMapPost(ih,*dd);
+                        DhtProxy::dhtgetPeerReqReply(ih,dd);
                     }
 
                     if( neighborCheck.count(ih) ) {
@@ -721,7 +717,7 @@ void ThreadSessionAlerts()
 #endif
                             sha1_hash ihStatus = dhtTargetHash(dd->m_username, "status", "s");
                             statusCheck[ihStatus] = GetTime();
-                            ses->dht_getData(dd->m_username, "status", false);
+                            dhtGetData(dd->m_username, "status", false);
                         }
                     }
                     if( statusCheck.count(ih) ) {
@@ -765,6 +761,8 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     m_noExpireResources["following"] = NumberedNoExpire;
     m_noExpireResources["status"] = SimpleNoExpire;
     m_noExpireResources["post"] = PostNoExpireRecent;
+    
+    DhtProxy::fEnabled = GetBoolArg("-dhtproxy", false);
 
     m_threadsToJoin = 0;
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
@@ -1334,16 +1332,24 @@ entry formatSpamPost(const string &msg, const string &username, uint64_t utcTime
 }
 
 
+void dhtGetData(std::string const &username, std::string const &resource, bool multi)
+{
+    if( DhtProxy::fEnabled ) {
+        printf("dhtGetData: not allowed - using proxy (bug!)\n");
+        return;
+    }
+    boost::shared_ptr<session> ses(m_ses);
+    if( !ses ) {
+        printf("dhtGetData: libtorrent session not ready\n");
+        return;
+    }
+    ses->dht_getData(username,resource,multi);
+}
+
 void dhtPutData(std::string const &username, std::string const &resource, bool multi,
                 entry const &value, std::string const &sig_user,
                 boost::int64_t timeutc, int seq)
 {
-    boost::shared_ptr<session> ses(m_ses);
-    if( !ses ) {
-        printf("dhtPutData: libtorrent session not ready\n");
-        return;
-    }
-    
     // construct p dictionary and sign it
     entry p;
     entry& target = p["target"];
@@ -1365,7 +1371,27 @@ void dhtPutData(std::string const &username, std::string const &resource, bool m
         return;
     }
 
-    ses->dht_putDataSigned(username,resource,multi,p,sig_p,sig_user, true);
+    if( !DhtProxy::fEnabled ) {
+        dhtPutDataSigned(username,resource,multi,p,sig_p,sig_user, true);
+    } else {
+        DhtProxy::dhtputRequest(username,resource,multi,str_p,sig_p,sig_user);
+    }
+}
+
+void dhtPutDataSigned(std::string const &username, std::string const &resource, bool multi,
+                libtorrent::entry const &p, std::string const &sig_p, std::string const &sig_user, bool local)
+{
+    if( DhtProxy::fEnabled ) {
+        printf("dhtputDataSigned: not allowed - using proxy (bug!)\n");
+        return;
+    }
+    boost::shared_ptr<session> ses(m_ses);
+    if( !ses ) {
+        printf("dhtPutData: libtorrent session not ready\n");
+        return;
+    }
+
+    ses->dht_putDataSigned(username,resource,multi,p,sig_p,sig_user, local);
 }
 
 Value dhtput(const Array& params, bool fHelp)
@@ -1441,9 +1467,15 @@ Value dhtget(const Array& params, bool fHelp)
 
     alert_manager am(10, alert::dht_notification);
     sha1_hash ih = dhtTargetHash(strUsername,strResource,strMulti);
-    dhtgetMapAdd(ih, &am);
-
-    ses->dht_getData(strUsername, strResource, multi);
+    
+    vector<CNode*> dhtProxyNodes;
+    if( !DhtProxy::fEnabled ) {
+        dhtgetMapAdd(ih, &am);
+        dhtGetData(strUsername, strResource, multi);
+    } else {
+        DhtProxy::dhtgetMapAdd(ih, &am);
+        dhtProxyNodes = DhtProxy::dhtgetStartRequest(strUsername, strResource, multi);
+    }
 
     Array ret;
     std::set<std::string> uniqueSigPs;
@@ -1488,7 +1520,12 @@ Value dhtget(const Array& params, bool fHelp)
         }
     }
 
-    dhtgetMapRemove(ih,&am);
+    if( !DhtProxy::fEnabled ) {
+        dhtgetMapRemove(ih,&am);
+    } else {
+        DhtProxy::dhtgetMapRemove(ih,&am);
+        DhtProxy::dhtgetStopRequest(dhtProxyNodes, strUsername, strResource, multi);
+    }
 
     return ret;
 }

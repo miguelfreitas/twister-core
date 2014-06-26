@@ -13,6 +13,9 @@
 #define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY (2016)   // about 2 weeks
 #define BLOCK_AGE_TO_EXPIRE_DHT_POSTS (4320*2) // about 2 months
 
+namespace libtorrent {
+    class entry;
+}
 
 class twister
 {
@@ -40,5 +43,13 @@ bool shouldDhtResourceExpire(std::string resource, bool multi, int height);
 int getDhtNodes(boost::int64_t *dht_global_nodes = NULL);
 
 void updateSeenHashtags(std::string &message, int64_t msgTime);
+
+// interface to dht api of the libtorrent current session
+void dhtGetData(std::string const &username, std::string const &resource, bool multi);
+void dhtPutData(std::string const &username, std::string const &resource, bool multi,
+                libtorrent::entry const &value, std::string const &sig_user,
+                boost::int64_t timeutc, int seq);
+void dhtPutDataSigned(std::string const &username, std::string const &resource, bool multi,
+                libtorrent::entry const &p, std::string const &sig_p, std::string const &sig_user, bool local);
 
 #endif // TWISTER_H
