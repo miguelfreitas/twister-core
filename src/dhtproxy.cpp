@@ -178,17 +178,17 @@ namespace DhtProxy
         }
     }
     
-    bool checkForAbuse(CNode* pfrom)
+    bool checkForAbuse(CNode* pfrom, int cost)
     {
         LOCK(cs_dhtProxy);
 
         // logic inspired/copied from dht_tracker.cpp:incoming_packet
         ptime now = time_now();
         PeerBanStats *match = &m_peerBanStats[pfrom->addr];
-        match->count++;
+        match->count+=cost;
         if( match->count >= 500 ) {
             if (now < match->limit) {
-                if( match->count == 500 ) {
+                if( match->count == 500 ) { // cost may break this 'if' but then we just dont log.
                     dbgprintf("DhtProxy::checkForAbuse: %s misbehaving, too much requests.\n", 
                                pfrom->addr.ToString().c_str());
                 }
@@ -212,7 +212,7 @@ namespace DhtProxy
             // we are using proxy ourselves, we can't be proxy to anyone else
             pfrom->PushMessage("nodhtproxy");
             return true;
-        } else if( !req.stopReq && checkForAbuse(pfrom) ) {
+        } else if( !req.stopReq && checkForAbuse(pfrom, 1) ) {
             return false;
         } else {
             std::string username(req.vchUsername.data(), req.vchUsername.size());
@@ -296,7 +296,7 @@ namespace DhtProxy
             // we are using proxy ourselves, we can't be proxy to anyone else
             pfrom->PushMessage("nodhtproxy");
             return true;
-        } else if( checkForAbuse(pfrom) ) {
+        } else if( checkForAbuse(pfrom, 10) ) {
             return false;
         } else {
             std::string username(req.vchUsername.data(), req.vchUsername.size());
