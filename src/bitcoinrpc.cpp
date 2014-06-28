@@ -977,6 +977,25 @@ void ServiceConnection(AcceptedConnection *conn)
         // Read HTTP message headers and body
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
+        // Check authorization
+        if (mapHeaders.count("authorization") == 0)
+        {
+            conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
+            break;
+        }
+        if (!HTTPAuthorized(mapHeaders))
+        {
+            printf("ThreadRPCServer incorrect password attempt from %s\n", conn->peer_address_to_string().c_str());
+            /* Deter brute-forcing short passwords.
+               If this results in a DOS the user really
+               shouldn't have their RPC port exposed.*/
+            if (mapArgs["-rpcpassword"].size() < 20)
+                MilliSleep(250);
+
+            conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
+            break;
+        }
+
         if(strMethod == "GET" && strURI == "/")
             strURI="/home.html";
 
@@ -1017,24 +1036,6 @@ void ServiceConnection(AcceptedConnection *conn)
             continue;
         }
 
-        // Check authorization
-        if (mapHeaders.count("authorization") == 0)
-        {
-            conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
-            break;
-        }
-        if (!HTTPAuthorized(mapHeaders))
-        {
-            printf("ThreadRPCServer incorrect password attempt from %s\n", conn->peer_address_to_string().c_str());
-            /* Deter brute-forcing short passwords.
-               If this results in a DOS the user really
-               shouldn't have their RPC port exposed.*/
-            if (mapArgs["-rpcpassword"].size() < 20)
-                MilliSleep(250);
-
-            conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
-            break;
-        }
         if (mapHeaders["connection"] == "close")
             fRun = false;
         
