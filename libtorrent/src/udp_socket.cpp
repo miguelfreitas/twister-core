@@ -885,10 +885,10 @@ void udp_socket::on_connect(int ticket)
 	++m_outstanding_connect;
 #endif
 	m_socks5_sock.async_connect(tcp::endpoint(m_proxy_addr.address(), m_proxy_addr.port())
-		, boost::bind(&udp_socket::on_connected, this, _1, ticket));
+		, boost::bind(&udp_socket::on_connected, this, _1));
 }
 
-void udp_socket::on_connected(error_code const& e, int ticket)
+void udp_socket::on_connected(error_code const& e)
 {
 #if defined TORRENT_ASIO_DEBUGGING
 	complete_async("udp_socket::on_connected");
@@ -910,7 +910,7 @@ void udp_socket::on_connected(error_code const& e, int ticket)
 	if (e == asio::error::operation_aborted) return;
 
 	TORRENT_ASSERT(is_single_thread());
-	m_cc.done(ticket);
+	m_cc.done(m_connection_ticket);
 	m_connection_ticket = -1;
 
 	// we just called done, which means on_timeout
