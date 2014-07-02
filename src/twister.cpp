@@ -466,6 +466,64 @@ int getDhtNodes(boost::int64_t *dht_global_nodes)
     return ss.dht_nodes;
 }
 
+void torrentManualTrackerUpdate(const std::string &username)
+{
+    printf("torrentManualTrackerUpdate: updating torrent '%s'\n", 
+            username.c_str());
+    
+    Array params;
+    params.push_back(username);
+    params.push_back("tracker");
+    params.push_back("m");
+    Array res = dhtget(params, false).get_array();
+    if( !res.size() ) {
+        printf("torrentManualTrackerUpdate: no tracker response for torrent '%s'\n", 
+                username.c_str());
+    } else {
+        torrent_handle h = getTorrentUser(username);
+        for( size_t i = 0; i < res.size(); i++ ) {
+            Object resDict = res.at(i).get_obj();
+
+            BOOST_FOREACH(const Pair& item, resDict) {
+                if( item.name_ == "p" && item.value_.type() == obj_type ) {
+                    Object pDict = item.value_.get_obj();
+                    BOOST_FOREACH(const Pair& pitem, pDict) {
+                        if( pitem.name_ == "v" && pitem.value_.type() == obj_type ) {
+                            Object vDict = pitem.value_.get_obj();
+                            BOOST_FOREACH(const Pair& vitem, vDict) {
+                                if( vitem.name_ == "values" && vitem.value_.type() == array_type ) {
+                                    Array values = vitem.value_.get_array();
+                                    printf("torrentManualTrackerUpdate: tracker for '%s' returned %zd values\n", 
+                                           username.c_str(), values.size());
+                                    for( size_t j = 0; j < values.size(); j++ ) {
+                                        if( values.at(j).type() != str_type )
+                                            continue;
+                                        size_t inSize = values.at(j).get_str().size();
+                                        char const* in = values.at(j).get_str().data();
+                                        tcp::endpoint ep;
+                                        if( inSize == 6 ) {
+                                            ep = libtorrent::detail::read_v4_endpoint<tcp::endpoint>(in);
+                                        }
+#if TORRENT_USE_IPV6
+                                        else if ( inSize == 18 ) {
+                                            ep = libtorrent::detail::read_v6_endpoint<tcp::endpoint>(in);
+                                        }
+#endif
+                                        else {
+                                            continue;
+                                        }
+                                        h.connect_peer(ep);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 void ThreadMaintainDHTNodes()
 {
     SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "maintain-dht-nodes");
@@ -475,6 +533,7 @@ void ThreadMaintainDHTNodes()
     }
 
     int64 lastSaveResumeTime = GetTime();
+    int64 lastManualTrackerUpdate = GetTime();
     int   lastTotalNodesCandidates = 0;
 
     while(m_ses && !m_shuttingDownSession) {
@@ -569,6 +628,32 @@ void ThreadMaintainDHTNodes()
                     ConnectNode(addr, nodeStr);
                 }
             }
+        }
+        
+        // if dhtproxy is enabled we may need to manually obtain peer lists from trackers
+        if( DhtProxy::fEnabled && !ses->is_paused() &&
+            GetTime() > lastManualTrackerUpdate + 60 ) {
+            list<string> activeTorrents;
+            {
+                LOCK(cs_twister);
+                BOOST_FOREACH(const PAIRTYPE(std::string, torrent_handle)& item, m_userTorrent) {
+                    activeTorrents.push_back(item.first);
+                }
+            }
+            
+            BOOST_FOREACH(const std::string &username, activeTorrents) {
+                if( m_shuttingDownSession )
+                    break;
+                torrent_handle h = getTorrentUser(username);
+                if( h.is_valid() ) {
+                    torrent_status status = h.status();
+                    if( status.state == torrent_status::downloading &&
+                        status.connect_candidates < 5 ) {
+                        torrentManualTrackerUpdate(username);
+                    }
+                }
+            }
+            lastManualTrackerUpdate = GetTime();
         }
 
         // periodically save resume data. if daemon crashes we don't lose everything.
