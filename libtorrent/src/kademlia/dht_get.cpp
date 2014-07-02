@@ -137,8 +137,10 @@ void dht_get_observer::reply(msg const& m)
 				entry::dictionary_type v;
 				v["followers"] = followers;
 				const lazy_entry *values = r->dict_find_list("values");
-				if( values )
+				if( values ) {
 					v["values_size"] = values->list_size();
+					v["values"] = *values;
+				}
 
 				entry::dictionary_type target;
 				target["n"] = dget->m_targetUser;
