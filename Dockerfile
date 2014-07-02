@@ -21,5 +21,5 @@ ENV HOME /root
 VOLUME /root/.twister
 
 # Run twisterd by default
-CMD ["/twister-core/twisterd", "-rpcuser=user", "-rpcpassword=pwd", "-rpcallowip=172.17.42.1", "-htmldir=/twister-html", "-printtoconsole"]
+ENTRYPOINT ["/twister-core/twisterd", "-rpcuser=user", "-rpcpassword=pwd", "-rpcallowip=172.17.42.1", "-htmldir=/twister-html", "-printtoconsole"]
 EXPOSE 28332
