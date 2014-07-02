@@ -482,6 +482,8 @@ void torrentManualTrackerUpdate(const std::string &username)
     } else {
         torrent_handle h = getTorrentUser(username);
         for( size_t i = 0; i < res.size(); i++ ) {
+            if( res.at(i).type() != obj_type )
+                continue;
             Object resDict = res.at(i).get_obj();
 
             BOOST_FOREACH(const Pair& item, resDict) {

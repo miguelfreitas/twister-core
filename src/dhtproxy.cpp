@@ -252,11 +252,49 @@ namespace DhtProxy
             libtorrent::error_code ec;
             if (lazy_bdecode(reply.vchBencodedData.data(), reply.vchBencodedData.data() + 
                              reply.vchBencodedData.size(), v, ec, &pos) == 0 && v.type() == lazy_entry::list_t ) {
-                entry lst;
-                lst = v;
+                // check signatures as we append to a libtorrent::entry list
+                entry::list_type values_list;
+                for (int i = 0; i < v.list_size(); ++i)
+                {
+                    lazy_entry const* e = v.list_at(i);
+                    if (e->type() != lazy_entry::dict_t) continue;
+
+                    lazy_entry const* p = e->dict_find("p");
+                    if( !p || p->type() != lazy_entry::dict_t ) continue;
+                    
+                    lazy_entry const* target = p->dict_find("target");
+                    if( !target || target->type() != lazy_entry::dict_t ) continue;
+                    
+                    lazy_entry const* r = target->dict_find("r");
+                    lazy_entry const* t = target->dict_find("t");
+                    if( !r || r->type() != lazy_entry::string_t ) continue;
+                    if( !t || t->type() != lazy_entry::string_t ) continue;
+                    
+                    if( r->string_value() == "tracker" && t->string_value() == "m" ) {
+                        // tracker reply has no signature
+                    } else {
+                        lazy_entry const* sig_p = e->dict_find("sig_p");
+                        lazy_entry const* sig_user = e->dict_find("sig_user");
+                        if (!sig_p || !sig_user) continue;
+                        if (sig_p->type() != lazy_entry::string_t) continue;
+                        if (sig_user->type() != lazy_entry::string_t) continue;
+
+                        std::pair<char const*, int> buf = p->data_section();
+                        if (!verifySignature(std::string(buf.first,buf.second),
+                                    sig_user->string_value(),
+                                    sig_p->string_value())) {
+                            dbgprintf("DhtProxy::dhtgetReplyReceived: verifySignature failed\n");
+                            continue;
+                        }
+                    }
+
+                    values_list.push_back(entry());
+                    values_list.back() = *e;
+                }
+                
                 dbgprintf("DhtProxy::dhtgetReplyReceived: %zd entries from %s\n", 
-                           lst.list().size(), pfrom->addr.ToString().c_str());
-                dht_reply_data_alert rd(lst.list());
+                           values_list.size(), pfrom->addr.ToString().c_str());
+                dht_reply_data_alert rd(values_list);
                 dhtgetMapPost(ih, rd);
             } else {
                 dbgprintf("DhtProxy::dhtgetReplyReceived: parsing error (data from %s)\n", 
