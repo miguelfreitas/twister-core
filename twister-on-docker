@@ -29,7 +29,7 @@ run)
   fi
   echo Running $IMAGE_NAME
   docker run -d -p 28332:28332 -v $HOME/.twister:/root/.twister $IMAGE_NAME "$@"
-  echo Twister should now be running at http://localhost:28332
+  echo "Twister should now be running at http://localhost:28332 (access with \"user\" / \"pwd\")"
   ;;
 
 stop)
