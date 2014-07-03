@@ -1,34 +1,25 @@
 #
 # Dockerfile for building Twister peer-to-peer micro-blogging
 #
+FROM ubuntu:14.04
 
-FROM		debian:testing
-MAINTAINER	Álvaro Justen <alvarojusten@gmail.com>
+# Install twister-core
+RUN apt-get update
+RUN apt-get install -y git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev && apt-get clean
+#RUN git clone https://github.com/miguelfreitas/twister-core.git
+ADD . /twister-core
+RUN cd twister-core && \
+    ./bootstrap.sh && \
+    make
 
-ENV			DEBIAN_FRONTEND noninteractive
+# Install twister-html
+RUN git clone https://github.com/miguelfreitas/twister-html.git /twister-html
 
-# Update repositories
-RUN		echo 'deb http://http.debian.net/debian testing main contrib' > /etc/apt/sources.list
-RUN		echo 'deb http://http.debian.net/debian testing-updates main contrib' >> /etc/apt/sources.list
-RUN		echo 'deb http://security.debian.org testing/updates main contrib' >> /etc/apt/sources.list
-RUN		apt-get update
+# Configure HOME directory
+# and persist twister data directory as a volume
+ENV HOME /root
+VOLUME /root/.twister
 
-# Install needed packages to build and run twisterd
-RUN		apt-get -y install \
-			git autoconf libtool build-essential \
-			libboost-all-dev libdb++-dev libminiupnpc-dev libssl-dev
-
-# Clean APT cache to save disk space
-RUN		apt-get clean
-
-# Download and build twister
-RUN		mkdir /root/.twister
-RUN		git clone https://github.com/miguelfreitas/twister-core.git /root/twister-core
-RUN		git clone https://github.com/miguelfreitas/twister-html.git /root/.twister/html
-RUN		cd /root/twister-core && ./bootstrap.sh
-RUN		cd /root/twister-core && make
-
-EXPOSE		28332
-ENTRYPOINT	["/root/twister-core/twisterd"]
-CMD			["-rpcuser=user", "-rpcpassword=pwd", "-rpcallowip=*", \
-			 "-datadir=/root/.twister", "-htmldir=/root/.twister/html"]
+# Run twisterd by default
+ENTRYPOINT ["/twister-core/twisterd", "-rpcuser=user", "-rpcpassword=pwd", "-rpcallowip=172.17.42.1", "-htmldir=/twister-html", "-printtoconsole"]
+EXPOSE 28332
