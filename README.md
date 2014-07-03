@@ -33,7 +33,7 @@ Or, alternatively, you can run Twister on an isolated Linux container, using [do
     # Prepend "sudo -E" if you are not logged in as root
     ./twister-on-docker run --remote
 
-The above command downloads and runs a [pre-built image](https://index.docker.io/u/mazzolino/twister/) from the Docker index. You can also build and run your own container:
+The above command downloads and runs a [pre-built image](https://registry.hub.docker.com/u/miguelfreitas/twister) from the Docker index. You can also build and run your own container:
 
     ./twister-on-docker build
     ./twister-on-docker run

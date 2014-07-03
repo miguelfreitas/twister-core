@@ -7,7 +7,7 @@ ACTION=${1:-run}
 MODE=${2:---local}
 
 IMAGE_NAME=twister
-REMOTE_IMAGE_NAME=mazzolino/twister
+REMOTE_IMAGE_NAME=miguelfreitas/twister
 
 set -e
 
