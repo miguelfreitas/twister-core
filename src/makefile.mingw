@@ -17,7 +17,6 @@
 
 CXX ?= g++
 
-USE_UPNP:=-
 USE_IPV6:=1
 
 DEPSDIR?=/usr/local
@@ -52,13 +51,6 @@ LDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -Wl,--large-address-aware
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 
-ifndef USE_UPNP
-	override USE_UPNP = -
-endif
-ifneq (${USE_UPNP}, -)
- LIBS += -l miniupnpc -l iphlpapi
- DEFS += -DSTATICLIB -DUSE_UPNP=$(USE_UPNP)
-endif
 
 ifneq (${USE_IPV6}, -)
 	DEFS += -DUSE_IPV6=$(USE_IPV6)

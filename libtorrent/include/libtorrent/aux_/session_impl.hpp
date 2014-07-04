@@ -957,6 +957,7 @@ namespace libtorrent
 
 			// 0 is natpmp 1 is upnp
 			int m_tcp_mapping[2];
+			int m_twister_tcp_mapping[2];
 			int m_udp_mapping[2];
 #ifdef TORRENT_USE_OPENSSL
 			int m_ssl_mapping[2];

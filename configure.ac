@@ -206,16 +206,6 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(
-  [upnp],
-  [AS_HELP_STRING(
-    [--enable-upnp],
-    [enable miniupnp support [default=yes]])],
-  [[ARG_ENABLE_UPNP=$enableval]],
-  [[ARG_ENABLE_UPNP=yes]]
-)
-
-
-AC_ARG_ENABLE(
   [pool-allocators],
   [AS_HELP_STRING(
     [--enable-pool-allocators],
@@ -474,21 +464,6 @@ AS_CASE(["$ARG_ENABLE_SSE2"],
    AC_MSG_ERROR([Unknown option "$ARG_ENABLE_SSE2". Use either "yes" or "no".])]
 )
 
-AC_MSG_CHECKING([whether miniupnp should be enabled])
-AS_CASE(["$ARG_ENABLE_UPNP"],
-  ["yes"|"on"], [
-      AC_MSG_RESULT([yes])
-      AC_DEFINE([USE_UPNP],[1],[Enable miniupnp])
-      COMPILETIME_OPTIONS="$COMPILETIME_OPTIONS -DUSE_UPNP=1 "
-    ],
-  ["no"|"off"], [
-      AC_MSG_RESULT([no])
-    ],
-  [AC_MSG_RESULT([$ARG_ENABLE_UPNP])
-   AC_MSG_ERROR([Unknown option "$ARG_ENABLE_UPNP". Use either "yes" or "no".])]
-)
-
-
 AC_MSG_CHECKING([whether geoip support should be enabled])
 AS_CASE(["$ARG_ENABLE_GEOIP"],
   ["yes"], [
@@ -652,7 +627,6 @@ AM_CONDITIONAL([ENABLE_PYTHON_BINDING], [test "x$ARG_ENABLE_PYTHON_BINDING" = "x
 AM_CONDITIONAL([WITH_SHIPPED_GEOIP], [test "x$ARG_WITH_LIBGEOIP" = "xno" ])
 AM_CONDITIONAL([WITH_OPENSSL], [test "x$ARG_ENABLE_ENCRYPTION" = "xyes" -o "x$ARG_ENABLE_ENCRYPTION" = "xon" ])
 AM_CONDITIONAL([USE_SSE2], [test "x$ARG_ENABLE_SSE2" = "xyes" -o "x$ARG_ENABLE_SSE2" = "xon" ])
-AM_CONDITIONAL([USE_UPNP], [test "x$ARG_ENABLE_UPNP" = "xyes" -o "x$ARG_ENABLE_UPNP" = "xon" ])
 
 ###############################################################################
 # Other useful stuff
@@ -751,7 +725,6 @@ Build options:
 Features:
   encryption support:   ${ARG_ENABLE_ENCRYPTION:-yes}
   SSE2 Scrypt:          ${ARG_ENABLE_SSE2:-yes}
-  miniupnp support:     ${ARG_ENABLE_UPNP:-yes}
   geoip support:        ${ARG_ENABLE_GEOIP:-yes}
   dht support:          ${ARG_ENABLE_DHT:-yes}
   pool allocators:      ${ARG_ENABLE_POOL_ALLOC:-yes}
