@@ -459,13 +459,24 @@ void lockAndSaveUserData()
 
 int getDhtNodes(boost::int64_t *dht_global_nodes)
 {
-    boost::shared_ptr<session> ses(m_ses);
-    if( !ses )
-        return 0;
-    session_status ss = ses->status();
+    int dhtNodes = 0;
+    
     if( dht_global_nodes )
-        *dht_global_nodes = ss.dht_global_nodes;
-    return ss.dht_nodes;
+        *dht_global_nodes = 0;
+    
+    if( !DhtProxy::fEnabled ) {
+        boost::shared_ptr<session> ses(m_ses);
+        if( ses ) {
+            session_status ss = ses->status();
+            if( dht_global_nodes )
+                *dht_global_nodes = ss.dht_global_nodes;
+            dhtNodes = ss.dht_nodes;
+        }
+    } else {
+        LOCK(cs_vNodes);
+        DhtProxy::getRandomDhtProxies(&dhtNodes);
+    }
+    return dhtNodes;
 }
 
 void torrentManualTrackerUpdate(const std::string &username)
