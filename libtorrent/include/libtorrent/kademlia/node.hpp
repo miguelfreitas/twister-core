@@ -300,6 +300,7 @@ private:
 
 	ptime m_last_tracker_tick;
 	ptime m_next_storage_refresh;
+	int m_refresh_per_tick;
 	std::pair<node_id, int> m_last_refreshed_item;
 
 	// secret random numbers used to create write tokens
