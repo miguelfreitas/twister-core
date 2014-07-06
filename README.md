@@ -28,17 +28,17 @@ Please follow the instructions for your platform:
 - [Mac OS X](https://github.com/miguelfreitas/twister-core/blob/master/doc/build-osx.md)
 - [Windows (untested)](https://github.com/miguelfreitas/twister-core/wiki/Compiling-for-Windows)
 
-Or, alternatively, you can run Twister on an isolated Linux container, using [docker](http://docker.io/). Quickstart:
+> According to our tests, at least 1GB of RAM is needed to compile Twister.
 
-    # Prepend "sudo -E" if you are not logged in as root
-    ./twister-on-docker run --remote
+Alternatively, you can run Twister on an isolated Linux container, using [Docker](http://docker.io/). First, [install Docker on your system](https://docs.docker.com/installation/#installation). Then run:
+
+    # Leave out the "sudo -E" if you added yourself to the "docker" group
+    sudo -E ./twister-on-docker run --remote
 
 The above command downloads and runs a [pre-built image](https://registry.hub.docker.com/u/miguelfreitas/twister) from the Docker index. You can also build and run your own container:
 
-    ./twister-on-docker build
-    ./twister-on-docker run
-
-> According to our tests, at least 1GB of RAM is needed to compile Twister.
+    sudo -E ./twister-on-docker build
+    sudo -E ./twister-on-docker run
 
 ## License
 

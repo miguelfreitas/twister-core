@@ -21,7 +21,7 @@ build)
   ;;
 
 run)
-  if [ $MODE == "--remote" ]; then
+  if [ "$MODE" = "--remote" ]; then
     shift
     IMAGE_NAME=$REMOTE_IMAGE_NAME
     echo Pulling new version of $IMAGE_NAME
