@@ -579,8 +579,8 @@ bool node_impl::refresh_storage() {
                 (multi && item.local_add_time && item.local_add_time + 60*60*24*2 > time(NULL)) ) {
                 num_refreshable++;
 
-                if( refresh_next_item ) {
-                    refresh_next_item = false;
+                if( refresh_next_item && m_refresh_per_tick ) {
+                    --m_refresh_per_tick;
                     m_last_refreshed_item = std::make_pair(i->first,jIdx);
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
                     printf("node dht: refreshing storage: [%s,%s,%s]\n",
@@ -611,13 +611,16 @@ bool node_impl::refresh_storage() {
         m_last_refreshed_item = std::make_pair(m_storage_table.begin()->first,0);
     }
 
-    time_duration sleepToRefresh;
-    if( num_refreshable ) {
-        sleepToRefresh = minutes(60) / num_refreshable;
-    } else {
-        sleepToRefresh = minutes(10);
-    }
+    const time_duration tickInterval = seconds(5);
+    const time_duration fullRefreshInterval = minutes(30);
+    const time_duration sleepInterval = minutes(10);
+    const time_duration sleepToRefresh = std::min( sleepInterval, fullRefreshInterval / (num_refreshable ? num_refreshable : 1) );
     m_next_storage_refresh = time_now() + sleepToRefresh;
+    if( sleepToRefresh > tickInterval ) {
+        m_refresh_per_tick = 1;
+    } else {
+        m_refresh_per_tick = tickInterval.diff/sleepToRefresh.diff;
+    }
 
 /*
     printf("node dht: next storage refresh in %s\n",
