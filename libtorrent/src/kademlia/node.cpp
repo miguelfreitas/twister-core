@@ -698,8 +698,7 @@ bool node_impl::save_storage(entry &save) const {
                 entry_item["sig_user"] = item.sig_user;
                 if( item.local_add_time )
                     entry_item["local_add_time"] = item.local_add_time;
-                if( item.confirmed )
-                    entry_item["confirmed"] = item.confirmed ? 0 : 1;
+                entry_item["confirmed"] = item.confirmed ? 0 : 1;
                 save_list.list().push_back(entry_item);
             }
         }
