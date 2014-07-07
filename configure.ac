@@ -127,7 +127,7 @@ AC_CHECK_FUNCS([gethostbyname], [],
       [AC_CHECK_LIB([socket], [gethostbyname], [],
         [AC_CHECK_LIB([ws2_32], [main],
           [AC_CHECK_LIB([wsock32], [main],
-            [LIBS="-lws2_32 -lwsock32 $LIBS"],
+            [LIBS="-lws2_32 -lwsock32 -lgdi32 -lcrypt32 $LIBS"],
             [AC_MSG_ERROR([wsock32 function not found.])])],
           [AC_MSG_ERROR([gethostbyname function not found.])])])])])]
 )
