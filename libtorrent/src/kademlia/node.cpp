@@ -474,6 +474,7 @@ void node_impl::putDataSigned(std::string const &username, std::string const &re
     
             dht_storage_item item(str_p, sig_p, sig_user);
             item.local_add_time = time(NULL);
+            item.confirmed = false;
             std::vector<char> vbuf;
             bencode(std::back_inserter(vbuf), p["v"]);
             std::pair<char const*, int> bufv = std::make_pair(vbuf.data(), vbuf.size());
@@ -749,9 +750,6 @@ void node_impl::load_storage(entry const* e) {
             entry const *confirmed( j->find_key("confirmed") );
             if(confirmed) {
                 item.confirmed = (bool) confirmed->integer();
-            } else {
-                // compatibility with twister 0.9.22 and below
-                item.confirmed = true;
             }
 
             // just for printf for now
