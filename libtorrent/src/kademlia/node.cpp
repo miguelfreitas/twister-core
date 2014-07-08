@@ -604,7 +604,7 @@ bool node_impl::refresh_storage() {
                 boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
                                                              boost::bind(&putData_confirm, item),
                                                              boost::bind(&putData_fun, _1, boost::ref(*this),
-                                                                         entryP, item.sig_p, item.sig_user), !item.confirmed));
+                                                                         entryP, item.sig_p, item.sig_user), item.confirmed));
                 ta->start();
                 did_something = true;
 
