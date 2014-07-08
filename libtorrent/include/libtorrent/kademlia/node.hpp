@@ -273,6 +273,8 @@ public:
 
 	dht_settings const& settings() const { return m_settings; }
 
+	double getRandom() { return m_random(); }
+
 protected:
 
 	void lookup_peers(sha1_hash const& info_hash, int prefix, entry& reply
@@ -313,8 +315,8 @@ private:
 	udp_socket_interface* m_sock;
 
 	boost::mt19937 m_random_seed;
-	boost::uniform_real<> m_random_dist;
-	boost::variate_generator<boost::mt19937&, boost::uniform_real<> > m_random;
+	boost::uniform_real<double> m_random_dist;
+	boost::variate_generator<boost::mt19937&, boost::uniform_real<double> > m_random;
 };
 
 

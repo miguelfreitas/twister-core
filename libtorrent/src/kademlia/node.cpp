@@ -542,8 +542,9 @@ static void processEntryForHashtags(lazy_entry &p)
 bool node_impl::refresh_storage() {
     bool did_something = false;
 
-	ptime const now = time_now();
-	m_next_storage_refresh = now + minutes(10);
+    ptime const now = time_now();
+    m_next_storage_refresh = now + minutes(60);
+
 
     for (dht_storage_table_t::iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
@@ -608,7 +609,7 @@ bool node_impl::refresh_storage() {
                 did_something = true;
 
                 // add 10% diffusion to next refresh time
-                item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * (1. + 0.1 * (2. * m_random() - 1.));
+                item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * (1. + 0.1 * (2. * getRandom() - 1.));
                 if( m_next_storage_refresh > item.next_refresh_time ) {
                     m_next_storage_refresh = item.next_refresh_time;
                 }
@@ -715,7 +716,7 @@ void node_impl::load_storage(entry const* e) {
     if( !e || e->type() != entry::dictionary_t)
         return;
 
-    ptime now = time_now();
+    ptime const now = time_now();
 
     printf("node dht: loading storage... (%lu node_id keys)\n", e->dict().size());
 
@@ -756,7 +757,7 @@ void node_impl::load_storage(entry const* e) {
                 processEntryForHashtags(p);
 
                 // randomize refresh time
-                item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * m_random();
+                item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * getRandom();
 
                 to_add.push_back(item);
 #ifdef ENABLE_DHT_ITEM_EXPIRE
@@ -1501,6 +1502,10 @@ void node_impl::store_dht_item(dht_storage_item &item, const big_number &target,
                                bool multi, int seq, int height, std::pair<char const*, int> &bufv)
 {
     item.next_refresh_time = time_now() + minutes(item.confirmed ? 60 : 1);
+    if( m_next_storage_refresh > item.next_refresh_time ) {
+        m_next_storage_refresh = item.next_refresh_time;
+    }
+
     dht_storage_table_t::iterator i = m_storage_table.find(target);
     if (i == m_storage_table.end()) {
         // make sure we don't add too many items
