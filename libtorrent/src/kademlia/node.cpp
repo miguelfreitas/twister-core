@@ -36,6 +36,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/bind.hpp>
 #include <boost/function/function1.hpp>
 //#include <boost/date_time/posix_time/time_formatters_limited.hpp>
+#include <boost/random.hpp>
+#include <boost/nondet_random.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 #include "libtorrent/io.hpp"
 #include "libtorrent/bencode.hpp"
@@ -109,8 +112,6 @@ node_impl::node_impl(alert_dispatcher* alert_disp
 	, m_next_storage_refresh(time_now())
 	, m_post_alert(alert_disp)
 	, m_sock(sock)
-	, m_random_dist(0.0, 1.0)
-	, m_random(m_random_seed, m_random_dist)
 {
 	m_secret[0] = random();
 	m_secret[1] = std::rand();
@@ -309,11 +310,31 @@ namespace
 		}
 	}
 
+	double getRandom()
+	{
+		static boost::mt19937 m_random_seed;
+		static boost::uniform_real<double> m_random_dist(0.0, 1.0);
+		static boost::variate_generator<boost::mt19937&, boost::uniform_real<double> > m_random(m_random_seed, m_random_dist);
+
+		return m_random();
+	}
+
+	ptime getNextRefreshTime(bool confirmed = true)
+	{
+		static ptime nextRefreshTime[2] = { ptime(0) };
+		nextRefreshTime[confirmed] = std::max(
+				nextRefreshTime[confirmed] + milliseconds(100),
+				// add +/-10% diffusion to next refresh time
+				time_now() + minutes(confirmed ? 60 : 1) * ( 0.9 + 0.2 * getRandom() )
+			);
+		return nextRefreshTime[confirmed];
+	}
+
 	void putData_confirm(entry::list_type const& values_list, dht_storage_item& item)
 	{
 		if( !item.confirmed && !values_list.empty() ) {
 			item.confirmed = true;
-			item.next_refresh_time = time_now() + minutes(60);
+			item.next_refresh_time = getNextRefreshTime();
 		}
 	}
 
@@ -549,7 +570,6 @@ bool node_impl::refresh_storage() {
     ptime const now = time_now();
     m_next_storage_refresh = now + minutes(60);
 
-    int refresh_per_tick_limit = 20;
 
     for (dht_storage_table_t::iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
@@ -572,27 +592,26 @@ bool node_impl::refresh_storage() {
                 continue;
             }
 
-            if( refresh_per_tick_limit > 0) {
 
-                lazy_entry p;
-                int pos;
-                error_code err;
-                // FIXME: optimize to avoid bdecode (store seq separated, etc)
-                int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+            lazy_entry p;
+            int pos;
+            error_code err;
+            // FIXME: optimize to avoid bdecode (store seq separated, etc)
+            int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
 
-                int height = p.dict_find_int_value("height");
-                if( height > getBestHeight() ) {
-                    continue;  // how?
-                }
-            
-                const lazy_entry *target = p.dict_find_dict("target");
-                std::string username = target->dict_find_string_value("n");
-                std::string resource = target->dict_find_string_value("r");
-                bool multi = (target->dict_find_string_value("t") == "m");
+            int height = p.dict_find_int_value("height");
+            if( height > getBestHeight() ) {
+                continue;  // how?
+            }
 
-                // refresh only signed single posts and mentions
-                if( !multi || (multi && resource == "mention") ||
-                    (multi && item.local_add_time && item.local_add_time + 60*60*24*2 > time(NULL)) ) {
+            const lazy_entry *target = p.dict_find_dict("target");
+            std::string username = target->dict_find_string_value("n");
+            std::string resource = target->dict_find_string_value("r");
+            bool multi = (target->dict_find_string_value("t") == "m");
+
+            // refresh only signed single posts and mentions
+            if( !multi || (multi && resource == "mention") ||
+                (multi && item.local_add_time && item.local_add_time + 60*60*24*2 > time(NULL)) ) {
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
                     printf("node dht: refreshing storage: [%s,%s,%s]\n",
@@ -601,25 +620,21 @@ bool node_impl::refresh_storage() {
                            target->dict_find_string_value("t").c_str());
 #endif
 
-                    processEntryForHashtags(p);
+                processEntryForHashtags(p);
 
-                    entry entryP;
-                    entryP = p; // lazy to non-lazy
+                entry entryP;
+                entryP = p; // lazy to non-lazy
 
-                    // search for nodes with ids close to id or with peers
-                    // for info-hash id. then send putData to them.
-                    boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
-                                                                 boost::bind(&putData_confirm, _1, boost::ref(item)),
-                                                                 boost::bind(&putData_fun, _1, boost::ref(*this),
-                                                                             entryP, item.sig_p, item.sig_user), item.confirmed));
-                    ta->start();
-                    did_something = true;
+                // search for nodes with ids close to id or with peers
+                // for info-hash id. then send putData to them.
+                boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+                                                             boost::bind(&putData_confirm, _1, boost::ref(item)),
+                                                             boost::bind(&putData_fun, _1, boost::ref(*this),
+                                                                         entryP, item.sig_p, item.sig_user), item.confirmed));
+                ta->start();
+                did_something = true;
 
-                    --refresh_per_tick_limit;
-
-                    // add +/-10% diffusion to next refresh time
-                    item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * ( 0.9 + 0.2 * getRandom() );
-                }
+                item.next_refresh_time = getNextRefreshTime(item.confirmed);
             }
 
             if( m_next_storage_refresh > item.next_refresh_time ) {
@@ -1510,7 +1525,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 void node_impl::store_dht_item(dht_storage_item &item, const big_number &target, 
                                bool multi, int seq, int height, std::pair<char const*, int> &bufv)
 {
-    item.next_refresh_time = time_now() + minutes(item.confirmed ? 60 : 1);
+    item.next_refresh_time = getNextRefreshTime(item.confirmed);
     if( m_next_storage_refresh > item.next_refresh_time ) {
         m_next_storage_refresh = item.next_refresh_time;
     }

@@ -52,9 +52,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/cstdint.hpp>
 #include <boost/ref.hpp>
-#include <boost/random.hpp>
-#include <boost/nondet_random.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include "libtorrent/socket.hpp"
 
@@ -273,8 +270,6 @@ public:
 
 	dht_settings const& settings() const { return m_settings; }
 
-	double getRandom() { return m_random(); }
-
 protected:
 
 	void lookup_peers(sha1_hash const& info_hash, int prefix, entry& reply
@@ -313,10 +308,6 @@ private:
 
 	alert_dispatcher* m_post_alert;
 	udp_socket_interface* m_sock;
-
-	boost::mt19937 m_random_seed;
-	boost::uniform_real<double> m_random_dist;
-	boost::variate_generator<boost::mt19937&, boost::uniform_real<double> > m_random;
 };
 
 
