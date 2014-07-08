@@ -616,8 +616,8 @@ bool node_impl::refresh_storage() {
 
                     --refresh_per_tick_limit;
 
-                    // add 10% diffusion to next refresh time
-                    item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * (1. + 0.1 * (2. * getRandom() - 1.));
+                    // add +/-10% diffusion to next refresh time
+                    item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * ( 0.9 + 0.2 * getRandom() );
                 }
             }
 
