@@ -309,9 +309,11 @@ namespace
 		}
 	}
 
-	void putData_confirm(dht_storage_item& item)
+	void putData_confirm(entry::list_type const& values_list, dht_storage_item& item)
 	{
-		item.confirmed = true;
+		if( !values_list.empty() ) {
+			item.confirmed = true;
+		}
 	}
 
 	void putData_fun(std::vector<std::pair<node_entry, std::string> > const& v,
@@ -605,7 +607,7 @@ bool node_impl::refresh_storage() {
                     // search for nodes with ids close to id or with peers
                     // for info-hash id. then send putData to them.
                     boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
-                                                                 boost::bind(&putData_confirm, boost::ref(item)),
+                                                                 boost::bind(&putData_confirm, _1, boost::ref(item)),
                                                                  boost::bind(&putData_fun, _1, boost::ref(*this),
                                                                              entryP, item.sig_p, item.sig_user), item.confirmed));
                     ta->start();
