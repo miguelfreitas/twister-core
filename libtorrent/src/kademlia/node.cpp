@@ -756,8 +756,9 @@ void node_impl::load_storage(entry const* e) {
                 int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
                 processEntryForHashtags(p);
 
+                // wait 1 minute (to load torrents, etc.)
                 // randomize refresh time
-                item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * getRandom();
+                item.next_refresh_time = now + minutes(1) + minutes(item.confirmed ? 60 : 1) * getRandom();
 
                 to_add.push_back(item);
 #ifdef ENABLE_DHT_ITEM_EXPIRE
