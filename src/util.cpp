@@ -98,7 +98,11 @@ void locking_callback(int mode, int i, const char* file, int line)
 
 static unsigned long id_callback(void)
 {
+#if defined(WIN32)
+  return ((unsigned long)GetCurrentThreadId());
+#else
   return ((unsigned long)pthread_self());
+#endif
 }
 
 LockedPageManager LockedPageManager::instance;
