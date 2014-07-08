@@ -311,8 +311,9 @@ namespace
 
 	void putData_confirm(entry::list_type const& values_list, dht_storage_item& item)
 	{
-		if( !values_list.empty() ) {
+		if( !item.confirmed && !values_list.empty() ) {
 			item.confirmed = true;
+			item.next_refresh_time = time_now() + minutes(60);
 		}
 	}
 
