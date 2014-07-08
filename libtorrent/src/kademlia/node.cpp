@@ -545,6 +545,7 @@ bool node_impl::refresh_storage() {
     ptime const now = time_now();
     m_next_storage_refresh = now + minutes(60);
 
+    int refresh_per_tick_limit = 20;
 
     for (dht_storage_table_t::iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
@@ -567,25 +568,27 @@ bool node_impl::refresh_storage() {
                 continue;
             }
 
-            lazy_entry p;
-            int pos;
-            error_code err;
-            // FIXME: optimize to avoid bdecode (store seq separated, etc)
-            int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+            if( refresh_per_tick_limit > 0) {
 
-            int height = p.dict_find_int_value("height");
-            if( height > getBestHeight() ) {
-                continue;  // how?
-            }
+                lazy_entry p;
+                int pos;
+                error_code err;
+                // FIXME: optimize to avoid bdecode (store seq separated, etc)
+                int ret = lazy_bdecode(item.p.data(), item.p.data() + item.p.size(), p, err, &pos, 10, 500);
+
+                int height = p.dict_find_int_value("height");
+                if( height > getBestHeight() ) {
+                    continue;  // how?
+                }
             
-            const lazy_entry *target = p.dict_find_dict("target");
-            std::string username = target->dict_find_string_value("n");
-            std::string resource = target->dict_find_string_value("r");
-            bool multi = (target->dict_find_string_value("t") == "m");
+                const lazy_entry *target = p.dict_find_dict("target");
+                std::string username = target->dict_find_string_value("n");
+                std::string resource = target->dict_find_string_value("r");
+                bool multi = (target->dict_find_string_value("t") == "m");
 
-            // refresh only signed single posts and mentions
-            if( !multi || (multi && resource == "mention") ||
-                (multi && item.local_add_time && item.local_add_time + 60*60*24*2 > time(NULL)) ) {
+                // refresh only signed single posts and mentions
+                if( !multi || (multi && resource == "mention") ||
+                    (multi && item.local_add_time && item.local_add_time + 60*60*24*2 > time(NULL)) ) {
 
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
                     printf("node dht: refreshing storage: [%s,%s,%s]\n",
@@ -594,25 +597,29 @@ bool node_impl::refresh_storage() {
                            target->dict_find_string_value("t").c_str());
 #endif
 
-                processEntryForHashtags(p);
+                    processEntryForHashtags(p);
 
-                entry entryP;
-                entryP = p; // lazy to non-lazy
+                    entry entryP;
+                    entryP = p; // lazy to non-lazy
 
-                // search for nodes with ids close to id or with peers
-                // for info-hash id. then send putData to them.
-                boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
-                                                             boost::bind(&putData_confirm, item),
-                                                             boost::bind(&putData_fun, _1, boost::ref(*this),
-                                                                         entryP, item.sig_p, item.sig_user), item.confirmed));
-                ta->start();
-                did_something = true;
+                    // search for nodes with ids close to id or with peers
+                    // for info-hash id. then send putData to them.
+                    boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
+                                                                 boost::bind(&putData_confirm, boost::ref(item)),
+                                                                 boost::bind(&putData_fun, _1, boost::ref(*this),
+                                                                             entryP, item.sig_p, item.sig_user), item.confirmed));
+                    ta->start();
+                    did_something = true;
 
-                // add 10% diffusion to next refresh time
-                item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * (1. + 0.1 * (2. * getRandom() - 1.));
-                if( m_next_storage_refresh > item.next_refresh_time ) {
-                    m_next_storage_refresh = item.next_refresh_time;
+                    --refresh_per_tick_limit;
+
+                    // add 10% diffusion to next refresh time
+                    item.next_refresh_time = now + minutes(item.confirmed ? 60 : 1) * (1. + 0.1 * (2. * getRandom() - 1.));
                 }
+            }
+
+            if( m_next_storage_refresh > item.next_refresh_time ) {
+                m_next_storage_refresh = item.next_refresh_time;
             }
         }
     }
