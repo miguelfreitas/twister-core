@@ -323,7 +323,7 @@ namespace
 	{
 		static ptime nextRefreshTime[2] = { ptime(0) };
 		nextRefreshTime[confirmed] = std::max(
-				nextRefreshTime[confirmed] + milliseconds(100),
+				nextRefreshTime[confirmed] + milliseconds(500),
 				// add +/-10% diffusion to next refresh time
 				time_now() + minutes(confirmed ? 60 : 1) * ( 0.9 + 0.2 * getRandom() )
 			);
@@ -570,7 +570,6 @@ bool node_impl::refresh_storage() {
     ptime const now = time_now();
     m_next_storage_refresh = now + minutes(60);
 
-
     for (dht_storage_table_t::iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
     {
@@ -591,7 +590,6 @@ bool node_impl::refresh_storage() {
                 }
                 continue;
             }
-
 
             lazy_entry p;
             int pos;
@@ -743,6 +741,7 @@ void node_impl::load_storage(entry const* e) {
         return;
 
     ptime const now = time_now();
+    time_duration const refresh_interval = std::max( minutes(60), e->dict().size() * milliseconds(500) );
 
     printf("node dht: loading storage... (%lu node_id keys)\n", e->dict().size());
 
@@ -781,7 +780,7 @@ void node_impl::load_storage(entry const* e) {
 
                 // wait 1 minute (to load torrents, etc.)
                 // randomize refresh time
-                item.next_refresh_time = now + minutes(1) + minutes(60) * getRandom();
+                item.next_refresh_time = now + minutes(1) + refresh_interval * getRandom();
 
                 to_add.push_back(item);
 #ifdef ENABLE_DHT_ITEM_EXPIRE
