@@ -710,7 +710,7 @@ bool node_impl::save_storage(entry &save) const {
                 entry_item["sig_user"] = item.sig_user;
                 if( item.local_add_time )
                     entry_item["local_add_time"] = item.local_add_time;
-                entry_item["confirmed"] = item.confirmed ? 0 : 1;
+                entry_item["confirmed"] = item.confirmed ? 1 : 0;
                 save_list.list().push_back(entry_item);
             }
         }
@@ -749,7 +749,7 @@ void node_impl::load_storage(entry const* e) {
                 item.local_add_time = local_add_time->integer();
             entry const *confirmed( j->find_key("confirmed") );
             if(confirmed) {
-                item.confirmed = (bool) confirmed->integer();
+                item.confirmed = (confirmed->integer() != 0);
             }
 
             // just for printf for now
