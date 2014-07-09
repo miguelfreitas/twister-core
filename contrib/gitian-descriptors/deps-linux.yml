@@ -1,0 +1,62 @@
+---
+name: "twister"
+suites:
+- "precise"
+architectures:
+- "i386"
+- "amd64"
+packages:
+- "g++"
+- "unzip"
+- "zip"
+- "pkg-config"
+- "libtool"
+- "faketime"
+- "bsdmainutils"
+reference_datetime: "2013-06-01 00:00:00"
+remotes: []
+files:
+- "openssl-1.0.1h.tar.gz"
+- "db-4.8.30.NC.tar.gz"
+script: |
+  STAGING="$HOME/install"
+  TEMPDIR="$HOME/tmp"
+  OPTFLAGS='-O2'
+  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
+  export FAKETIME=$REFERENCE_DATETIME
+  export TZ=UTC
+  export LIBRARY_PATH="$STAGING/lib"
+  # Integrity Check
+  echo "9d1c8a9836aa63e2c6adb684186cbd4371c9e9dcc01d6e3bb447abf2d4d3d093  openssl-1.0.1h.tar.gz"  | sha256sum -c
+  echo "12edc0df75bf9abd7f82f821795bcee50f42cb2e5f76a6a281b85732798364ef  db-4.8.30.NC.tar.gz"    | sha256sum -c
+
+  #
+  tar xzf openssl-1.0.1h.tar.gz
+  cd openssl-1.0.1h
+  #   need -fPIC to avoid relocation error in 64 bit builds
+  ./config no-shared no-zlib no-dso no-krb5 --openssldir=$STAGING -fPIC
+  #   need to build OpenSSL with faketime because a timestamp is embedded into cversion.o
+  make
+  make install_sw
+  cd ..
+  #
+  tar xzf db-4.8.30.NC.tar.gz
+  cd db-4.8.30.NC/build_unix
+  #   need --with-pic to avoid relocation error in 64 bit builds
+  ../dist/configure --prefix=$STAGING --enable-cxx --disable-shared --with-pic
+  # Workaround to prevent re-configuring by make; make all files have a date in the past
+  find . -print0 | xargs -r0 touch -t 200001010000
+  make $MAKEOPTS library_build
+  make install_lib install_include
+  cd ../..
+  # post-process all generated libraries to be deterministic
+  # extract them to a temporary directory then re-build them deterministically
+  for LIB in $(find $STAGING -name \*.a); do
+    rm -rf $TEMPDIR && mkdir $TEMPDIR && cd $TEMPDIR
+    ar xv $LIB | cut -b5- > /tmp/list.txt
+    rm $LIB
+    ar crsD $LIB $(cat /tmp/list.txt)
+  done
+  #
+  cd $STAGING
+  find include lib bin host | sort | zip -X@ $OUTDIR/twister-deps-linux${GBUILD_BITS}-gitian-r6.zip
