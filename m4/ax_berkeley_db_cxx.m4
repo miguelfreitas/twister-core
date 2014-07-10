@@ -100,7 +100,7 @@ AC_DEFUN([AX_BERKELEY_DB_CXX],
         try_headers="db$version/db_cxx.h db`echo $version | sed -e 's,\..*,,g'`/db_cxx.h"
     fi
 
-    LIBS="$old_LIBS $db_cxx_lib"
+    LIBS="$db_cxx_lib $old_LIBS"
 
     for db_cxx_hdr in $try_headers ; do
         if test -z $DB_CXX_HEADER ; then
