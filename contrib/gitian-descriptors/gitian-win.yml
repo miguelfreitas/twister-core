@@ -31,7 +31,7 @@ script: |
   # Defines
   export TZ=UTC
   INDIR=$HOME/build
-  OPTFLAGS='-O2'
+  OPTFLAGS='-O2 -static -static-libgcc -static-libstdc++'
   TEMPDIR="$HOME/tempdir"
   for BITS in 32 64; do # for architectures
     #
@@ -55,12 +55,13 @@ script: |
     cp -a $HOME/build/twister-core distsrc
     mkdir -p distsrc
     cd distsrc
-    ./bootstrap.sh --bindir=$BINDIR --prefix=$STAGING --host=$HOST --with-boost=$STAGING --with-openssl=$STAGING CPPFLAGS=-I$STAGING/include LDFLAGS=-L$STAGING/lib --without-boost-locale
+    ./autotool.sh
+    ./configure --bindir=$BINDIR --prefix=$STAGING --host=$HOST --with-boost=$STAGING --with-openssl=$STAGING CPPFLAGS="-I$STAGING/include ${OPTFLAGS}" LDFLAGS="-L$STAGING/lib ${OPTFLAGS}" CXXFLAGS="${OPTFLAGS}" --without-boost-locale
     #export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
     #export FAKETIME=$REFERENCE_DATETIME
     make $MAKEOPTS
-    strip .libs/twisterd.exe
-    cp -f .libs/twisterd.exe $BINDIR/
+    strip twisterd.exe
+    cp -f twisterd.exe $BINDIR/
     unset LD_PRELOAD
     unset FAKETIME
   done # for BITS in
