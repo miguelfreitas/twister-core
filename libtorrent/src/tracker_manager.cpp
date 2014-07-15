@@ -133,8 +133,8 @@ namespace libtorrent
 		if (m_completion_timeout > 0)
 		{
 			timeout = timeout == 0
-				? m_completion_timeout - total_seconds(m_read_time - m_start_time)
-				: (std::min)(m_completion_timeout  - total_seconds(m_read_time - m_start_time), timeout);
+				? int(m_completion_timeout - total_seconds(m_read_time - m_start_time))
+				: (std::min)(int(m_completion_timeout  - total_seconds(m_read_time - m_start_time)), timeout);
 		}
 #if defined TORRENT_ASIO_DEBUGGING
 		add_outstanding_async("timeout_handler::timeout_callback");

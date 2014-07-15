@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2007-2012, Arvid Norberg
+Copyright (c) 2007-2014, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 // OVERVIEW
 // 
-// This section contains fundamental time types used internall by
+// This section contains fundamental time types used internally by
 // libtorrent and exposed through various places in the API. The two
 // basic types are ``ptime`` and ``time_duration``. The first represents
 // a point in time and the second the difference between two points
@@ -56,28 +56,41 @@ POSSIBILITY OF SUCH DAMAGE.
 // .. note::
 // 	In a future version of libtorrent, these types will be replaced
 // 	by the standard timer types from ``std::chrono``.
+//
 
 namespace libtorrent
 {
 	TORRENT_EXTRA_EXPORT char const* time_now_string();
 	std::string log_time();
 
+	// returns the current time, as represented by ptime. The
+	// resolution of this timer is about 100 ms.
 	TORRENT_EXPORT ptime const& time_now();
+
+	// returns the current time as represented by ptime. This is
+	// more expensive than time_now(), but provides as high resolution
+	// as the operating system can provide.
 	TORRENT_EXPORT ptime time_now_hires();
 
+	// the earliest and latest possible time points
+	// representable by ptime.
 	TORRENT_EXPORT ptime min_time();
 	TORRENT_EXPORT ptime max_time();
 
 #if defined TORRENT_USE_BOOST_DATE_TIME || defined TORRENT_USE_QUERY_PERFORMANCE_TIMER
 
-	TORRENT_EXPORT time_duration seconds(int s);
-	TORRENT_EXPORT time_duration milliseconds(int s);
-	TORRENT_EXPORT time_duration microsec(int s);
-	TORRENT_EXPORT time_duration minutes(int s);
-	TORRENT_EXPORT time_duration hours(int s);
+	// returns a time_duration representing the specified number of seconds, milliseconds
+	// microseconds, minutes and hours.
+	TORRENT_EXPORT time_duration seconds(boost::int64_t s);
+	TORRENT_EXPORT time_duration milliseconds(boost::int64_t s);
+	TORRENT_EXPORT time_duration microsec(boost::int64_t s);
+	TORRENT_EXPORT time_duration minutes(boost::int64_t s);
+	TORRENT_EXPORT time_duration hours(boost::int64_t s);
 
-	TORRENT_EXPORT int total_seconds(time_duration td);
-	TORRENT_EXPORT int total_milliseconds(time_duration td);
+	// returns the number of seconds, milliseconds and microseconds
+	// a time_duration represents.
+	TORRENT_EXPORT boost::int64_t total_seconds(time_duration td);
+	TORRENT_EXPORT boost::int64_t total_milliseconds(time_duration td);
 	TORRENT_EXPORT boost::int64_t total_microseconds(time_duration td);
 
 #elif TORRENT_USE_CLOCK_GETTIME || TORRENT_USE_SYSTEM_TIME || TORRENT_USE_ABSOLUTE_TIME
