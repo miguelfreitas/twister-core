@@ -61,6 +61,20 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "../../src/twister.h"
 #define ENABLE_DHT_ITEM_EXPIRE
 
+/* refresh dht itens we know by putting them to other peers every 60 minutes.
+ * this period must be small enough to ensure persistency and big enough to
+ * not cause too much wasteful network traffic / overhead.
+ * see http://conferences.sigcomm.org/imc/2007/papers/imc150.pdf for a good
+ * discussion about that (quote: "These results suggest that periodic
+ * insertions can be performed at the granularity of hours with little impact
+ * on data persistence.")
+ *
+ * locally generated items are considered "unconfirmed" and have a smaller
+ * refresh period (1 minute) until we read them back from other nodes.
+ */
+#define DHT_REFRESH_CONFIRMED minutes(60)
+#define DHT_REFRESH_UNCONFIRMED minutes(1)
+
 namespace libtorrent { namespace dht
 {
 
@@ -321,11 +335,12 @@ namespace
 
 	ptime getNextRefreshTime(bool confirmed = true)
 	{
-		static ptime nextRefreshTime[2] = { ptime(0) };
+		static ptime nextRefreshTime[2] = { ptime(0), ptime(0) };
 		nextRefreshTime[confirmed] = std::max(
 				nextRefreshTime[confirmed] + milliseconds(500),
 				// add +/-10% diffusion to next refresh time
-				time_now() + minutes(confirmed ? 60 : 1) * ( 0.9 + 0.2 * getRandom() )
+				time_now() + (confirmed ? DHT_REFRESH_CONFIRMED : DHT_REFRESH_UNCONFIRMED)
+					   * ( 0.9 + 0.2 * getRandom() )
 			);
 		return nextRefreshTime[confirmed];
 	}
@@ -568,7 +583,7 @@ bool node_impl::refresh_storage() {
     bool did_something = false;
 
     ptime const now = time_now();
-    m_next_storage_refresh = now + minutes(60);
+    m_next_storage_refresh = now + DHT_REFRESH_CONFIRMED;
 
     for (dht_storage_table_t::iterator i = m_storage_table.begin(),
          end(m_storage_table.end()); i != end; ++i )
@@ -741,7 +756,7 @@ void node_impl::load_storage(entry const* e) {
         return;
 
     ptime const now = time_now();
-    time_duration const refresh_interval = std::max( minutes(60), e->dict().size() * milliseconds(500) );
+    time_duration const refresh_interval = std::max( DHT_REFRESH_CONFIRMED, e->dict().size() * milliseconds(500) );
 
     printf("node dht: loading storage... (%lu node_id keys)\n", e->dict().size());
 
