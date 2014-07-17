@@ -72,6 +72,8 @@ namespace libtorrent
 		{ return time_duration(diff + c.diff); }
 		time_duration operator-(time_duration const& c)
 		{ return time_duration(diff - c.diff); }
+		time_duration operator*(const double rhs) const
+		{ return time_duration( boost::int64_t (diff * rhs) ); }
 
 		// internal
 		boost::int64_t diff;
