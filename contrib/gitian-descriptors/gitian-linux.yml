@@ -1,0 +1,65 @@
+---
+name: "twister"
+suites:
+- "precise"
+architectures:
+- "i386"
+- "amd64"
+packages: 
+- "g++"
+- "git-core"
+- "zip"
+- "unzip"
+- "pkg-config"
+- "autoconf2.13"
+- "libtool"
+- "automake"
+- "faketime"
+- "bsdmainutils"
+reference_datetime: "2013-06-01 00:00:00"
+remotes:
+- "url": "https://github.com/miguelfreitas/twister-core.git"
+  "dir": "twister-core"
+files:
+- "twister-deps-linux32-gitian-r6.zip"
+- "twister-deps-linux64-gitian-r6.zip"
+- "boost-linux32-1.55.0-gitian-r1.zip"
+- "boost-linux64-1.55.0-gitian-r1.zip"
+script: |
+  STAGING="$HOME/install"
+  OPTFLAGS='-O2' #-static -static-libgcc -static-libstdc++'
+  BINDIR="${OUTDIR}/bin/${GBUILD_BITS}" # 32/64 bit build specific output directory
+  TEMPDIR="$HOME/tempdir"
+  export TZ=UTC
+  export LIBRARY_PATH="$STAGING/lib"
+  export PATH="$STAGING/bin:$PATH"
+  mkdir -p ${BINDIR}
+  #
+  mkdir -p $STAGING
+  cd $STAGING
+  unzip ../build/twister-deps-linux${GBUILD_BITS}-gitian-r6.zip
+  unzip ../build/boost-linux${GBUILD_BITS}-1.55.0-gitian-r1.zip
+  cd ../build
+
+  # 
+  cd $HOME/build/
+  rm -rf distsrc
+  cp -a $HOME/build/twister-core distsrc
+
+  cd distsrc
+  ./autotool.sh
+  ./configure --bindir=$BINDIR --prefix=$STAGING --with-boost=$STAGING --with-openssl=$STAGING PKG_CONFIG_PATH="$STAGING/lib/pkgconfig" --with-libdb=$STAGING CPPFLAGS="-I$STAGING/include ${OPTFLAGS}" LDFLAGS="-L$STAGING/lib ${OPTFLAGS}" CXXFLAGS="${OPTFLAGS}" BOOST_CHRONO_EXTRALIBS="-lrt" --without-boost-locale
+  make $MAKEOPTS
+  strip twisterd
+  cp -f twisterd $BINDIR/
+
+  # sort distribution tar file and normalize user/group/mtime information for deterministic output
+  mkdir -p $OUTDIR/src
+  rm -rf $TEMPDIR
+  mkdir -p $TEMPDIR
+  cd $TEMPDIR
+  #tar -xvf $HOME/build/twister/$DISTNAME | sort | tar --no-recursion -cT /dev/stdin --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 --mtime="$REFERENCE_DATETIME" | gzip -n > $OUTDIR/src/$DISTNAME
+  cd $OUTDIR
+  find . | sort | zip -X@ $OUTDIR/twister-linux${GBUILD_BITS}.zip
+
+

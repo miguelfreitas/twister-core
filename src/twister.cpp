@@ -254,8 +254,8 @@ void ThreadWaitExtIP()
 
     std::string ipStr;
 
-    // wait up to 5 seconds for bitcoin to get the external IP
-    for( int i = 0; i < 10; i++ ) {
+    // wait up to 10 seconds for bitcoin to get the external IP
+    for( int i = 0; i < 20; i++ ) {
         const CNetAddr paddrPeer("8.8.8.8");
         CAddress addr( GetLocalAddress(&paddrPeer) );
         if( addr.IsValid() ) {
@@ -309,8 +309,10 @@ void ThreadWaitExtIP()
     }
 
     if( !m_usingProxy ) {
-        ses->start_upnp();
-        ses->start_natpmp();
+        if( GetBoolArg("-upnp", true) ) {
+            ses->start_upnp();
+            ses->start_natpmp();
+        }
         
         ses->listen_on(std::make_pair(listen_port, listen_port)
                        , ec, bind_to_interface.c_str());
@@ -334,7 +336,7 @@ void ThreadWaitExtIP()
         }
     }
     
-    session_settings settings;
+    session_settings settings("twisterd/"+FormatFullVersion());
     // settings to test local connections
     settings.allow_multiple_connections_per_ip = true;
     //settings.enable_outgoing_utp = false; // (false to see connections in netstat)
@@ -457,13 +459,24 @@ void lockAndSaveUserData()
 
 int getDhtNodes(boost::int64_t *dht_global_nodes)
 {
-    boost::shared_ptr<session> ses(m_ses);
-    if( !ses )
-        return 0;
-    session_status ss = ses->status();
+    int dhtNodes = 0;
+    
     if( dht_global_nodes )
-        *dht_global_nodes = ss.dht_global_nodes;
-    return ss.dht_nodes;
+        *dht_global_nodes = 0;
+    
+    if( !DhtProxy::fEnabled ) {
+        boost::shared_ptr<session> ses(m_ses);
+        if( ses ) {
+            session_status ss = ses->status();
+            if( dht_global_nodes )
+                *dht_global_nodes = ss.dht_global_nodes;
+            dhtNodes = ss.dht_nodes;
+        }
+    } else {
+        LOCK(cs_vNodes);
+        DhtProxy::getRandomDhtProxies(&dhtNodes);
+    }
+    return dhtNodes;
 }
 
 void torrentManualTrackerUpdate(const std::string &username)

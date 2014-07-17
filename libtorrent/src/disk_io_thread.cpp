@@ -2392,7 +2392,7 @@ namespace libtorrent
 					for (int processed = 0; processed < 4 * 1024 * 1024; processed += piece_size)
 					{
 						ptime now = time_now_hires();
-						TORRENT_ASSERT(now >= m_last_file_check);
+						//TORRENT_ASSERT(now >= m_last_file_check);
 						// this happens sometimes on windows for some reason
 						if (now < m_last_file_check) now = m_last_file_check;
 

@@ -3,8 +3,16 @@ ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = \
   COPYING
 
-SUBDIRS = src/leveldb
-LEVELDB_LIB = src/leveldb/libleveldb.a src/leveldb/libmemenv.a
+LIBLEVELDB = src/leveldb/libleveldb.a
+LIBMEMENV  = src/leveldb/libmemenv.a
+
+# NOTE: This dependency is not strictly necessary, but without it make may try to build both in parallel, which breaks the LevelDB build system in a race
+$(LIBLEVELDB): $(LIBMEMENV)
+
+$(LIBLEVELDB) $(LIBMEMENV):
+	@echo "Building LevelDB ..." && $(MAKE) -C $(@D) $(@F) CXX="$(CXX)" \
+	  CC="$(CC)" PLATFORM=$(TARGET_OS) AR="$(AR)" $(LEVELDB_TARGET_FLAGS) \
+          OPT="$(CXXFLAGS) $(CPPFLAGS)"
 
 bin_PROGRAMS = twisterd
 
@@ -162,17 +170,13 @@ BITCOIN_TWISTER_SOURCES = \
     src/twister_utils.cpp \
     $(SSE2_SOURCES)
 
-if USE_UPNP
-UPNP_LIB = -lminiupnpc
-endif
-
 twisterd_SOURCES = $(LIBTORRENT_SOURCES) $(BITCOIN_TWISTER_SOURCES)
 
 twisterd_LDFLAGS = @OPENSSL_LDFLAGS@ @DB_CXX_LDFLAGS@
 
-twisterd_DEPENDENCIES = $(LEVELDB_LIB)
+twisterd_DEPENDENCIES = $(LIBLEVELDB) $(LIBMEMENV)
 
-twisterd_LDADD = $(LEVELDB_LIB) $(UPNP_LIB) \
+twisterd_LDADD = $(LIBLEVELDB) $(LIBMEMENV) \
     @BOOST_SYSTEM_LIB@ @BOOST_FILESYSTEM_LIB@ @BOOST_PROGRAM_OPTIONS_LIB@ @BOOST_THREAD_LIB@ @BOOST_CHRONO_LIB@ @BOOST_LOCALE_LIB@ \
     @BOOST_REGEX_LIB@ @DB_CXX_LIBS@ @OPENSSL_LIBS@
 
@@ -183,3 +187,9 @@ AM_CPPFLAGS = -ftemplate-depth-100 -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS
     @DEBUGFLAGS@ @OPENSSL_INCLUDES@ @DB_CXX_CPPFLAGS@
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@
+
+CLEANFILES = $(LIBLEVELDB) $(LIBMEMENV)
+
+clean-local:
+	-$(MAKE) -C src/leveldb clean
+	rm -f src/leveldb/*/*.gcno src/leveldb/helpers/memenv/*.gcno

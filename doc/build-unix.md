@@ -18,15 +18,6 @@ Dependencies
  libssl      SSL Support       Secure communications
  libdb4.8    Berkeley DB       Blockchain & wallet storage
  libboost    Boost             C++ Library
- miniupnpc   UPnP Support      Optional firewall-jumping support
-
-[miniupnpc](http://miniupnp.free.fr/) may be used for UPnP port mapping.  It can be downloaded from [here](
-http://miniupnp.tuxfamily.org/files/).  UPnP support is compiled in and
-turned off by default.  Set USE_UPNP to a different value to control this:
-
-	USE_UPNP=     No UPnP support miniupnp not required
-	USE_UPNP=0    (the default) UPnP support turned off by default at runtime
-	USE_UPNP=1    UPnP support turned on by default at runtime
 
 IPv6 support may be disabled by setting:
 
@@ -36,14 +27,12 @@ Licenses of statically linked libraries:
  Berkeley DB   New BSD license with additional requirement that linked
                software must be free open source
  Boost         MIT-like license
- miniupnpc     New (3-clause) BSD license
 
 - Versions used in this release:
 -  GCC           4.3.3
 -  OpenSSL       1.0.1c
 -  Berkeley DB   4.8.30.NC
 -  Boost         1.37
--  miniupnpc     1.6
 
 Dependency Build Instructions: Ubuntu & Debian
 ----------------------------------------------
@@ -69,10 +58,6 @@ for other Ubuntu & Debian:
 	
  (If using Boost 1.37, append -mt to the boost libraries in the makefile)
 
-Optional:
-
-	sudo apt-get install libminiupnpc-dev (see USE_UPNP compile flag)
-
 
 Dependency Build Instructions: Gentoo
 -------------------------------------
@@ -85,7 +70,7 @@ Note: If you just want to install bitcoind on Gentoo, you can add the Bitcoin ov
 Take the following steps to build (no UPnP support):
 
 	cd ${BITCOIN_DIR}/src
-	make -f makefile.unix USE_UPNP= USE_IPV6=1 BDB_INCLUDE_PATH='/usr/include/db4.8'
+	make -f makefile.unix USE_IPV6=1 BDB_INCLUDE_PATH='/usr/include/db4.8'
 	strip bitcoind
 
 
@@ -93,15 +78,6 @@ Notes
 -----
 The release is built with GCC and then "strip bitcoind" to strip the debug
 symbols, which reduces the executable size by about 90%.
-
-
-miniupnpc
----------
-	tar -xzvf miniupnpc-1.6.tar.gz
-	cd miniupnpc-1.6
-	make
-	sudo su
-	make install
 
 
 Berkeley DB

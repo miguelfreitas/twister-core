@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2009-2012, Arvid Norberg
+Copyright (c) 2009-2014, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -58,12 +58,6 @@ namespace libtorrent
 
 	char const* time_now_string()
 	{
-//		time_t t = std::time(0);
-//		tm* timeinfo = std::localtime(&t);
-//		static char str[200];
-//		std::strftime(str, 200, "%b %d %X", timeinfo);
-//		return str;
-
 		static const ptime start = time_now_hires();
 		static char ret[200];
 		int t = total_milliseconds(time_now_hires() - start);
@@ -82,7 +76,7 @@ namespace libtorrent
 	{
 		static const ptime start = time_now_hires();
 		char ret[200];
-		snprintf(ret, sizeof(ret), "%"PRId64, total_microseconds(time_now_hires() - start));
+		snprintf(ret, sizeof(ret), "%" PRId64, total_microseconds(time_now_hires() - start));
 		return ret;
 	}
 }
@@ -99,15 +93,15 @@ namespace libtorrent
 	{ return boost::posix_time::ptime(boost::posix_time::min_date_time); }
 	ptime max_time()
 	{ return boost::posix_time::ptime(boost::posix_time::max_date_time); }
-	time_duration seconds(int s) { return boost::posix_time::seconds(s); }
-	time_duration milliseconds(int s) { return boost::posix_time::milliseconds(s); }
-	time_duration microsec(int s) { return boost::posix_time::microsec(s); }
-	time_duration minutes(int s) { return boost::posix_time::minutes(s); }
-	time_duration hours(int s) { return boost::posix_time::hours(s); }
+	time_duration seconds(boost::int64_t s) { return boost::posix_time::seconds(s); }
+	time_duration milliseconds(boost::int64_t s) { return boost::posix_time::milliseconds(s); }
+	time_duration microsec(boost::int64_t s) { return boost::posix_time::microsec(s); }
+	time_duration minutes(boost::int64_t s) { return boost::posix_time::minutes(s); }
+	time_duration hours(boost::int64_t s) { return boost::posix_time::hours(s); }
 
-	int total_seconds(time_duration td)
+	boost::int64_t total_seconds(time_duration td)
 	{ return td.total_seconds(); }
-	int total_milliseconds(time_duration td)
+	boost::int64_t total_milliseconds(time_duration td)
 	{ return td.total_milliseconds(); }
 	boost::int64_t total_microseconds(time_duration td)
 	{ return td.total_microseconds(); }
@@ -188,14 +182,14 @@ namespace libtorrent
 		return ptime(now.QuadPart);
 	}
 
-	int total_seconds(time_duration td)
+	boost::int64_t total_seconds(time_duration td)
 	{
-		return int(performance_counter_to_microseconds(td.diff)
+		return boost::int64_t(performance_counter_to_microseconds(td.diff)
 			/ 1000000);
 	}
-	int total_milliseconds(time_duration td)
+	boost::int64_t total_milliseconds(time_duration td)
 	{
-		return int(performance_counter_to_microseconds(td.diff)
+		return boost::uint64_t(performance_counter_to_microseconds(td.diff)
 			/ 1000);
 	}
 	boost::int64_t total_microseconds(time_duration td)
@@ -203,26 +197,26 @@ namespace libtorrent
 		return performance_counter_to_microseconds(td.diff);
 	}
 
-	time_duration microsec(int s)
+	time_duration microsec(boost::int64_t s)
 	{
 		return time_duration(microseconds_to_performance_counter(s));
 	}
-	time_duration milliseconds(int s)
+	time_duration milliseconds(boost::int64_t s)
 	{
 		return time_duration(microseconds_to_performance_counter(
 			s * 1000));
 	}
-	time_duration seconds(int s)
+	time_duration seconds(boost::int64_t s)
 	{
 		return time_duration(microseconds_to_performance_counter(
 			s * 1000000));
 	}
-	time_duration minutes(int s)
+	time_duration minutes(boost::int64_t s)
 	{
 		return time_duration(microseconds_to_performance_counter(
 			s * 1000000 * 60));
 	}
-	time_duration hours(int s)
+	time_duration hours(boost::int64_t s)
 	{
 		return time_duration(microseconds_to_performance_counter(
 			s * 1000000 * 60 * 60));

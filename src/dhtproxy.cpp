@@ -74,7 +74,7 @@ namespace DhtProxy
         }
     }
     
-    vector<CNode*> getRandomDhtProxies()
+    vector<CNode*> getRandomDhtProxies(int *totalProxyNodes)
     {
         // (cs_vNodes) lock must be held!
         vector<CNode*> vNodesProxy;
@@ -83,6 +83,8 @@ namespace DhtProxy
                 vNodesProxy.push_back(pnode);
             }
         }
+        if( totalProxyNodes ) 
+            *totalProxyNodes = (int) vNodesProxy.size();
         std::random_shuffle(vNodesProxy.begin(),vNodesProxy.end());
         if(vNodesProxy.size() > numProxiesToUse) {
             vNodesProxy.resize(numProxiesToUse);

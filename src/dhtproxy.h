@@ -86,6 +86,8 @@ namespace DhtProxy
     // Handle a dhtput request received from TCP. send request to UDP. (server side)
     // return true if accepted.
     bool dhtputRequestReceived(const CDHTPutRequest& req, CNode* pfrom);
+    
+    vector<CNode*> getRandomDhtProxies(int *totalProxyNodes = NULL);
 }
 
 class CDHTTarget
