@@ -67,8 +67,9 @@ AC_DEFUN([AX_BOOST_LOCALE],
         [AC_LANG_PUSH([C++])
 			 CXXFLAGS_SAVE=$CXXFLAGS
 
-			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <boost/locale/generator.hpp>]],
-                                   [[boost::locale::generator gen;]])],
+			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <boost/locale.hpp>]],
+                                   [[boost::locale::generator gen;
+                                   std::locale::global(gen(""));]])],
                    ax_cv_boost_locale=yes, ax_cv_boost_locale=no)
 			 CXXFLAGS=$CXXFLAGS_SAVE
              AC_LANG_POP([C++])
