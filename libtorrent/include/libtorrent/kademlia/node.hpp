@@ -177,6 +177,7 @@ class TORRENT_EXTRA_EXPORT node_impl : boost::noncopyable
 typedef std::map<node_id, torrent_entry> table_t;
 typedef std::list<dht_storage_item> dht_storage_list_t;
 typedef std::map<node_id, dht_storage_list_t> dht_storage_table_t;
+typedef std::map< std::string, std::pair<int,int> > dht_posts_by_user_t; // total known, latest known
 
 public:
 	node_impl(alert_dispatcher* alert_disp, udp_socket_interface* sock
@@ -287,8 +288,9 @@ private:
 	std::set<traversal_algorithm*> m_running_requests;
 
 	void incoming_request(msg const& h, entry& e);
-	void store_dht_item(dht_storage_item &item, big_number const &target, 
+	bool store_dht_item(dht_storage_item &item, big_number const &target, 
 	                    bool multi, int seq, int height, std::pair<char const*, int> &bufv);
+	void process_newly_stored_entry(const lazy_entry &p);
 
 	node_id m_id;
 
@@ -299,6 +301,7 @@ public:
 private:
 	table_t m_map;
 	dht_storage_table_t m_storage_table;
+	dht_posts_by_user_t m_posts_by_user;
 
 	ptime m_last_tracker_tick;
 	ptime m_next_storage_refresh;
