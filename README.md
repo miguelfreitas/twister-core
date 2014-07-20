@@ -184,3 +184,7 @@ But be careful, it is in beta stage.
 
     cd ~/.twister/
     git clone https://github.com/iHedgehog/twister-calm.git ./html
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
