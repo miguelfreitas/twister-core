@@ -127,6 +127,27 @@ case $host in
      ;;
 esac
 
+###############################################################################
+# macro to check for specifig gcc flag support
+###############################################################################
+AC_DEFUN([CHECK_CXXFLAG], [
+  old_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS $1 -Werror"
+  AC_COMPILE_IFELSE([[
+#include <stdio.h>
+int main(int argc, char **argv)
+{
+  printf("test cxxflags, argc:%d argv[0]:%s", argc, argv[0]);
+  return 0;
+}
+    ]],
+    [check_cxxflag=yes],
+    [check_cxxflag=no])
+  CXXFLAGS="$old_CXXFLAGS"
+  if test "x$check_cxxflag" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS $1"
+  fi
+])
 
 ###############################################################################
 # Checking for needed base libraries
@@ -531,7 +552,8 @@ AS_CASE(["$ARG_ENABLE_SSE2"],
   ["yes"|"on"], [
       AC_MSG_RESULT([yes])
       AC_DEFINE([USE_SSE2],[1],[Enable SSE2])
-      CXXFLAGS="$CXXFLAGS -DUSE_SSE2 -msse2 -mstackrealign "
+      CXXFLAGS="$CXXFLAGS -DUSE_SSE2 -msse2 "
+      CHECK_CXXFLAG([-mstackrealign])
     ],
   ["no"|"off"], [
       AC_MSG_RESULT([no])
