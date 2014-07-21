@@ -24,22 +24,22 @@
 #
 # LICENSE
 #
-#   Copyright (c) 2009, 2010 Zmanda Inc. <http://www.zmanda.com/>
-#   Copyright (c) 2009, 2010 Dustin J. Mitchell <dustin@zmanda.com>
+#   Copyright (c) 2009,2010 Zmanda Inc. <http://www.zmanda.com/>
+#   Copyright (c) 2009,2010 Dustin J. Mitchell <dustin@zmanda.com>
 #
 #   Copying and distribution of this file, with or without modification, are
 #   permitted in any medium without royalty provided the copyright notice
 #   and this notice are preserved. This file is offered as-is, without any
 #   warranty.
 
-#serial 6
+#serial 8
 
 AU_ALIAS([CHECK_SSL], [AX_CHECK_OPENSSL])
 AC_DEFUN([AX_CHECK_OPENSSL], [
     found=false
-    AC_ARG_WITH(openssl,
-        AS_HELP_STRING([--with-openssl=DIR],
-            [root of the OpenSSL directory]),
+    AC_ARG_WITH([openssl],
+        [AS_HELP_STRING([--with-openssl=DIR],
+            [root of the OpenSSL directory])],
         [
             case "$withval" in
             "" | y | ye | yes | n | no)
@@ -51,7 +51,7 @@ AC_DEFUN([AX_CHECK_OPENSSL], [
         ], [
             # if pkg-config is installed and openssl has installed a .pc file,
             # then use that information and don't search ssldirs
-            AC_PATH_PROG(PKG_CONFIG, pkg-config)
+            AC_PATH_PROG([PKG_CONFIG], [pkg-config])
             if test x"$PKG_CONFIG" != x""; then
                 OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
                 if test $? = 0; then
@@ -106,13 +106,23 @@ AC_DEFUN([AX_CHECK_OPENSSL], [
     LIBS="$OPENSSL_LIBS $LIBS"
     CPPFLAGS="$OPENSSL_INCLUDES $CPPFLAGS"
     AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([#include <openssl/ssl.h>], [SSL_new(NULL)]),
+        [AC_LANG_PROGRAM([#include <openssl/ssl.h>], [SSL_new(NULL)])],
         [
             AC_MSG_RESULT([yes])
             $1
         ], [
-            AC_MSG_RESULT([no])
-            $2
+            # try adding -ldl to libs before giving up
+            OPENSSL_LIBS="$OPENSSL_LIBS -ldl"
+            LIBS="$OPENSSL_LIBS $save_LIBS"
+            AC_LINK_IFELSE(
+                [AC_LANG_PROGRAM([#include <openssl/ssl.h>], [SSL_new(NULL)])],
+                [
+                    AC_MSG_RESULT([yes])
+                    $1
+                ], [
+                    AC_MSG_RESULT([no])
+                    $2
+                ])
         ])
     CPPFLAGS="$save_CPPFLAGS"
     LDFLAGS="$save_LDFLAGS"
