@@ -3480,7 +3480,7 @@ namespace libtorrent
 		// closed, which is an edge case, but possible to happen when
 		// a peer makes a TCP and uTP connection in parallel.
 		// for outgoing connections however, why would we get this?
-		TORRENT_ASSERT(ec != error::invalid_argument || !m_outgoing);
+		//TORRENT_ASSERT(ec != error::invalid_argument || !m_outgoing);
 
 #ifdef TORRENT_STATS
 		++m_ses.m_disconnected_peers;
