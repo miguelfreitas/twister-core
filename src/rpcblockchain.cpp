@@ -149,6 +149,11 @@ Value getblockhash(const Array& params, bool fHelp)
         throw runtime_error("Block number out of range.");
 
     CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+    if (pblockindex == NULL) {
+        string errormsg = "getblockhash internal error: pblockindex == NULL. consider reindexing blocks (program may crash)";
+        printf("%s\n",errormsg.c_str());
+        throw runtime_error(errormsg);
+    }
     return pblockindex->phashBlock->GetHex();
 }
 
