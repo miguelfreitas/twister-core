@@ -39,6 +39,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/random.hpp>
 #include <boost/nondet_random.hpp>
 #include <boost/random/mersenne_twister.hpp>
+#include <boost/foreach.hpp>
 
 #include "libtorrent/io.hpp"
 #include "libtorrent/bencode.hpp"
@@ -348,9 +349,21 @@ namespace
 
 	void putData_confirm(entry::list_type const& values_list, dht_storage_item& item)
 	{
-		if( !item.confirmed && !values_list.empty() ) {
-			item.confirmed = true;
-			item.next_refresh_time = getNextRefreshTime();
+		if( !item.confirmed ) {
+			BOOST_FOREACH(const entry &e, values_list) {
+				entry const *sig_p = e.find_key("sig_p");
+				if( sig_p && sig_p->type() == entry::string_t &&
+				    sig_p->string() == item.sig_p ) {
+					item.confirmed = true;
+					break;
+				}
+			}
+			if( !item.confirmed && time(NULL) > item.local_add_time + 60*60*24*2 ) {
+				item.confirmed = true; // force confirm by timeout
+			}
+			if( item.confirmed ) {
+				item.next_refresh_time = getNextRefreshTime();
+			}
 		}
 	}
 
