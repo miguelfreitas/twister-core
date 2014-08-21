@@ -1013,6 +1013,8 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
 
 bool processReceivedDM(lazy_entry const* post)
 {
+    bool result = false;
+
     lazy_entry const* dm = post->dict_find_dict("dm");
     if( dm ) {
         ecies_secure_t sec;
@@ -1049,7 +1051,8 @@ bool processReceivedDM(lazy_entry const* post)
                     std::vector<StoredDirectMsg>::iterator it;
                     for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
                         if( stoDM.m_utcTime == (*it).m_utcTime &&
-                            stoDM.m_text    == (*it).m_text ) {
+                            stoDM.m_text    == (*it).m_text &&
+                            stoDM.m_fromMe  == (*it).m_fromMe ) {
                             break;
                         }
                         if( stoDM.m_utcTime < (*it).m_utcTime && !(*it).m_fromMe) {
@@ -1061,12 +1064,68 @@ bool processReceivedDM(lazy_entry const* post)
                         dmsFromToUser.push_back(stoDM);
                     }
 
-                    return true;
+                    result = true;
+                    break;
+                }
+            }
+        }
+
+        lazy_entry const* dmSelf = dm->dict_find_dict("s");
+        if( dmSelf ) {
+            std::string username = post->dict_find_string_value("n");
+
+            CKeyID keyID;
+            if( !pwalletMain->GetKeyIdFromUsername(username, keyID) ) {
+                printf("acceptSignedPost: username is unknown trying to decrypt DM.\n");
+            } else {
+                CKey key;
+                if (!pwalletMain->GetKey(keyID, key)) {
+                    printf("acceptSignedPost: private key not available trying to decrypt DM.\n");
+                } else {
+                    sec.key = dmSelf->dict_find_string_value("key");
+                    sec.mac = dmSelf->dict_find_string_value("mac");
+                    sec.orig = dmSelf->dict_find_int_value("orig");
+                    sec.body = dmSelf->dict_find_string_value("body");
+
+                    std::string textOut;
+                    if( key.Decrypt(sec, textOut) ) {
+                        int pos = textOut.find(' ');
+                        if( pos == std::string::npos ) {
+                            printf("acceptSignedPost: wrong private message format.\n");
+                        } else {
+                            std::string strTo  = textOut.substr(0, pos);
+                            std::string strMsg = textOut.substr(pos+1);
+
+                            StoredDirectMsg stoDM;
+                            stoDM.m_fromMe  = true;
+                            stoDM.m_text    = strMsg;
+                            stoDM.m_utcTime = post->dict_find_int_value("time");
+
+                            LOCK(cs_twister);
+                            // store this dm in memory list, but prevent duplicates
+                            std::vector<StoredDirectMsg> &dmsFromToUser = m_users[username].m_directmsg[strTo];
+                            std::vector<StoredDirectMsg>::iterator it;
+                            for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
+                                if( stoDM.m_utcTime == (*it).m_utcTime &&
+                                    stoDM.m_text    == (*it).m_text &&
+									stoDM.m_fromMe  == (*it).m_fromMe ) {
+                                    break;
+                                }
+                                if( stoDM.m_utcTime < (*it).m_utcTime) {
+                                    dmsFromToUser.insert(it, stoDM);
+                                    break;
+                                }
+                            }
+                            if( it == dmsFromToUser.end() ) {
+                                dmsFromToUser.push_back(stoDM);
+                            }
+                        }
+                    }
                 }
             }
         }
     }
-    return false;
+    return result;
 }
 
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags)
@@ -1763,6 +1822,14 @@ Value newdirectmsg(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INTERNAL_ERROR,
                            "error encrypting to pubkey of destination user");
 
+    entry dmSelf;
+    string strToAndMsg = strTo + " " + strMsg;
+    if( !createDirectMessage(dmSelf, strFrom, strToAndMsg) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,
+                           "error encrypting to pubkey of source user");
+
+    dm["s"] = dmSelf;
+
     entry v;
     if( !createSignedUserpost(v, strFrom, k, "",
                               NULL, NULL, &dm,
@@ -1775,16 +1842,6 @@ Value newdirectmsg(const Array& params, bool fHelp)
     std::string errmsg;
     if( !acceptSignedPost(buf.data(),buf.size(),strFrom,k,errmsg,NULL) )
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
-
-    {
-        StoredDirectMsg stoDM;
-        stoDM.m_fromMe  = true;
-        stoDM.m_text    = strMsg;
-        stoDM.m_utcTime = v["userpost"]["time"].integer();
-
-        LOCK(cs_twister);
-        m_users[strFrom].m_directmsg[strTo].push_back(stoDM);
-    }
 
     torrent_handle h = startTorrentUser(strFrom, true);
     h.add_piece(k,buf.data(),buf.size());
