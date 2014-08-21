@@ -70,6 +70,13 @@ static std::map<std::string,UserData> m_users;
 static CCriticalSection cs_seenHashtags;
 static std::map<std::string,double> m_seenHashtags;
 
+const double hashtagHalfLife      = 8*60*60;    // Halve votes within 8 hours (sec)
+const double hashtagExpiration    = 7*24*60*60; // Remove a hashtag from the list after ~ hashtagExpiration*count (sec)
+const int    hashtagTimerInterval = 60;         // Timer interval (sec)
+
+const double hashtagAgingFactor   = pow(0.5, hashtagTimerInterval/hashtagHalfLife);
+const double hashtagCriticalValue = pow(0.5, hashtagExpiration/hashtagHalfLife);
+
 class SimpleThreadCounter {
 public:
     SimpleThreadCounter(CCriticalSection *lock, int *counter, const char *name) :
@@ -848,6 +855,34 @@ void ThreadSessionAlerts()
     }
 }
 
+void ThreadHashtagsAging()
+{
+    SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "hashtags-aging");
+
+    while(!m_ses && !m_shuttingDownSession) {
+        MilliSleep(200);
+    }
+
+    while (m_ses && !m_shuttingDownSession) {
+
+        {
+            LOCK(cs_seenHashtags);
+            for( std::map<std::string,double>::iterator iter = m_seenHashtags.begin(); iter != m_seenHashtags.end(); ) {
+                iter->second *= hashtagAgingFactor;
+                if( iter->second < hashtagCriticalValue ) {
+                    m_seenHashtags.erase(iter++);
+                } else {
+                    ++iter;
+                }
+            }
+        }
+
+        for(int i=0; i<hashtagTimerInterval && !m_shuttingDownSession; ++i) {
+            MilliSleep(1000);
+        }
+    }
+}
+
 void startSessionTorrent(boost::thread_group& threadGroup)
 {
     printf("startSessionTorrent (waiting for external IP)\n");
@@ -868,6 +903,7 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     threadGroup.create_thread(boost::bind(&ThreadWaitExtIP));
     threadGroup.create_thread(boost::bind(&ThreadMaintainDHTNodes));
     threadGroup.create_thread(boost::bind(&ThreadSessionAlerts));
+    threadGroup.create_thread(boost::bind(&ThreadHashtagsAging));
 }
 
 void stopSessionTorrent()
@@ -1373,16 +1409,6 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
     if( message.find('#') == string::npos )
         return;
 
-    boost::int64_t curTime = GetAdjustedTime();
-    if( msgTime > curTime ) msgTime = curTime;
-    
-    double vote = 1.0;
-    if( msgTime + (2*3600) < curTime ) {
-        double timeDiff = (curTime - msgTime);
-        timeDiff /= (2*3600);
-        vote /= timeDiff;
-    }
-
     // split and look for hashtags
     vector<string> tokens;
     set<string> hashtags;
@@ -1403,6 +1429,12 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
     }
     
     if( hashtags.size() ) {
+        boost::int64_t curTime = GetAdjustedTime();
+        if( msgTime > curTime ) msgTime = curTime;
+
+        double timeDiff = (curTime - msgTime);
+        double vote = pow(0.5, timeDiff/hashtagHalfLife);
+
         LOCK(cs_seenHashtags);
         BOOST_FOREACH(string const& word, hashtags) {
             if( m_seenHashtags.count(word) ) {
