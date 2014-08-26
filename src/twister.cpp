@@ -2346,3 +2346,271 @@ Value torrentstatus(const Array& params, bool fHelp)
     
     return result;
 }
+
+Value search(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 4)
+        throw runtime_error(
+            "search <scope> <text> <count> [<username>]\n"
+            "search text in known data\n"
+            "<scope> is data area: messages, directmsgs, profiles, users, hashtags\n"
+            "<text> is a phrase to search\n"
+            "up to <count> entries are returned\n"
+            "<username> in messages scope is optional and allows to search in username's messages only\n"
+            "<username> in directmsgs scope is required and sets whose conversation to search");
+
+    string scope    = params[0].get_str();
+    string keyword  = params[1].get_str();
+    int    count    = params[2].get_int();
+    string username = params.size()==4 ? params[3].get_str() : string();
+
+    if( keyword.size() == 0 ) {
+        throw runtime_error("Empty <text> parameter");
+    }
+
+    Array ret;
+
+    if( scope == "messages" ) {
+        // search public messages
+        std::map< pair<std::string,int>, pair<int64,entry> > posts;
+
+        // search public messages in torrents
+        {
+            LOCK(cs_twister);
+
+            std::map<std::string,torrent_handle> users;
+            if( username.size() == 0 ) {
+                users = m_userTorrent;
+            } else {
+                if( m_userTorrent.count(username) )
+                    users[username] = m_userTorrent[username];
+            }
+
+            BOOST_FOREACH(const PAIRTYPE(std::string,torrent_handle)& item, users) {
+                std::vector<std::string> pieces;
+                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM);
+
+                BOOST_FOREACH(string const& piece, pieces) {
+                    if( piece.find(keyword) != string::npos ) {
+                        lazy_entry v;
+                        int pos;
+                        libtorrent::error_code ec;
+                        if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
+                            lazy_entry const* post = v.dict_find_dict("userpost");
+                            if( post ) {
+                                lazy_entry const* rt = post->dict_find_dict("rt");
+                                lazy_entry const* p = rt ? rt : post;
+                                string msg = p->dict_find_string_value("msg");
+                                if( msg.find(keyword) != string::npos ) {
+                                    string n = p->dict_find_string_value("n");
+                                    int k = p->dict_find_int_value("k");
+                                    int64 time = p->dict_find_int_value("time",-1);
+
+                                    entry vEntry;
+                                    vEntry = *p;
+                                    hexcapePost(vEntry);
+
+                                    posts[pair<std::string,int>(n,k)] = pair<int64,entry>(time,vEntry);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // search messages in dht
+        boost::shared_ptr<session> ses(m_ses);
+        if( ses )
+        {
+            entry data = ses->dht_getLocalData();
+
+            for (entry::dictionary_type::const_iterator i = data.dict().begin(); i != data.dict().end(); ++i) {
+                if ( i->second.type() != entry::list_t )
+                    continue;
+                for (entry::list_type::const_iterator j = i->second.list().begin(); j != i->second.list().end(); ++j) {
+                    string str_p = j->find_key("p")->string();
+                    if( str_p.find(keyword) != string::npos ) {
+                        lazy_entry p;
+                        int pos;
+                        libtorrent::error_code err;
+                        int ret = lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos);
+
+                        lazy_entry const* v = p.dict_find_dict("v");
+                        if( v ) {
+                            lazy_entry const* post = v->dict_find_dict("userpost");
+                            if( post ) {
+                                // post, mention, status
+                                lazy_entry const* rt = post->dict_find_dict("rt");
+                                lazy_entry const* p = rt ? rt : post;
+                                string msg = p->dict_find_string_value("msg");
+                                if( msg.find(keyword) != string::npos ) {
+                                    string n = p->dict_find_string_value("n");
+
+                                    if( username.size() == 0 || n == username ) {
+                                        int k = p->dict_find_int_value("k");
+
+                                        pair<std::string,int> post_id(n,k);
+                                        if( posts.count(post_id) == 0 ) {
+                                            int64 time = p->dict_find_int_value("time",-1);
+
+                                            entry vEntry;
+                                            vEntry = *p;
+                                            hexcapePost(vEntry);
+
+                                            posts[post_id] = pair<int64,entry>(time,vEntry);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        std::multimap<int64,entry> postsByTime;
+        BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(std::string,int),PAIRTYPE(int64,entry))& item, posts) {
+            postsByTime.insert(item.second);
+        }
+
+        std::multimap<int64,entry>::reverse_iterator rit;
+        for (rit=postsByTime.rbegin(); rit!=postsByTime.rend() && (int)ret.size() < count; ++rit) {
+            ret.push_back( entryToJson(rit->second) );
+        }
+
+    } else if( scope == "directmsgs" ) {
+        // search direct messages
+        if( m_users.count(username) ){
+            std::multimap<int64,entry> postsByTime;
+
+            {
+                LOCK(cs_twister);
+
+                BOOST_FOREACH(const PAIRTYPE(std::string,std::vector<StoredDirectMsg>)& list, m_users[username].m_directmsg) {
+                    string remoteUser = list.first;
+                    BOOST_FOREACH(const StoredDirectMsg& item, list.second) {
+                        if( item.m_text.find(keyword) != string::npos ) {
+                            int64 time = item.m_utcTime;
+                            entry vEntry;
+                            vEntry["remoteUser"] = remoteUser;
+                            vEntry["text"] = item.m_text;
+                            vEntry["time"] = time;
+                            vEntry["fromMe"] = item.m_fromMe;
+                            hexcapePost(vEntry);
+                            postsByTime.insert( pair<int64,entry>(time, vEntry) );
+                        }
+                    }
+                }
+            }
+
+            std::multimap<int64,entry>::reverse_iterator rit;
+            for (rit=postsByTime.rbegin(); rit!=postsByTime.rend() && (int)ret.size() < count; ++rit) {
+                ret.push_back( entryToJson(rit->second) );
+            }
+        }
+
+    } else if( scope == "profiles" ) {
+        // search dht profiles
+        boost::shared_ptr<session> ses(m_ses);
+        if( ses )
+        {
+            entry data = ses->dht_getLocalData();
+            std::map<string,entry> users;
+
+            for (entry::dictionary_type::const_iterator i = data.dict().begin(); i != data.dict().end(); ++i) {
+                if ( i->second.type() != entry::list_t )
+                    continue;
+                for (entry::list_type::const_iterator j = i->second.list().begin(); j != i->second.list().end(); ++j) {
+                    string str_p = j->find_key("p")->string();
+                    if( str_p.find(keyword) != string::npos ) {
+                        lazy_entry p;
+                        int pos;
+                        libtorrent::error_code err;
+                        int ret = lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos);
+
+                        lazy_entry const* target = p.dict_find_dict("target");
+                        if( target ) {
+                            string resource = target->dict_find_string_value("r");
+                            if( resource == "profile" ) {
+                                lazy_entry const* v = p.dict_find_dict("v");
+                                if( v ) {
+                                    string bio = v->dict_find_string_value("bio");
+                                    string fullname = v->dict_find_string_value("fullname");
+                                    string location = v->dict_find_string_value("location");
+                                    string url = v->dict_find_string_value("url");
+
+                                    if( bio.find(keyword) != string::npos ||
+                                        fullname.find(keyword) != string::npos ||
+                                        location.find(keyword) != string::npos ||
+                                        url.find(keyword) != string::npos ) {
+
+                                        string n = target->dict_find_string_value("n");
+                                        entry vEntry;
+                                        vEntry = *v;
+                                        users.insert(pair<string,entry>(n,vEntry));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            std::map<string,entry>::iterator it;
+            for (it=users.begin(); it!=users.end() && (int)ret.size() < count; ++it) {
+                entry user;
+                user["username"] = it->first;
+                user["profile"] = it->second;
+                ret.push_back( entryToJson(user) );
+            }
+        }
+
+    } else if( scope == "users" ) {
+        // search users (blockchain)
+        // @todo: there should be a faster way
+        std::multimap<string::size_type,std::string> usernamesByLength;
+
+        string allowed = "abcdefghijklmnopqrstuvwxyz0123456789_";
+        for( int i = 0; i < allowed.size(); ++i ) {
+            set<string> usernames;
+            string prefix(1, allowed[i]);
+            pblocktree->GetNamesFromPartial(prefix, usernames, std::numeric_limits<int>::max());
+
+            BOOST_FOREACH(string username, usernames) {
+                if( username.find(keyword) != string::npos ) {
+                    usernamesByLength.insert( pair<string::size_type,std::string>(username.size(), username) );
+                }
+            }
+        }
+
+        std::multimap<string::size_type,std::string>::iterator it;
+        for (it=usernamesByLength.begin(); it!=usernamesByLength.end() && (int)ret.size() < count; ++it) {
+            ret.push_back( entryToJson(it->second) );
+        }
+
+    } else if( scope == "hashtags" ) {
+        // search hashtags
+        std::multimap<string::size_type,std::string> hashtagsByLength;
+
+        {
+            LOCK(cs_seenHashtags);
+
+            BOOST_FOREACH(const PAIRTYPE(std::string,double)& item, m_seenHashtags) {
+                if (item.first.find(keyword) != std::string::npos) {
+                    hashtagsByLength.insert( pair<string::size_type,std::string>(item.first.size(), item.first) );
+                }
+            }
+        }
+
+        std::multimap<string::size_type,std::string>::iterator it;
+        for (it=hashtagsByLength.begin(); it!=hashtagsByLength.end() && (int)ret.size() < count; ++it) {
+            ret.push_back( entryToJson(it->second) );
+        }
+
+    } else {
+        throw runtime_error("Unknown <scope> value");
+    }
+
+    return ret;
+}

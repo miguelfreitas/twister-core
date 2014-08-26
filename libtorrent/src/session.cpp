@@ -869,6 +869,15 @@ namespace libtorrent
 #endif
 	}
 
+	entry session::dht_getLocalData() const
+	{
+#ifndef TORRENT_DISABLE_DHT
+		return m_impl->dht_getLocalData();
+#else
+		return entry();
+#endif
+	}
+
 	bool session::is_dht_running() const
 	{
 #ifndef TORRENT_DISABLE_DHT

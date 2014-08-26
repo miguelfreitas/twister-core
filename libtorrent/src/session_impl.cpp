@@ -5821,6 +5821,12 @@ retry:
 				      boost::bind( getDataDone_fun, this, username, resource, multi, _1, _2));
     }
 
+	entry session_impl::dht_getLocalData() const
+	{
+		entry state = m_dht->state();
+		return state["storage_table"];
+	}
+
 	void session_impl::on_dht_router_name_lookup(error_code const& e
 		, tcp::resolver::iterator host)
 	{
