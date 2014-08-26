@@ -1639,7 +1639,7 @@ int findLastPublicPostLocalUser( std::string strUsername )
         std::vector<std::string> pieces;
         int max_id = std::numeric_limits<int>::max();
         int since_id = -1;
-        h.get_pieces(pieces, 1, max_id, since_id, USERPOST_FLAG_RT);
+        h.get_pieces(pieces, 1, max_id, since_id, ~USERPOST_FLAG_DM);
 
         if( pieces.size() ) {
             string const& piece = pieces.front();
@@ -1866,7 +1866,7 @@ Value getposts(const Array& params, bool fHelp)
 
     int count          = params[0].get_int();
     Array users        = params[1].get_array();
-    int flags          = (params.size() > 2) ? params[2].get_int() : USERPOST_FLAG_RT;
+    int flags          = (params.size() > 2) ? params[2].get_int() : ~USERPOST_FLAG_DM;
 
     std::multimap<int64,entry> postsByTime;
 
