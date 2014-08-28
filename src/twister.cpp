@@ -1108,7 +1108,7 @@ bool processReceivedDM(lazy_entry const* post)
                             for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
                                 if( stoDM.m_utcTime == (*it).m_utcTime &&
                                     stoDM.m_text    == (*it).m_text &&
-									stoDM.m_fromMe  == (*it).m_fromMe ) {
+                                    stoDM.m_fromMe  == (*it).m_fromMe ) {
                                     break;
                                 }
                                 if( stoDM.m_utcTime < (*it).m_utcTime) {
