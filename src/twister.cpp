@@ -2347,25 +2347,191 @@ Value torrentstatus(const Array& params, bool fHelp)
     return result;
 }
 
+class TextSearch
+{
+public:
+    enum search_mode {
+        TEXTSEARCH_EXACT,
+        TEXTSEARCH_ALL,
+        TEXTSEARCH_ANY
+    };
+
+    TextSearch(std::string const &keyword, libtorrent::entry const &params);
+
+    bool matchText(std::string msg);
+    libtorrent::lazy_entry const* matchRawMessage(std::string const &rawMessage);
+
+private:
+    std::vector<std::string> keywords;
+    search_mode mode;
+    bool caseInsensitive;
+    int64_t timeMin, timeMax;
+    std::string username;
+};
+
+TextSearch::TextSearch(string const &keyword, entry const &params) :
+    mode(TEXTSEARCH_EXACT),
+    caseInsensitive(false),
+    timeMin(0),
+    timeMax(numeric_limits<int64_t>::max())
+{
+    entry const *pMode = params.find_key("mode");
+    if( pMode && pMode->type() == entry::string_t ) {
+        string strMode = pMode->string();
+        if( strMode == "all" ) {
+            mode = TEXTSEARCH_ALL;
+        } else if( strMode == "any" ) {
+            mode = TEXTSEARCH_ANY;
+        }
+    }
+
+    entry const *pCase = params.find_key("case");
+    if( pCase && pCase->type() == entry::string_t && pCase->string() == "insensitive" ) {
+        caseInsensitive = true;
+    }
+
+    int64_t now = GetAdjustedTime();
+
+    entry const *pAgeMin = params.find_key("agemin");
+    if( pAgeMin && pAgeMin->type() == entry::int_t ) {
+        timeMax = now - pAgeMin->integer() * 24*60*60;
+    }
+
+    entry const *pAgeMax = params.find_key("agemax");
+    if( pAgeMax && pAgeMax->type() == entry::int_t ) {
+        timeMin = now - pAgeMax->integer() * 24*60*60;
+    }
+
+    entry const *pUsername = params.find_key("username");
+    if( pUsername && pUsername->type() == entry::string_t ) {
+        username = pUsername->string();
+    }
+
+    if( mode == TEXTSEARCH_EXACT ) {
+        keywords.push_back( keyword );
+    } else {
+        stringstream stream( keyword );
+        string word;
+        while( getline(stream, word, ' ') ) {
+            if( !word.empty() ) {
+                keywords.push_back( word );
+            }
+        }
+    }
+
+    if( caseInsensitive ) {
+        for( vector<string>::iterator it=keywords.begin(); it != keywords.end(); ++it ) {
+#ifdef HAVE_BOOST_LOCALE
+            *it = boost::locale::to_lower(*it);
+#else
+            boost::algorithm::to_lower(*it);
+#endif
+        }
+    }
+}
+
+bool TextSearch::matchText(string msg)
+{
+    if( keywords.size() == 0 ) {
+        return false;
+    }
+
+    if( caseInsensitive ) {
+#ifdef HAVE_BOOST_LOCALE
+        msg = boost::locale::to_lower(msg);
+#else
+        boost::algorithm::to_lower(msg);
+#endif
+    }
+
+    switch( mode ) {
+    case TEXTSEARCH_EXACT:
+           return msg.find(keywords[0]) != string::npos;
+    case TEXTSEARCH_ALL:
+        for( vector<string>::const_iterator it=keywords.begin(); it != keywords.end(); ++it ) {
+            if( msg.find(*it) == string::npos ) {
+                return false;
+            }
+        }
+        return true;
+    case TEXTSEARCH_ANY:
+        for( vector<string>::const_iterator it=keywords.begin(); it != keywords.end(); ++it ) {
+            if( msg.find(*it) != string::npos ) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage)
+{
+    if( keywords.size() == 0 ) {
+        return 0;
+    }
+    // fast check
+    if( mode != TEXTSEARCH_ANY && rawMessage.find(keywords[0]) == string::npos ) {
+        return 0;
+    }
+
+    lazy_entry v;
+    int pos;
+    libtorrent::error_code ec;
+    if (lazy_bdecode(rawMessage.data(), rawMessage.data()+rawMessage.size(), v, ec, &pos) == 0) {
+        lazy_entry const* vv = v.dict_find_dict("v");
+        lazy_entry const* post = vv ? vv->dict_find_dict("userpost") : v.dict_find_dict("userpost");
+        if( post ) {
+            lazy_entry const* rt = post->dict_find_dict("rt");
+            lazy_entry const* p = rt ? rt : post;
+
+            if( username.length() ) {
+                string user = p->dict_find_string_value("n");
+                if( user != username ) {
+                    return 0;
+                }
+            }
+
+            int64_t time = p->dict_find_int_value("time");
+            if( time < timeMin || time > timeMax ) {
+                return 0;
+            }
+
+            string msg = p->dict_find_string_value("msg");
+            return matchText( msg ) ? p : 0;
+        }
+    }
+    return 0;
+}
+
 Value search(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "search <scope> <text> <count> [<username>]\n"
-            "search text in known data\n"
+            "search <scope> <text> <count> ['{\"username\":username,\"mode\":\"exact\"|\"all\"|\"any\",\"case\":\"sensitive\"\"insensitive\",\"agemin\":agemin,\"agemax\":agemin}']\n"
+            "search text in available data\n"
             "<scope> is data area: messages, directmsgs, profiles, users, hashtags\n"
             "<text> is a phrase to search\n"
             "up to <count> entries are returned\n"
             "<username> in messages scope is optional and allows to search in username's messages only\n"
-            "<username> in directmsgs scope is required and sets whose conversation to search");
+            "<username> in directmsgs scope is required and sets whose conversation to search\n"
+            "\"mode\" and \"case\" are search mode options\n"
+            "\"agemin\" and \"agemax\" (days) are message filters\n"
+            "\"mode\", \"case\", \"agemin\", and \"agemax\" are optional");
 
     string scope    = params[0].get_str();
     string keyword  = params[1].get_str();
     int    count    = params[2].get_int();
-    string username = params.size()==4 ? params[3].get_str() : string();
+    entry  options  = params.size()==4 ? jsonToEntry(params[3].get_obj()) : entry();
+    string username;
 
     if( keyword.size() == 0 ) {
         throw runtime_error("Empty <text> parameter");
+    }
+
+    entry const *pUsername = options.find_key("username");
+    if( pUsername && pUsername->type() == entry::string_t ) {
+        username = pUsername->string();
     }
 
     Array ret;
@@ -2373,6 +2539,8 @@ Value search(const Array& params, bool fHelp)
     if( scope == "messages" ) {
         // search public messages
         std::map< pair<std::string,int>, pair<int64,entry> > posts;
+
+        TextSearch searcher(keyword, options);
 
         // search public messages in torrents
         {
@@ -2391,29 +2559,17 @@ Value search(const Array& params, bool fHelp)
                 item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM);
 
                 BOOST_FOREACH(string const& piece, pieces) {
-                    if( piece.find(keyword) != string::npos ) {
-                        lazy_entry v;
-                        int pos;
-                        libtorrent::error_code ec;
-                        if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
-                            lazy_entry const* post = v.dict_find_dict("userpost");
-                            if( post ) {
-                                lazy_entry const* rt = post->dict_find_dict("rt");
-                                lazy_entry const* p = rt ? rt : post;
-                                string msg = p->dict_find_string_value("msg");
-                                if( msg.find(keyword) != string::npos ) {
-                                    string n = p->dict_find_string_value("n");
-                                    int k = p->dict_find_int_value("k");
-                                    int64 time = p->dict_find_int_value("time",-1);
+                    lazy_entry const* p = searcher.matchRawMessage(piece);
+                    if( p ) {
+                        string n = p->dict_find_string_value("n");
+                        int k = p->dict_find_int_value("k");
+                        int64 time = p->dict_find_int_value("time",-1);
 
-                                    entry vEntry;
-                                    vEntry = *p;
-                                    hexcapePost(vEntry);
+                        entry vEntry;
+                        vEntry = *p;
+                        hexcapePost(vEntry);
 
-                                    posts[pair<std::string,int>(n,k)] = pair<int64,entry>(time,vEntry);
-                                }
-                            }
-                        }
+                        posts[pair<std::string,int>(n,k)] = pair<int64,entry>(time,vEntry);
                     }
                 }
             }
@@ -2430,39 +2586,19 @@ Value search(const Array& params, bool fHelp)
                     continue;
                 for (entry::list_type::const_iterator j = i->second.list().begin(); j != i->second.list().end(); ++j) {
                     string str_p = j->find_key("p")->string();
-                    if( str_p.find(keyword) != string::npos ) {
-                        lazy_entry p;
-                        int pos;
-                        libtorrent::error_code err;
-                        int ret = lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos);
+                    lazy_entry const* p = searcher.matchRawMessage(str_p);
+                    if( p ) {
+                        string n = p->dict_find_string_value("n");
+                        int k = p->dict_find_int_value("k");
+                        pair<std::string,int> post_id(n,k);
+                        if( posts.count(post_id) == 0 ) {
+                            int64 time = p->dict_find_int_value("time",-1);
 
-                        lazy_entry const* v = p.dict_find_dict("v");
-                        if( v ) {
-                            lazy_entry const* post = v->dict_find_dict("userpost");
-                            if( post ) {
-                                // post, mention, status
-                                lazy_entry const* rt = post->dict_find_dict("rt");
-                                lazy_entry const* p = rt ? rt : post;
-                                string msg = p->dict_find_string_value("msg");
-                                if( msg.find(keyword) != string::npos ) {
-                                    string n = p->dict_find_string_value("n");
+                            entry vEntry;
+                            vEntry = *p;
+                            hexcapePost(vEntry);
 
-                                    if( username.size() == 0 || n == username ) {
-                                        int k = p->dict_find_int_value("k");
-
-                                        pair<std::string,int> post_id(n,k);
-                                        if( posts.count(post_id) == 0 ) {
-                                            int64 time = p->dict_find_int_value("time",-1);
-
-                                            entry vEntry;
-                                            vEntry = *p;
-                                            hexcapePost(vEntry);
-
-                                            posts[post_id] = pair<int64,entry>(time,vEntry);
-                                        }
-                                    }
-                                }
-                            }
+                            posts[post_id] = pair<int64,entry>(time,vEntry);
                         }
                     }
                 }
@@ -2481,8 +2617,10 @@ Value search(const Array& params, bool fHelp)
 
     } else if( scope == "directmsgs" ) {
         // search direct messages
-        if( m_users.count(username) ){
+        if( m_users.count(username) ) {
             std::multimap<int64,entry> postsByTime;
+
+            TextSearch searcher(keyword, options);
 
             {
                 LOCK(cs_twister);
@@ -2490,7 +2628,7 @@ Value search(const Array& params, bool fHelp)
                 BOOST_FOREACH(const PAIRTYPE(std::string,std::vector<StoredDirectMsg>)& list, m_users[username].m_directmsg) {
                     string remoteUser = list.first;
                     BOOST_FOREACH(const StoredDirectMsg& item, list.second) {
-                        if( item.m_text.find(keyword) != string::npos ) {
+                        if( searcher.matchText(item.m_text) ) {
                             int64 time = item.m_utcTime;
                             entry vEntry;
                             vEntry["remoteUser"] = remoteUser;
@@ -2518,38 +2656,38 @@ Value search(const Array& params, bool fHelp)
             entry data = ses->dht_getLocalData();
             std::map<string,entry> users;
 
+            TextSearch searcher(keyword, options);
+
             for (entry::dictionary_type::const_iterator i = data.dict().begin(); i != data.dict().end(); ++i) {
                 if ( i->second.type() != entry::list_t )
                     continue;
                 for (entry::list_type::const_iterator j = i->second.list().begin(); j != i->second.list().end(); ++j) {
                     string str_p = j->find_key("p")->string();
-                    if( str_p.find(keyword) != string::npos ) {
-                        lazy_entry p;
-                        int pos;
-                        libtorrent::error_code err;
-                        int ret = lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos);
+                    lazy_entry p;
+                    int pos;
+                    libtorrent::error_code err;
+                    int ret = lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos);
 
-                        lazy_entry const* target = p.dict_find_dict("target");
-                        if( target ) {
-                            string resource = target->dict_find_string_value("r");
-                            if( resource == "profile" ) {
-                                lazy_entry const* v = p.dict_find_dict("v");
-                                if( v ) {
-                                    string bio = v->dict_find_string_value("bio");
-                                    string fullname = v->dict_find_string_value("fullname");
-                                    string location = v->dict_find_string_value("location");
-                                    string url = v->dict_find_string_value("url");
+                    lazy_entry const* target = p.dict_find_dict("target");
+                    if( target ) {
+                        string resource = target->dict_find_string_value("r");
+                        if( resource == "profile" ) {
+                            lazy_entry const* v = p.dict_find_dict("v");
+                            if( v ) {
+                                string bio = v->dict_find_string_value("bio");
+                                string fullname = v->dict_find_string_value("fullname");
+                                string location = v->dict_find_string_value("location");
+                                string url = v->dict_find_string_value("url");
 
-                                    if( bio.find(keyword) != string::npos ||
-                                        fullname.find(keyword) != string::npos ||
-                                        location.find(keyword) != string::npos ||
-                                        url.find(keyword) != string::npos ) {
+                                if( searcher.matchText(bio) ||
+                                    searcher.matchText(fullname) ||
+                                    searcher.matchText(location) ||
+                                    searcher.matchText(url) ) {
 
-                                        string n = target->dict_find_string_value("n");
-                                        entry vEntry;
-                                        vEntry = *v;
-                                        users.insert(pair<string,entry>(n,vEntry));
-                                    }
+                                    string n = target->dict_find_string_value("n");
+                                    entry vEntry;
+                                    vEntry = *v;
+                                    users.insert(pair<string,entry>(n,vEntry));
                                 }
                             }
                         }
@@ -2570,6 +2708,8 @@ Value search(const Array& params, bool fHelp)
         // search users (blockchain)
         // @todo: there should be a faster way
         std::multimap<string::size_type,std::string> usernamesByLength;
+
+        boost::algorithm::to_lower(keyword);
 
         string allowed = "abcdefghijklmnopqrstuvwxyz0123456789_";
         for( int i = 0; i < allowed.size(); ++i ) {
@@ -2592,6 +2732,12 @@ Value search(const Array& params, bool fHelp)
     } else if( scope == "hashtags" ) {
         // search hashtags
         std::multimap<string::size_type,std::string> hashtagsByLength;
+
+#ifdef HAVE_BOOST_LOCALE
+        keyword = boost::locale::to_lower(keyword);
+#else
+        boost::algorithm::to_lower(keyword);
+#endif
 
         {
             LOCK(cs_seenHashtags);
