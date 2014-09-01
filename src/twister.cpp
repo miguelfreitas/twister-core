@@ -1041,7 +1041,7 @@ bool processReceivedDM(lazy_entry const* post)
                     StoredDirectMsg stoDM;
                     stoDM.m_fromMe  = false;
                     stoDM.m_text    = textOut;
-                    stoDM.m_utcTime = post->dict_find_int_value("time");;
+                    stoDM.m_utcTime = post->dict_find_int_value("time");
 
                     LOCK(cs_twister);
                     // store this dm in memory list, but prevent duplicates
