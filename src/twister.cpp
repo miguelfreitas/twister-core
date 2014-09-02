@@ -2359,7 +2359,7 @@ public:
     TextSearch(std::string const &keyword, libtorrent::entry const &params);
 
     bool matchText(std::string msg);
-    libtorrent::lazy_entry const* matchRawMessage(std::string const &rawMessage);
+    libtorrent::lazy_entry const* matchRawMessage(std::string const &rawMessage, libtorrent::lazy_entry &v);
 
 private:
     std::vector<std::string> keywords;
@@ -2465,7 +2465,7 @@ bool TextSearch::matchText(string msg)
     return false;
 }
 
-lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage)
+lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, libtorrent::lazy_entry &v)
 {
     if( keywords.size() == 0 ) {
         return 0;
@@ -2475,7 +2475,6 @@ lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage)
         return 0;
     }
 
-    lazy_entry v;
     int pos;
     libtorrent::error_code ec;
     if (lazy_bdecode(rawMessage.data(), rawMessage.data()+rawMessage.size(), v, ec, &pos) == 0) {
@@ -2539,6 +2538,7 @@ Value search(const Array& params, bool fHelp)
     if( scope == "messages" ) {
         // search public messages
         std::map< pair<std::string,int>, pair<int64,entry> > posts;
+        lazy_entry v;
 
         TextSearch searcher(keyword, options);
 
@@ -2547,6 +2547,7 @@ Value search(const Array& params, bool fHelp)
             LOCK(cs_twister);
 
             std::map<std::string,torrent_handle> users;
+
             if( username.size() == 0 ) {
                 users = m_userTorrent;
             } else {
@@ -2559,7 +2560,7 @@ Value search(const Array& params, bool fHelp)
                 item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM);
 
                 BOOST_FOREACH(string const& piece, pieces) {
-                    lazy_entry const* p = searcher.matchRawMessage(piece);
+                    lazy_entry const* p = searcher.matchRawMessage(piece, v);
                     if( p ) {
                         string n = p->dict_find_string_value("n");
                         int k = p->dict_find_int_value("k");
@@ -2581,24 +2582,30 @@ Value search(const Array& params, bool fHelp)
         {
             entry data = ses->dht_getLocalData();
 
-            for (entry::dictionary_type::const_iterator i = data.dict().begin(); i != data.dict().end(); ++i) {
-                if ( i->second.type() != entry::list_t )
-                    continue;
-                for (entry::list_type::const_iterator j = i->second.list().begin(); j != i->second.list().end(); ++j) {
-                    string str_p = j->find_key("p")->string();
-                    lazy_entry const* p = searcher.matchRawMessage(str_p);
-                    if( p ) {
-                        string n = p->dict_find_string_value("n");
-                        int k = p->dict_find_int_value("k");
-                        pair<std::string,int> post_id(n,k);
-                        if( posts.count(post_id) == 0 ) {
-                            int64 time = p->dict_find_int_value("time",-1);
+            if( data.type() == entry::dictionary_t ) {
 
-                            entry vEntry;
-                            vEntry = *p;
-                            hexcapePost(vEntry);
+                for (entry::dictionary_type::const_iterator i = data.dict().begin(); i != data.dict().end(); ++i) {
+                    if ( i->second.type() != entry::list_t )
+                        continue;
+                    for (entry::list_type::const_iterator j = i->second.list().begin(); j != i->second.list().end(); ++j) {
+                        entry const* key_p = j->find_key("p");
+                        if( key_p ) {
+                            string str_p = key_p->string();
+                            lazy_entry const* p = searcher.matchRawMessage(str_p, v);
+                            if( p ) {
+                                string n = p->dict_find_string_value("n");
+                                int k = p->dict_find_int_value("k");
+                                pair<std::string,int> post_id(n,k);
+                                if( posts.count(post_id) == 0 ) {
+                                    int64 time = p->dict_find_int_value("time",-1);
 
-                            posts[post_id] = pair<int64,entry>(time,vEntry);
+                                    entry vEntry;
+                                    vEntry = *p;
+                                    hexcapePost(vEntry);
+
+                                    posts[post_id] = pair<int64,entry>(time,vEntry);
+                                }
+                            }
                         }
                     }
                 }
