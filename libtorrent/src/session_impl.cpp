@@ -5823,8 +5823,12 @@ retry:
 
 	entry session_impl::dht_getLocalData() const
 	{
-		entry state = m_dht->state();
-		return state["storage_table"];
+		if( m_dht ) {
+			entry state = m_dht->state();
+			return state["storage_table"];
+		} else {
+			return entry();
+		}
 	}
 
 	void session_impl::on_dht_router_name_lookup(error_code const& e
