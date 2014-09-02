@@ -2359,6 +2359,7 @@ public:
     TextSearch(std::string const &keyword, libtorrent::entry const &params);
 
     bool matchText(std::string msg);
+    bool matchTime(int64_t time);
     libtorrent::lazy_entry const* matchRawMessage(std::string const &rawMessage, libtorrent::lazy_entry &v);
 
 private:
@@ -2372,7 +2373,7 @@ private:
 TextSearch::TextSearch(string const &keyword, entry const &params) :
     mode(TEXTSEARCH_EXACT),
     caseInsensitive(false),
-    timeMin(0),
+    timeMin(numeric_limits<int64_t>::min()),
     timeMax(numeric_limits<int64_t>::max())
 {
     entry const *pMode = params.find_key("mode");
@@ -2436,7 +2437,7 @@ bool TextSearch::matchText(string msg)
         return false;
     }
 
-    if( caseInsensitive ) {
+    if( caseInsensitive ) { // that is why msg is passed by value
 #ifdef HAVE_BOOST_LOCALE
         msg = boost::locale::to_lower(msg);
 #else
@@ -2465,7 +2466,12 @@ bool TextSearch::matchText(string msg)
     return false;
 }
 
-lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, libtorrent::lazy_entry &v)
+inline bool TextSearch::matchTime(int64_t time)
+{
+    return time >= timeMin && time <= timeMax;
+}
+
+lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, lazy_entry &v)
 {
     if( keywords.size() == 0 ) {
         return 0;
@@ -2492,7 +2498,7 @@ lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, libtorre
             }
 
             int64_t time = p->dict_find_int_value("time");
-            if( time < timeMin || time > timeMax ) {
+            if( !matchTime(time) ) {
                 return 0;
             }
 
@@ -2636,14 +2642,16 @@ Value search(const Array& params, bool fHelp)
                     string remoteUser = list.first;
                     BOOST_FOREACH(const StoredDirectMsg& item, list.second) {
                         if( searcher.matchText(item.m_text) ) {
-                            int64 time = item.m_utcTime;
-                            entry vEntry;
-                            vEntry["remoteUser"] = remoteUser;
-                            vEntry["text"] = item.m_text;
-                            vEntry["time"] = time;
-                            vEntry["fromMe"] = item.m_fromMe;
-                            hexcapePost(vEntry);
-                            postsByTime.insert( pair<int64,entry>(time, vEntry) );
+                            int64_t time = item.m_utcTime;
+                            if( searcher.matchTime(time) ) {
+                                entry vEntry;
+                                vEntry["remoteUser"] = remoteUser;
+                                vEntry["text"] = item.m_text;
+                                vEntry["time"] = time;
+                                vEntry["fromMe"] = item.m_fromMe;
+                                hexcapePost(vEntry);
+                                postsByTime.insert( pair<int64,entry>(time, vEntry) );
+                            }
                         }
                     }
                 }
@@ -2681,15 +2689,10 @@ Value search(const Array& params, bool fHelp)
                         if( resource == "profile" ) {
                             lazy_entry const* v = p.dict_find_dict("v");
                             if( v ) {
-                                string bio = v->dict_find_string_value("bio");
-                                string fullname = v->dict_find_string_value("fullname");
-                                string location = v->dict_find_string_value("location");
-                                string url = v->dict_find_string_value("url");
-
-                                if( searcher.matchText(bio) ||
-                                    searcher.matchText(fullname) ||
-                                    searcher.matchText(location) ||
-                                    searcher.matchText(url) ) {
+                                if( searcher.matchText(v->dict_find_string_value("bio")) ||
+                                    searcher.matchText(v->dict_find_string_value("fullname")) ||
+                                    searcher.matchText(v->dict_find_string_value("location")) ||
+                                    searcher.matchText(v->dict_find_string_value("url")) ) {
 
                                     string n = target->dict_find_string_value("n");
                                     entry vEntry;
