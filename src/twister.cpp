@@ -2507,7 +2507,7 @@ Value search(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "search <scope> <text> <count> ['{\"username\":username,\"mode\":\"exact\"|\"all\"|\"any\",\"case\":\"sensitive\"\"insensitive\",\"agemin\":agemin,\"agemax\":agemin}']\n"
+            "search <scope> <text> <count> ['{\"username\":username,\"mode\":\"exact\"|\"all\"|\"any\",\"case\":\"sensitive\"|\"insensitive\",\"agemin\":agemin,\"agemax\":agemin}']\n"
             "search text in available data\n"
             "<scope> is data area: messages, directmsgs, profiles, users, hashtags\n"
             "<text> is a phrase to search\n"
@@ -2515,7 +2515,7 @@ Value search(const Array& params, bool fHelp)
             "<username> in messages scope is optional and allows to search in username's messages only\n"
             "<username> in directmsgs scope is required and sets whose conversation to search\n"
             "\"mode\" and \"case\" are search mode options\n"
-            "\"agemin\" and \"agemax\" (days) are message filters\n"
+            "\"agemin\" and \"agemax\" (days) are message date filter\n"
             "\"mode\", \"case\", \"agemin\", and \"agemax\" are optional");
 
     string scope    = params[0].get_str();
