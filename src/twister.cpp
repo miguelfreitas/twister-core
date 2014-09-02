@@ -2471,7 +2471,7 @@ lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, libtorre
         return 0;
     }
     // fast check
-    if( mode != TEXTSEARCH_ANY && rawMessage.find(keywords[0]) == string::npos ) {
+    if( !caseInsensitive && mode != TEXTSEARCH_ANY && rawMessage.find(keywords[0]) == string::npos ) {
         return 0;
     }
 
