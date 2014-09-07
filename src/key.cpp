@@ -454,6 +454,11 @@ public:
         unsigned int mac_length = cryptex.mac.size();
 
         // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
+#if (OPENSSL_VERSION_NUMBER < 0x000909000)
+	HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL);
+	HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size());
+	HMAC_Final(&hmac, reinterpret_cast<unsigned char *>(&cryptex.mac[0]), &mac_length);
+#else
         if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
             HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
             HMAC_Final(&hmac, reinterpret_cast<unsigned char *>(&cryptex.mac[0]), &mac_length) != 1) {
@@ -463,9 +468,11 @@ public:
                 HMAC_CTX_cleanup(&hmac);
                 return false;
         }
+#endif
 
         HMAC_CTX_cleanup(&hmac);
         return true;
+
     }
 
     bool Decrypt(ecies_secure_t const &cryptex, std::string &vchText )
@@ -563,6 +570,11 @@ public:
         unsigned char md[EVP_MAX_MD_SIZE];
 
         // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
+#if (OPENSSL_VERSION_NUMBER < 0x000909000)
+        HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL);
+        HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size());
+	HMAC_Final(&hmac, md, &mac_length);
+#else
         if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
             HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
             HMAC_Final(&hmac, md, &mac_length) != 1) {
@@ -572,6 +584,7 @@ public:
                 HMAC_CTX_cleanup(&hmac);
                 return false;
         }
+#endif
 
         HMAC_CTX_cleanup(&hmac);
 
