@@ -393,7 +393,9 @@ void ThreadWaitExtIP()
         for (i = m_users.begin(); i != m_users.end(); ++i) {
             UserData const &data = i->second;
             BOOST_FOREACH(string username, data.m_following) {
-                torrentsToStart.insert(username);
+                if ( !data.m_blacklist.count(username)) {
+                   torrentsToStart.insert(username);
+                }
             }
         }
 
@@ -2094,12 +2096,17 @@ Value addtoblacklist(const Array& params, bool fHelp)
 
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
-        torrent_handle h = startTorrentUser(username, true);
 
+        torrent_handle h = getTorrentUser(username);
         if( h.is_valid() ) {
-            LOCK(cs_twister);
-            m_users[localUser].m_blacklist.insert(username);
+            boost::shared_ptr<session> ses(m_ses);
+            if ( ses ) {
+                ses->remove_torrent(h);
+            }
         }
+
+        LOCK(cs_twister);
+        m_users[localUser].m_blacklist.insert(username);
     }
 
     return Value();
