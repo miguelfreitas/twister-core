@@ -19,6 +19,9 @@ struct StoredDirectMsg {
 // in-memory data per wallet user
 struct UserData {
     std::set<std::string> m_following;
+
+    std::set<std::string> m_blacklist; // allow user to ignore someone's message by adding them(username) to blacklist
+    
     // m_directmsg key is the other username
     std::map<std::string, std::vector<StoredDirectMsg> > m_directmsg;
 };

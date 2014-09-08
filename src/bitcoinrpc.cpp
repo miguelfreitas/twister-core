@@ -256,6 +256,9 @@ static const CRPCCommand vRPCCommands[] =
     { "follow",                 &follow,                 false,     true,       false },
     { "unfollow",               &unfollow,               false,     true,       false },
     { "getfollowing",           &getfollowing,           false,     true,       false },
+    { "ignore",                 &addtoblacklist,         false,     true,       false },
+    { "unignore",               &removefromblacklist,    false,     true,       false },
+    { "getblacklist",           &getblacklist,           false,     true,       false },
     { "getlasthave",            &getlasthave,            false,     true,       false },
     { "getnumpieces",           &getnumpieces,           false,     true,       false },
     { "listusernamespartial",   &listusernamespartial,   false,     true,       true },
@@ -1308,6 +1311,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getdirectmsgs"          && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "follow"                 && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "unfollow"               && n > 1) ConvertTo<Array>(params[1]);
+    if (strMethod == "ignore"                 && n > 1) ConvertTo<Array>(params[1]);
+    if (strMethod == "unignore"               && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 2) ConvertTo<bool>(params[2]);
     if (strMethod == "gettrendinghashtags"    && n > 0) ConvertTo<boost::int64_t>(params[0]);
