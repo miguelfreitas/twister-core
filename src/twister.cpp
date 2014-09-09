@@ -159,6 +159,13 @@ torrent_handle startTorrentUser(std::string const &username, bool following)
     return m_userTorrent[username];
 }
 
+void stopTorrentUser(std::string const &username) {
+    boost::shared_ptr<session> ses(m_ses);
+    if (ses) {
+        ses->remove_torrent(getTorrentUser(username));
+    }
+}
+
 torrent_handle getTorrentUser(std::string const &username)
 {
     LOCK(cs_twister);
@@ -2052,12 +2059,16 @@ Value unfollow(const Array& params, bool fHelp)
     string localUser = params[0].get_str();
     Array users      = params[1].get_array();
 
-    LOCK(cs_twister);
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
 
         if( m_users.count(localUser) &&
             m_users[localUser].m_following.count(username) ) {
+            if ( m_users[localUser].m_blacklist.count(username) ) {
+                stopTorrentUser(username);
+            }
+
+            LOCK(cs_twister);
             m_users[localUser].m_following.erase(username);
         }
     }
@@ -2097,12 +2108,8 @@ Value addtoblacklist(const Array& params, bool fHelp)
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
 
-        torrent_handle h = getTorrentUser(username);
-        if( h.is_valid() ) {
-            boost::shared_ptr<session> ses(m_ses);
-            if ( ses ) {
-                ses->remove_torrent(h);
-            }
+        if ( !m_users[localUser].m_following.count(username) ) {
+            stopTorrentUser(username);
         }
 
         LOCK(cs_twister);
@@ -2122,12 +2129,17 @@ Value removefromblacklist(const Array& params, bool fHelp)
     string localUser = params[0].get_str();
     Array users      = params[1].get_array();
 
-    LOCK(cs_twister);
     for( unsigned int u = 0; u < users.size(); u++ ) {
         string username = users[u].get_str();
 
         if( m_users.count(localUser) &&
             m_users[localUser].m_blacklist.count(username) ) {
+
+            if( m_users[localUser].m_following.count(username) ) {
+                startTorrentUser(username, true);
+            }
+            
+            LOCK(cs_twister);
             m_users[localUser].m_blacklist.erase(username);
         }
     }
