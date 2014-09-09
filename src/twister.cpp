@@ -159,13 +159,6 @@ torrent_handle startTorrentUser(std::string const &username, bool following)
     return m_userTorrent[username];
 }
 
-void stopTorrentUser(std::string const &username) {
-    boost::shared_ptr<session> ses(m_ses);
-    if (ses) {
-        ses->remove_torrent(getTorrentUser(username));
-    }
-}
-
 torrent_handle getTorrentUser(std::string const &username)
 {
     LOCK(cs_twister);
@@ -173,6 +166,13 @@ torrent_handle getTorrentUser(std::string const &username)
         return m_userTorrent[username];
     else
         return torrent_handle();
+}
+
+void stopTorrentUser(std::string const &username) {
+    boost::shared_ptr<session> ses(m_ses);
+    if (ses) {
+        ses->remove_torrent(getTorrentUser(username));
+    }
 }
 
 int torrentLastHave(std::string const &username)
