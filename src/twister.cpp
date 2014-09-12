@@ -1903,8 +1903,11 @@ Value getposts(const Array& params, bool fHelp)
                     int height = post->dict_find_int_value("height",0);
                     CBlockIndex* pblockindex = FindBlockByHeight(height);
                     if (pblockindex) {
+                        int64 min_time = pblockindex->nTime;
                         int64 max_time = pblockindex->nTime + blockchain_uptodate_time;
-                        if (time > max_time) {
+                        if (time < min_time) {
+                            vEntry["userpost"]["time"] = min_time;
+                        } else if (time > max_time) {
                             vEntry["userpost"]["time"] = max_time;
                         }
                     }
