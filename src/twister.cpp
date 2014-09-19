@@ -142,6 +142,9 @@ torrent_handle startTorrentUser(std::string const &username, bool following)
         tparams.save_path= torrentPath.string();
         boost::system::error_code ec;
         boost::filesystem::create_directory(torrentPath, ec);
+        if (ec) {
+            fprintf(stderr, "failed to create directory '%s': %s\n", torrentPath.string().c_str(), ec.message().c_str());
+        }
         std::string filename = combine_path(tparams.save_path, to_hex(ih.to_string()) + ".resume");
         load_file(filename.c_str(), tparams.resume_data);
 
@@ -269,6 +272,9 @@ void ThreadWaitExtIP()
 
     boost::filesystem::path swarmDbPath = GetDataDir() / "swarm" / "db";
     boost::filesystem::create_directories(swarmDbPath, ec);
+    if (ec) {
+        fprintf(stderr, "failed to create directory '%s': %s\n", swarmDbPath.string().c_str(), ec.message().c_str());
+    }
     m_swarmDb.reset(new CLevelDB(swarmDbPath.string(), 256*1024, false, false));
 
     int listen_port = GetListenPort() + LIBTORRENT_PORT_OFFSET;
