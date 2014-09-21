@@ -123,7 +123,7 @@ void dht_get_observer::reply(msg const& m)
 			}
 			
 			int64 p_time = p->dict_find_int_value("time");
-			if(!p_time || p_time > GetAdjustedTime() + 2*60*60 ) {
+			if(!p_time || p_time > GetAdjustedTime() + MAX_TIME_IN_FUTURE ) {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 				TORRENT_LOG(traversal) << "dht_get_observer::reply invalid time";
 #endif

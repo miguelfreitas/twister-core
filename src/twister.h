@@ -12,6 +12,7 @@
 
 #define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY (2016)   // about 2 weeks
 #define BLOCK_AGE_TO_EXPIRE_DHT_POSTS (4320*2) // about 2 months
+#define MAX_TIME_IN_FUTURE            (2*60*60) // same constant as in Bitcoin's main.cpp:CheckBlock()
 
 namespace libtorrent {
     class entry;

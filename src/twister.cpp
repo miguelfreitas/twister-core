@@ -1926,6 +1926,10 @@ Value getposts(const Array& params, bool fHelp)
                 if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
                     lazy_entry const* post = v.dict_find_dict("userpost");
                     int64 time = post->dict_find_int_value("time",-1);
+                    
+                    if(time == -1 || time > GetAdjustedTime() + MAX_TIME_IN_FUTURE ) {
+                        printf("getposts: ignoring far-future message by '%s'\n", strUsername.c_str());
+                    }
 
                     entry vEntry;
                     vEntry = v;

@@ -1430,7 +1430,7 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
-		if (msg_keys[mk_time]->int_value() > GetAdjustedTime() + 2*60*60) {
+		if (msg_keys[mk_time]->int_value() > GetAdjustedTime() + MAX_TIME_IN_FUTURE) {
 			incoming_error(e, "time > GetAdjustedTime");
 			return;
 		}
