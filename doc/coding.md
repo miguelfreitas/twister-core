@@ -5,20 +5,22 @@ Please be consistent with the existing coding style.
 
 Block style:
 
-	bool Function(char* psz, int n)
-	{
-	    // Comment summarising what this section of code does
-	    for (int i = 0; i < n; i++)
-	    {
-	        // When something fails, return early
-	        if (!Something())
-	            return false;
-	        ...
-	    }
-	
-	    // Success return is usually at the end
-	    return true;
-	}
+``` cpp
+bool Function(char* psz, int n)
+{
+    // Comment summarising what this section of code does
+    for (int i = 0; i < n; i++)
+    {
+        // When something fails, return early
+        if (!Something())
+            return false;
+        ...
+    }
+
+    // Success return is usually at the end
+    return true;
+}
+```
 
 - ANSI/Allman block style
 - 4 space indenting, no tabs
