@@ -1430,6 +1430,11 @@ void node_impl::incoming_request(msg const& m, entry& e)
 			return;
 		}
 
+		if (msg_keys[mk_time]->int_value() > GetAdjustedTime() + 2*60*60) {
+			incoming_error(e, "time > GetAdjustedTime");
+			return;
+		}
+
 		m_table.node_seen(id, m.addr, 0xffff);
 		//f->last_seen = time_now();
 
