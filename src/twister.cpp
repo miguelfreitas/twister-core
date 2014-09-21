@@ -411,10 +411,12 @@ void ThreadWaitExtIP()
     }
 }
 
+const int64 blockchain_uptodate_time = 2 * 60 * 60;
+
 bool isBlockChainUptodate() {
     if( !pindexBest )
         return false;
-    return (pindexBest->GetBlockTime() > GetTime() - 2 * 60 * 60);
+    return (pindexBest->GetBlockTime() > GetTime() - blockchain_uptodate_time);
 }
 
 bool yes(libtorrent::torrent_status const&)
@@ -1933,6 +1935,19 @@ Value getposts(const Array& params, bool fHelp)
 
                     entry vEntry;
                     vEntry = v;
+
+                    int height = post->dict_find_int_value("height",0);
+                    CBlockIndex* pblockindex = FindBlockByHeight(height);
+                    if (pblockindex) {
+                        int64 min_time = pblockindex->nTime;
+                        int64 max_time = pblockindex->nTime + blockchain_uptodate_time;
+                        if (time < min_time) {
+                            vEntry["userpost"]["time"] = min_time;
+                        } else if (time > max_time) {
+                            vEntry["userpost"]["time"] = max_time;
+                        }
+                    }
+
                     hexcapePost(vEntry);
                     postsByTime.insert( pair<int64,entry>(time, vEntry) );
                 }
