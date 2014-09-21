@@ -1075,9 +1075,7 @@ bool processReceivedDM(lazy_entry const* post)
             std::string username = post->dict_find_string_value("n");
 
             CKeyID keyID;
-            if( !pwalletMain->GetKeyIdFromUsername(username, keyID) ) {
-                printf("acceptSignedPost: username is unknown trying to decrypt DM.\n");
-            } else {
+            if( pwalletMain->GetKeyIdFromUsername(username, keyID) ) {
                 CKey key;
                 if (!pwalletMain->GetKey(keyID, key)) {
                     printf("acceptSignedPost: private key not available trying to decrypt DM.\n");
