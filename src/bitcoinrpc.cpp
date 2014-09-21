@@ -264,6 +264,7 @@ static const CRPCCommand vRPCCommands[] =
     { "gettrendinghashtags",    &gettrendinghashtags,    false,     true,       true },
     { "getspamposts",           &getspamposts,           false,     true,       false },
     { "torrentstatus",          &torrentstatus,          false,     true,       false },
+    { "search",                 &search,                 false,     true,       false },
 };
 
 CRPCTable::CRPCTable()
@@ -1314,6 +1315,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getspamposts"           && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "getspamposts"           && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getspamposts"           && n > 2) ConvertTo<boost::int64_t>(params[2]);
+    if (strMethod == "search"                 && n > 2) ConvertTo<boost::int64_t>(params[2]);
 
     return params;
 }

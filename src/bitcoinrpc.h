@@ -217,5 +217,6 @@ extern json_spirit::Value recheckusertorrent(const json_spirit::Array& params, b
 extern json_spirit::Value gettrendinghashtags(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getspamposts(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value torrentstatus(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value search(const json_spirit::Array& params, bool fHelp);
 
 #endif
