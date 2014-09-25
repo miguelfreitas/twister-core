@@ -6,6 +6,9 @@ Bitcoin Copyright (c) 2009-2013 Bitcoin Developers
 libtorrent Copyright (c) 2003 - 2007, Arvid Norberg
 twister Copyright (c) 2013 Miguel Freitas
 
+## Support project with Bitcoin
+[![tip for next commit](https://tip4commit.com/projects/555.svg)](https://tip4commit.com/github/miguelfreitas/twister-core)
+
 ## What is twister?
 
 twister is an experimental peer-to-peer microblogging software.
