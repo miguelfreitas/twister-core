@@ -1300,6 +1300,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "newpostmsg"             && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newpostmsg"             && n > 4) ConvertTo<boost::int64_t>(params[4]);
     if (strMethod == "newdirectmsg"           && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "newdirectmsg"           && n > 4) ConvertTo<bool>(params[4]);
     if (strMethod == "newrtmsg"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newrtmsg"               && n > 2) ConvertTo<Object>(params[2]);
     if (strMethod == "getposts"               && n > 0) ConvertTo<boost::int64_t>(params[0]);
