@@ -1821,17 +1821,25 @@ Value newdirectmsg(const Array& params, bool fHelp)
 
     std::list<entry *> dmsToSend;
 
-    entry dmOldFormat;
-    if( !createDirectMessage(dmOldFormat, strTo, strMsg) )
-        throw JSONRPCError(RPC_INTERNAL_ERROR,
-                           "error encrypting to pubkey of destination user");
-
     entry payloadNewFormat;
     payloadNewFormat["msg"] = strMsg;
     payloadNewFormat["to"]  = strTo;
     std::vector<char> payloadbuf;
     bencode(std::back_inserter(payloadbuf), payloadNewFormat);
     std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
+
+    if( copySelf ) {
+        // add padding to strMsg so both DMs will have exactly the same size.
+        // should be removed in future when all clients move to new format.
+        while( strMsg.length() < strMsgData.length() ) {
+            strMsg.push_back(' ');
+        }
+    }
+
+    entry dmOldFormat;
+    if( !createDirectMessage(dmOldFormat, strTo, strMsg) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,
+                           "error encrypting to pubkey of destination user");
 
     entry dmNewFormat;
     if( copySelf ) {
@@ -1840,9 +1848,14 @@ Value newdirectmsg(const Array& params, bool fHelp)
         if( !createDirectMessage(dmNewFormat, strFrom, strMsgData) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,
                                "error encrypting to pubkey of destination user");
-        // TODO: random order
-        dmsToSend.push_back(&dmOldFormat);
-        dmsToSend.push_back(&dmNewFormat);
+
+        if( rand() < (RAND_MAX/2) ) {
+            dmsToSend.push_back(&dmOldFormat);
+            dmsToSend.push_back(&dmNewFormat);
+        } else {
+            dmsToSend.push_back(&dmNewFormat);
+            dmsToSend.push_back(&dmOldFormat);
+        }
     } else {
         dmsToSend.push_back(&dmOldFormat);
     }
