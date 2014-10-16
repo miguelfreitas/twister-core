@@ -2494,9 +2494,7 @@ TextSearch::TextSearch(string const &keyword, entry const &params) :
     }
 
     entry const *pCase = params.find_key("case");
-    if( pCase && pCase->type() == entry::string_t && pCase->string() == "insensitive" ) {
-        caseInsensitive = true;
-    }
+    caseInsensitive = pCase && pCase->type() == entry::string_t && pCase->string() == "insensitive";
 
     int64_t now = GetAdjustedTime();
 
