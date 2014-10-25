@@ -13,10 +13,6 @@ newpostmsg needs to be provided to receive posts with signature field added.
 
 Features
 ================
-- Besides increasing the maximum number of pieces, a more pressing issue to save bandwidth and
-torrent download time would be to define the first piece to download/store locally. People don't
-need to maintain the entire post history for everybody they follow, they could just keep the last
-ones. This has to be implemented.
 
 - Store a dht resource "publickey" containing not only the public key itself but also information
 needed to validate it by a lightweight client. That includes: block hash, block height and partial
