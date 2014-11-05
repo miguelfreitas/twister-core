@@ -41,7 +41,7 @@ namespace SoftCheckpoints
             
     static std::set<std::string> upcomingUsersList =
             boost::assign::list_of
-            ("omgasm");
+            ("omgasm")("rantizdani")("rantisluni");
 
 
     void SetSoftCPBestChain() {
