@@ -140,6 +140,7 @@ public:
         vSeeds.push_back(CDNSSeedData("gombadi.com", "dnsseed.gombadi.com"));
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed2.twister.net.co"));
         vSeeds.push_back(CDNSSeedData("twister.net.co", "seed3.twister.net.co"));
+        vSeeds.push_back(CDNSSeedData("twisterseed.tk", "twisterseed.tk"));
 
         base58Prefixes[PUBKEY_ADDRESS] = 0;
         base58Prefixes[SCRIPT_ADDRESS] = 5;
