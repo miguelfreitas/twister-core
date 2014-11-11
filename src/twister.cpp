@@ -1447,15 +1447,24 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
     boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*"),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
-        if( token.length() >= 2 ) {
+        if( token.length() >= 2 && token.at(0) == '#' ) {
             string word = token.substr(1);
 #ifdef HAVE_BOOST_LOCALE
             word = boost::locale::to_lower(word);
 #else
             boost::algorithm::to_lower(word);
 #endif
-            if( token.at(0) == '#') {
+            if( word.find('#') == string::npos ) {
                 hashtags.insert(word);
+            } else {
+                vector<string> subtokens;
+                boost::algorithm::split(subtokens,word,std::bind1st(std::equal_to<char>(),'#'),
+                                        boost::algorithm::token_compress_on);
+                BOOST_FOREACH(string const& word, subtokens) {
+                    if( word.length() ) {
+                        hashtags.insert(word);
+                    }
+                }
             }
         }
     }
