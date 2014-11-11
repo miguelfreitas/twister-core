@@ -1438,25 +1438,35 @@ void receivedSpamMessage(std::string const &message, std::string const &user)
 
 void updateSeenHashtags(std::string &message, int64_t msgTime)
 {
-    size_t pos = message.find('#');
-    if( pos == string::npos )
+    if( message.find('#') == string::npos )
         return;
 
     // split and look for hashtags
     vector<string> tokens;
     set<string> hashtags;
-    boost::algorithm::split(tokens,message.substr(pos),boost::algorithm::is_any_of("#"),
+    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*"),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
-        size_t pos = token.find_first_of(" \n\t.,:/?!;'\"()[]{}*");
-        if( pos == 0 ) continue;
-        string word = (pos == string::npos) ? token : token.substr(0, pos);
+			if( token.length() >= 2 && token.at(0) == '#' ) {
+				string word = token.substr(1);
 #ifdef HAVE_BOOST_LOCALE
-        word = boost::locale::to_lower(word);
+				word = boost::locale::to_lower(word);
 #else
-        boost::algorithm::to_lower(word);
+				boost::algorithm::to_lower(word);
 #endif
-        hashtags.insert(word);
+				if( word.find('#') == string::npos ) {
+					hashtags.insert(word);
+				} else {
+					vector<string> subtokens;
+					boost::algorithm::split(subtokens,word,std::bind1st(std::equal_to<char>(),'#'),
+											boost::algorithm::token_compress_on);
+					BOOST_FOREACH(string const& word, subtokens) {
+						if( word.length() ) {
+							hashtags.insert(word);
+						}
+					}
+				}
+			}
     }
     
     if( hashtags.size() ) {
