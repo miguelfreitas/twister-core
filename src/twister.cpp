@@ -1655,18 +1655,25 @@ Value dhtget(const Array& params, bool fHelp)
             for( it = dhtLst.begin(); it != dhtLst.end(); ++it ) {
                 libtorrent::entry &e = *it;
                 hexcapeDht( e );
-                string sig_p = safeGetEntryString(e, "sig_p");
-                int seq = (multi) ? 0 : safeGetEntryInt( safeGetEntryDict(e,"p"), "seq" );
-                bool acceptEntry = (multi) ? (!sig_p.length() || !uniqueSigPs.count(sig_p)) :
-                                             (seq > lastSeq);
-                if( acceptEntry ) {
-                    if( !multi) {
-                        ret.clear();
-                    }
-                    ret.push_back( entryToJson(e) );
-                    lastSeq = seq;
-                    if( sig_p.length() ) {
-                        uniqueSigPs.insert(sig_p);
+                libtorrent::entry p = safeGetEntryDict(e, "p");
+                libtorrent::entry target = safeGetEntryDict(p, "target");
+                bool matchRequest = safeGetEntryString(target, "n") == strUsername &&
+                                    safeGetEntryString(target, "r") == strResource &&
+                                    safeGetEntryString(target, "t") == strMulti;
+                if( matchRequest ) {
+                    string sig_p = safeGetEntryString(e, "sig_p");
+                    int seq = (multi) ? 0 : safeGetEntryInt( p, "seq" );
+                    bool acceptEntry = (multi) ? (!sig_p.length() || !uniqueSigPs.count(sig_p)) :
+                                                 (seq > lastSeq);
+                    if( acceptEntry ) {
+                        if( !multi) {
+                            ret.clear();
+                        }
+                        ret.push_back( entryToJson(e) );
+                        lastSeq = seq;
+                        if( sig_p.length() ) {
+                            uniqueSigPs.insert(sig_p);
+                        }
                     }
                 }
             }
