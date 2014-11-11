@@ -1438,26 +1438,25 @@ void receivedSpamMessage(std::string const &message, std::string const &user)
 
 void updateSeenHashtags(std::string &message, int64_t msgTime)
 {
-    if( message.find('#') == string::npos )
+    size_t pos = message.find('#');
+    if( pos == string::npos )
         return;
 
     // split and look for hashtags
     vector<string> tokens;
     set<string> hashtags;
-    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*#"),
+    boost::algorithm::split(tokens,message.substr(pos),boost::algorithm::is_any_of("#"),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
-        if( token.length() >= 2 ) {
-            string word = token.substr(1);
+        size_t pos = token.find_first_of(" \n\t.,:/?!;'\"()[]{}*");
+        if( pos == 0 ) continue;
+        string word = (pos == string::npos) ? token : token.substr(0, pos);
 #ifdef HAVE_BOOST_LOCALE
-            word = boost::locale::to_lower(word);
+        word = boost::locale::to_lower(word);
 #else
-            boost::algorithm::to_lower(word);
+        boost::algorithm::to_lower(word);
 #endif
-            if( token.at(0) == '#') {
-                hashtags.insert(word);
-            }
-        }
+        hashtags.insert(word);
     }
     
     if( hashtags.size() ) {
