@@ -2889,3 +2889,37 @@ Value search(const Array& params, bool fHelp)
 
     return ret;
 }
+
+Object getLibtorrentSessionStatus()
+{
+    Object obj;
+    boost::shared_ptr<session> ses(m_ses);
+    if( ses ) {
+        session_status stats = ses->status();
+
+        obj.push_back( Pair("dht_torrents", stats.dht_torrents) );
+        obj.push_back( Pair("num_peers", stats.num_peers) );
+        obj.push_back( Pair("peerlist_size", stats.peerlist_size) );
+        obj.push_back( Pair("num_active_requests", (int)stats.active_requests.size()) );
+
+        obj.push_back( Pair("download_rate", stats.download_rate) );
+        obj.push_back( Pair("upload_rate", stats.upload_rate) );
+        obj.push_back( Pair("dht_download_rate", stats.dht_download_rate) );
+        obj.push_back( Pair("dht_upload_rate", stats.dht_upload_rate) );
+        obj.push_back( Pair("ip_overhead_download_rate", stats.ip_overhead_download_rate) );
+        obj.push_back( Pair("ip_overhead_upload_rate", stats.ip_overhead_upload_rate) );
+        obj.push_back( Pair("payload_download_rate", stats.payload_download_rate) );
+        obj.push_back( Pair("payload_upload_rate", stats.payload_upload_rate) );
+
+        obj.push_back( Pair("total_download", stats.total_download) );
+        obj.push_back( Pair("total_upload", stats.total_upload) );
+        obj.push_back( Pair("total_dht_download", stats.total_dht_download) );
+        obj.push_back( Pair("total_dht_upload", stats.total_dht_upload) );
+        obj.push_back( Pair("total_ip_overhead_download", stats.total_ip_overhead_download) );
+        obj.push_back( Pair("total_ip_overhead_upload", stats.total_ip_overhead_upload) );
+        obj.push_back( Pair("total_payload_download", stats.total_payload_download) );
+        obj.push_back( Pair("total_payload_upload", stats.total_payload_upload) );
+    }
+    // @TODO: Is there a way to get some statistics for dhtProxy?
+    return obj;
+}

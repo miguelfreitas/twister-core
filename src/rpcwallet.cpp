@@ -99,6 +99,10 @@ Value getinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("public_server_mode", GetBoolArg("-public_server_mode",false)));
         obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     }
+
+    Object torrent_stats = getLibtorrentSessionStatus();
+    obj.insert( obj.end(), torrent_stats.begin(), torrent_stats.end() );
+
     return obj;
 }
 

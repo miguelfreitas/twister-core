@@ -4,6 +4,7 @@
 #include "util.h"
 #include "key.h"
 #include <boost/thread.hpp>
+#include "json/json_spirit.h"
 
 #define LIBTORRENT_PORT_OFFSET 1000
 
@@ -52,5 +53,7 @@ void dhtPutData(std::string const &username, std::string const &resource, bool m
                 boost::int64_t timeutc, int seq);
 void dhtPutDataSigned(std::string const &username, std::string const &resource, bool multi,
                 libtorrent::entry const &p, std::string const &sig_p, std::string const &sig_user, bool local);
+
+json_spirit::Object getLibtorrentSessionStatus();
 
 #endif // TWISTER_H
