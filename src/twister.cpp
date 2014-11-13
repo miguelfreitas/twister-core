@@ -2344,7 +2344,7 @@ Object getLibtorrentSessionStatus()
         obj.push_back( Pair("dht_torrents", stats.dht_torrents) );
         obj.push_back( Pair("num_peers", stats.num_peers) );
         obj.push_back( Pair("peerlist_size", stats.peerlist_size) );
-        obj.push_back( Pair("num_active_requests", stats.active_requests.size()) );
+        obj.push_back( Pair("num_active_requests", (int)stats.active_requests.size()) );
 
         obj.push_back( Pair("download_rate", stats.download_rate) );
         obj.push_back( Pair("upload_rate", stats.upload_rate) );
