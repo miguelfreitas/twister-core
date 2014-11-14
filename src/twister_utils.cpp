@@ -148,6 +148,14 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
             }
         }
 
+        if( udata.m_blacklist.size() ) {
+            entry &userData = userDict[i->first];
+            entry &blacklist = userData["blacklist"];
+            BOOST_FOREACH( std::string const &n, udata.m_blacklist) {
+                blacklist.list().push_back(n);
+            }
+        }
+
         if( udata.m_directmsg.size() ) {
             entry &userData = userDict[i->first];
             entry &dmDict = userData["dm"];
@@ -197,6 +205,15 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
 
                     for( int j = 0; j < followingList->list_size(); j++ ) {
                         udata.m_following.insert( followingList->list_string_value_at(j) );
+                    }
+                }
+
+                const lazy_entry *blacklist = userData->dict_find("blacklist");
+                if( blacklist ) {
+                    if( blacklist->type() != lazy_entry::list_t ) goto data_error;
+
+                    for( int j = 0; j < blacklist->list_size(); j++ ) {
+                        udata.m_blacklist.insert( blacklist->list_string_value_at(j) );
                     }
                 }
 
