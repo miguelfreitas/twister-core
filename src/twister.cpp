@@ -1798,7 +1798,7 @@ Value newpostmsg(const Array& params, bool fHelp)
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
             char delim = token.at(0);
-            if( delim != '#' && delim != '@') continue;
+            if( delim != '#' && delim != '@' ) continue;
             string target = (delim == '#') ? "hashtag" : "mention";
             string word = token.substr(1);
 #ifdef HAVE_BOOST_LOCALE
