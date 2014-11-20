@@ -442,7 +442,7 @@ AS_CASE(["$ARG_ENABLE_DEBUG"],
    ],
   ["no"], [
       AC_MSG_RESULT([no])
-      #AC_DEFINE([NDEBUG],[1],[Define to disable debug code.])
+      AC_DEFINE([NDEBUG],[1],[Define to disable debug code.])
       #COMPILETIME_OPTIONS="$COMPILETIME_OPTIONS -DNDEBUG "
       DEBUGFLAGS="-Os"
    ],
