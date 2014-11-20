@@ -997,6 +997,9 @@ void ServiceConnection(AcceptedConnection *conn)
             break;
         }
 
+        if (mapHeaders["connection"] == "close")
+            fRun = false;
+        
         if(strMethod == "GET" && strURI == "/")
             strURI="/home.html";
 
@@ -1037,9 +1040,6 @@ void ServiceConnection(AcceptedConnection *conn)
             continue;
         }
 
-        if (mapHeaders["connection"] == "close")
-            fRun = false;
-        
         if(strMethod == "GET" && strURI.substr(0, 4) == "/rss" && !GetBoolArg("-public_server_mode",false))
         {
             string rssOutput;
