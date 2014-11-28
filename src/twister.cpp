@@ -1797,18 +1797,28 @@ Value newpostmsg(const Array& params, bool fHelp)
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
+            char delim = token.at(0);
+            if( delim != '#' && delim != '@' ) continue;
+            string target = (delim == '#') ? "hashtag" : "mention";
             string word = token.substr(1);
 #ifdef HAVE_BOOST_LOCALE
             word = boost::locale::to_lower(word);
 #else
             boost::algorithm::to_lower(word);
 #endif
-            if( token.at(0) == '#') {
-                dhtPutData(word, "hashtag", true,
+            if( word.find(delim) == string::npos ) {
+                dhtPutData(word, target, true,
                                  v, strUsername, GetAdjustedTime(), 0);
-            } else if( token.at(0) == '@') {
-                dhtPutData(word, "mention", true,
-                                 v, strUsername, GetAdjustedTime(), 0);
+            } else {
+                vector<string> subtokens;
+                boost::algorithm::split(subtokens,word,std::bind1st(std::equal_to<char>(),delim),
+                                        boost::algorithm::token_compress_on);
+                BOOST_FOREACH(string const& word, subtokens) {
+                    if( word.length() ) {
+                        dhtPutData(word, target, true,
+                                         v, strUsername, GetAdjustedTime(), 0);
+                    }
+                }
             }
         }
     }
