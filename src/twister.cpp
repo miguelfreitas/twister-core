@@ -77,6 +77,8 @@ const int    hashtagTimerInterval = 60;         // Timer interval (sec)
 const double hashtagAgingFactor   = pow(0.5, hashtagTimerInterval/hashtagHalfLife);
 const double hashtagCriticalValue = pow(0.5, hashtagExpiration/hashtagHalfLife);
 
+const char*  msgTokensDelimiter  = " \n\t.,:/?!;'\"()[]{}*";
+
 class SimpleThreadCounter {
 public:
     SimpleThreadCounter(CCriticalSection *lock, int *counter, const char *name) :
@@ -1053,6 +1055,7 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
     return (pubkeyRec.GetID() == pubkey.GetID());
 }
 
+// try decrypting new DM received by any torrent we follow
 bool processReceivedDM(lazy_entry const* post)
 {
     bool result = false;
@@ -1137,6 +1140,39 @@ bool processReceivedDM(lazy_entry const* post)
     return result;
 }
 
+// check post received in a torrent we follow if they mention local users
+void processReceivedPost(lazy_entry const &v, std::string &username, int64 time, std::string &msg)
+{
+    // split and look for mentions for local users
+    vector<string> tokens;
+    boost::algorithm::split(tokens,msg,boost::algorithm::is_any_of(msgTokensDelimiter),
+                            boost::algorithm::token_compress_on);
+    BOOST_FOREACH(string const& token, tokens) {
+        if( token.length() >= 2 ) {
+            char delim = token.at(0);
+            if( delim != '@' ) continue;
+            string mentionUser = token.substr(1);
+#ifdef HAVE_BOOST_LOCALE
+            mentionUser = boost::locale::to_lower(mentionUser);
+#else
+            boost::algorithm::to_lower(mentionUser);
+#endif
+
+            LOCK(cs_twister);
+            // mention of a local user && sent by someone we follow
+            if( m_users.count(mentionUser) && m_users[mentionUser].m_following.count(username) ) {
+                std::string postKey = username + ";" + boost::lexical_cast<std::string>(time);
+                if( m_users[mentionUser].m_mentionsKeys.count(postKey) == 0 ) {
+                    m_users[mentionUser].m_mentionsKeys.insert(postKey);
+                    entry vEntry;
+                    vEntry = v;
+                    m_users[mentionUser].m_mentionsPosts.push_back(vEntry);
+                }
+            }
+        }
+    }
+}
+
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags)
 {
     bool ret = false;
@@ -1162,6 +1198,7 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 int msgUtf8Chars = utf8::num_characters(msg.begin(), msg.end());
                 int k = post->dict_find_int_value("k",-1);
                 int height = post->dict_find_int_value("height",-1);
+                int64 time = post->dict_find_int_value("time",-1);
 
                 if( n != username ) {
                     sprintf(errbuf,"expected username '%s' got '%s'",
@@ -1204,10 +1241,14 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                             }
                         }
 
-                        lazy_entry const* dm = post->dict_find_dict("dm");
-                        if( dm && flags ) {
-                            (*flags) |= USERPOST_FLAG_DM;
-                            processReceivedDM(post);
+                        if( flags ) {
+                            lazy_entry const* dm = post->dict_find_dict("dm");
+                            if( dm ) {
+                                (*flags) |= USERPOST_FLAG_DM;
+                                processReceivedDM(post);
+                            } else {
+                                processReceivedPost(v, username, time, msg);
+                            }
                         }
                     }
                 }
@@ -1444,7 +1485,7 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
     // split and look for hashtags
     vector<string> tokens;
     set<string> hashtags;
-    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*"),
+    boost::algorithm::split(tokens,message,boost::algorithm::is_any_of(msgTokensDelimiter),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 && token.at(0) == '#' ) {
@@ -1793,7 +1834,7 @@ Value newpostmsg(const Array& params, bool fHelp)
 
     // split and look for mentions and hashtags
     vector<string> tokens;
-    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(" \n\t.,:/?!;'\"()[]{}*"),
+    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(msgTokensDelimiter),
                             boost::algorithm::token_compress_on);
     BOOST_FOREACH(string const& token, tokens) {
         if( token.length() >= 2 ) {
@@ -2109,6 +2150,60 @@ Value getdirectmsgs(const Array& params, bool fHelp)
     return ret;
 }
 
+Value getmentions(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3 )
+        throw runtime_error(
+            "getmentions <localuser> <count> '{\"max_id\":max_id,\"since_id\":since_id}'\n"
+            "get (locally stored) mentions to user <localuser> by users followed.\n"
+            "(use 'dhtget user mention m' for non-followed mentions)\n"
+            "max_id and since_id may be omited. up to <count> posts are returned.");
+
+    string strUsername = params[0].get_str();
+    int count          = params[1].get_int();
+
+    int max_id = std::numeric_limits<int>::max();
+    int since_id = -1;
+
+    if( params.size() >= 3 ) {
+        Object optParms    = params[2].get_obj();
+        for (Object::const_iterator i = optParms.begin(); i != optParms.end(); ++i) {
+            if( i->name_ == "max_id" ) max_id = i->value_.get_int();
+            if( i->name_ == "since_id" ) since_id = i->value_.get_int();
+        }
+    }
+    
+    Array ret;
+
+    LOCK(cs_twister);
+    if( strUsername.size() && m_users.count(strUsername) ) {
+        const std::vector<libtorrent::entry> &mentions = m_users[strUsername].m_mentionsPosts;
+        max_id = std::min( max_id, (int)mentions.size()-1);
+        since_id = std::max( since_id, max_id - count );
+
+        for( int i = std::max(since_id+1,0); i <= max_id; i++) {
+            const entry *post = mentions.at(i).find_key("userpost");
+            if( post && post->type() == entry::dictionary_t ) {
+                const entry *ptime = post->find_key("time");
+                if( ptime && ptime->type() == entry::int_t ) {
+                    int64 time = ptime->integer();
+
+                    if(time <= 0 || time > GetAdjustedTime() + MAX_TIME_IN_FUTURE ) {
+                        printf("getmentions: ignoring far-future post\n");
+                    } else {
+                        entry vEntry;
+                        vEntry = mentions.at(i);
+                        hexcapePost(vEntry);
+                        vEntry["id"] = i;
+                        ret.push_back(entryToJson(vEntry));
+                    }
+                }
+            }
+        }
+    }
+
+    return ret;
+}
 
 Value setspammsg(const Array& params, bool fHelp)
 {

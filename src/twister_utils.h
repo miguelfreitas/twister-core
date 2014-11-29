@@ -18,9 +18,14 @@ struct StoredDirectMsg {
 
 // in-memory data per wallet user
 struct UserData {
+    // users we follow
     std::set<std::string> m_following;
     // m_directmsg key is the other username
     std::map<std::string, std::vector<StoredDirectMsg> > m_directmsg;
+    // key for fast checking (log N) if a post is already stored on m_mentionsPosts
+    std::set<std::string> m_mentionsKeys;
+    // known posts mentioning this user (by users in m_following)
+    std::vector<libtorrent::entry> m_mentionsPosts;
 };
 
 

@@ -251,6 +251,7 @@ static const CRPCCommand vRPCCommands[] =
     { "newrtmsg",               &newrtmsg,               false,     true,       false },
     { "getposts",               &getposts,               false,     true,       false },
     { "getdirectmsgs",          &getdirectmsgs,          false,     true,       false },
+    { "getmentions",            &getmentions,            false,     true,       false },
     { "setspammsg",             &setspammsg,             false,     false,      false },
     { "getspammsg",             &getspammsg,             false,     false,      false },
     { "follow",                 &follow,                 false,     true,       false },
@@ -1308,6 +1309,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getposts"               && n > 2) ConvertTo<boost::int64_t>(params[2]);
     if (strMethod == "getdirectmsgs"          && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getdirectmsgs"          && n > 2) ConvertTo<Array>(params[2]);
+    if (strMethod == "getmentions"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "getmentions"            && n > 2) ConvertTo<Object>(params[2]);
     if (strMethod == "follow"                 && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "unfollow"               && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 1) ConvertTo<boost::int64_t>(params[1]);

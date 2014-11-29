@@ -6,6 +6,7 @@
 #include <libtorrent/bencode.hpp>
 
 #include <boost/foreach.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <stdio.h>
 
@@ -148,6 +149,14 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
             }
         }
 
+        if( udata.m_mentionsPosts.size() ) {
+            entry &userData = userDict[i->first];
+            entry &mentionsList = userData["mentions"];
+            BOOST_FOREACH( libtorrent::entry const &mention, udata.m_mentionsPosts) {
+                mentionsList.list().push_back(mention);
+            }
+        }
+
         if( udata.m_directmsg.size() ) {
             entry &userData = userDict[i->first];
             entry &dmDict = userData["dm"];
@@ -197,6 +206,27 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
 
                     for( int j = 0; j < followingList->list_size(); j++ ) {
                         udata.m_following.insert( followingList->list_string_value_at(j) );
+                    }
+                }
+
+                const lazy_entry *mentionsList = userData->dict_find("mentions");
+                if( mentionsList ) {
+                    if( mentionsList->type() != lazy_entry::list_t ) goto data_error;
+
+                    for( int j = 0; j < mentionsList->list_size(); j++ ) {
+                        const lazy_entry *v = mentionsList->list_at(j);
+                        if( v->type() != lazy_entry::dict_t ) goto data_error;
+                        lazy_entry const* post = v->dict_find_dict("userpost");
+                        if( !post ) goto data_error;
+                        
+                        std::string username = post->dict_find_string_value("n");
+                        int64 time = post->dict_find_int_value("time",-1);
+                        std::string postKey = username + ";" + boost::lexical_cast<std::string>(time);
+                        udata.m_mentionsKeys.insert(postKey);
+                        
+                        entry vEntry;
+                        vEntry = *v;
+                        udata.m_mentionsPosts.push_back( vEntry );
                     }
                 }
 
