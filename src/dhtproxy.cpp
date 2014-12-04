@@ -228,7 +228,7 @@ namespace DhtProxy
             sha1_hash ih = dhtTargetHash(username, resource, multi ? "m" : "s");
             if( !req.stopReq ) {
                 dhtgetPeerReqAdd(ih, pfrom);
-                dhtGetData(username, resource, multi);
+                dhtGetData(username, resource, multi, false);
             } else {
                 dhtgetPeerReqRemove(ih, pfrom);
             }

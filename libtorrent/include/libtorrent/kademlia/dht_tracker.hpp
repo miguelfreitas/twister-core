@@ -101,7 +101,7 @@ namespace libtorrent { namespace dht
 
 		void getData(std::string const &username, std::string const &resource, bool multi,
 			     boost::function<void(entry::list_type const&)> fdata,
-			     boost::function<void(bool, bool)> fdone);
+			     boost::function<void(bool, bool)> fdone, bool local);
 
 		void dht_status(session_status& s);
 		void network_stats(int& sent, int& received);

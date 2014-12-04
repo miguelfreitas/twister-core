@@ -47,7 +47,7 @@ int getDhtNodes(boost::int64_t *dht_global_nodes = NULL);
 void updateSeenHashtags(std::string &message, int64_t msgTime);
 
 // interface to dht api of the libtorrent current session
-void dhtGetData(std::string const &username, std::string const &resource, bool multi);
+void dhtGetData(std::string const &username, std::string const &resource, bool multi, bool local);
 void dhtPutData(std::string const &username, std::string const &resource, bool multi,
                 libtorrent::entry const &value, std::string const &sig_user,
                 boost::int64_t timeutc, int seq);

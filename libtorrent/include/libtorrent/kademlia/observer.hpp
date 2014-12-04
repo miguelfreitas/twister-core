@@ -76,6 +76,7 @@ struct observer : boost::noncopyable
 		, m_port(0)
 		, m_transaction_id()
 		, flags(0)
+		, m_dont_drop(true)
 	{
 		TORRENT_ASSERT(a);
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
@@ -171,6 +172,7 @@ public:
 	bool m_was_abandoned:1;
 	bool m_in_use:1;
 #endif
+	bool m_dont_drop:1;
 };
 
 typedef boost::intrusive_ptr<observer> observer_ptr;

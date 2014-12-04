@@ -74,7 +74,7 @@ public:
 		, std::string const &targetUser, std::string const &targetResource, bool multi
 		, data_callback const& dcallback
 		, nodes_callback const& ncallback
-		, bool justToken);
+		, bool justToken, bool dontDrop );
 
 	virtual char const* name() const { return "getData"; }
 
@@ -98,6 +98,7 @@ private:
 	bool m_done:1;
 	bool m_got_data:1;
 	bool m_justToken:1;
+	bool m_dontDrop:1;
 
 	friend class dht_get_observer;
 };

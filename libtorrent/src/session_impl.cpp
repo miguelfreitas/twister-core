@@ -5814,11 +5814,12 @@ retry:
 	    }
 	}
 
-	void session_impl::dht_getData(std::string const &username, std::string const &resource, bool multi)
+	void session_impl::dht_getData(std::string const &username, std::string const &resource, bool multi, bool local)
 	{
 	    if (m_dht) m_dht->getData(username, resource, multi,
 				      boost::bind( post_dht_getData, this, _1),
-				      boost::bind( getDataDone_fun, this, username, resource, multi, _1, _2));
+				      boost::bind( getDataDone_fun, this, username, resource, multi, _1, _2),
+				      local);
     }
 
 	entry session_impl::dht_getLocalData() const

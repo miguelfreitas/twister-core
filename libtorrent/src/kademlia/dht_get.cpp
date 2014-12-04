@@ -222,7 +222,8 @@ dht_get::dht_get(
 	, bool multi
 	, data_callback const& dcallback
 	, nodes_callback const& ncallback
-	, bool justToken)
+	, bool justToken
+	, bool dontDrop)
 	: traversal_algorithm(node, node_id())
 	, m_data_callback(dcallback)
 	, m_nodes_callback(ncallback)
@@ -233,6 +234,7 @@ dht_get::dht_get(
 	, m_done(false)
 	, m_got_data(false)
 	, m_justToken(justToken)
+	, m_dontDrop(dontDrop)
 {
 	m_target["n"] = m_targetUser;
 	m_target["r"] = m_targetResource;
@@ -276,6 +278,7 @@ bool dht_get::invoke(observer_ptr o)
 	entry& target = a["target"];
 	target = m_target;
 	if (m_justToken) a["justtoken"] = 1;
+	o->m_dont_drop = m_dontDrop;
 	return m_node.m_rpc.invoke(e, o->target_ep(), o);
 }
 

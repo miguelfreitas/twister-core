@@ -239,8 +239,9 @@ void node_impl::incoming(msg const& m)
 	if (!y_ent || y_ent->string_length() == 0)
 	{
 		entry e;
-		incoming_error(e, "missing 'y' entry");
-		m_sock->send_packet(e, m.addr, 0);
+		incoming_error(e, "missing 'z' entry");
+		// [MF] silently ignore bad packet
+		//m_sock->send_packet(e, m.addr, 0);
 		return;
 	}
 
@@ -514,7 +515,7 @@ void node_impl::putDataSigned(std::string const &username, std::string const &re
         // for info-hash id. then send putData to them.
         boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
              boost::bind(&nop),
-             boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true));
+             boost::bind(&putData_fun, _1, boost::ref(*this), p, sig_p, sig_user), true, local));
     
         if( local ) {
             // store it locally so it will be automatically refreshed with the rest
@@ -548,7 +549,7 @@ void node_impl::putDataSigned(std::string const &username, std::string const &re
 
 void node_impl::getData(std::string const &username, std::string const &resource, bool multi,
 			boost::function<void(entry::list_type const&)> fdata,
-			boost::function<void(bool, bool)> fdone)
+			boost::function<void(bool, bool)> fdone, bool local)
 {
 #ifdef TORRENT_DHT_VERBOSE_LOGGING
 	TORRENT_LOG(node) << "getData [ username: " << info_hash << " res: " << resource << " ]" ;
@@ -557,7 +558,7 @@ void node_impl::getData(std::string const &username, std::string const &resource
 	// for info-hash id. callback is used to return data.
 	boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
 		 fdata,
-		 boost::bind(&getDataDone_fun, _1, _2, _3, boost::ref(*this), fdone), false));
+		 boost::bind(&getDataDone_fun, _1, _2, _3, boost::ref(*this), fdone), false, local));
 	ta->start();
 }
 
@@ -698,7 +699,9 @@ bool node_impl::refresh_storage() {
                 boost::intrusive_ptr<dht_get> ta(new dht_get(*this, username, resource, multi,
                                                              boost::bind(&putData_confirm, _1, boost::ref(item)),
                                                              boost::bind(&putData_fun, _1, boost::ref(*this),
-                                                                         entryP, item.sig_p, item.sig_user), item.confirmed));
+                                                                         entryP, item.sig_p, item.sig_user),
+                                                             item.confirmed,
+                                                             item.local_add_time));
                 ta->start();
                 did_something = true;
             }

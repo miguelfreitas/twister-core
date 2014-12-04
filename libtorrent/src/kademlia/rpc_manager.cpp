@@ -492,7 +492,7 @@ bool rpc_manager::invoke(entry& e, udp::endpoint target_addr
 		<< e["q"].string() << " -> " << target_addr;
 #endif
 
-	if (m_sock->send_packet(e, target_addr, 1))
+	if (m_sock->send_packet(e, target_addr, (o->m_dont_drop) ? 1 : 0)) // udp_socket::dont_drop = 1
 	{
 		m_transactions.push_back(o);
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS

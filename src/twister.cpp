@@ -381,6 +381,9 @@ void ThreadWaitExtIP()
     settings.active_limit         = 25;
     settings.unchoke_slots_limit  = 20;
     settings.auto_manage_interval = 30;
+    // dht upload rate limit (enforced only for non-locally generated requests)
+    // limits: DHT replies, refreshes of stored items, checking for status/tracker and proxy server.
+    settings.dht_upload_rate_limit = 16000;
     ses->set_settings(settings);
 
     printf("libtorrent + dht started\n");
@@ -785,7 +788,7 @@ void ThreadSessionAlerts()
                                                    t->string().c_str());
 #endif
                                             neighborCheck[ih] = false;
-                                            dhtGetData(n->string(), r->string(), t->string() == "m");
+                                            dhtGetData(n->string(), r->string(), t->string() == "m", false);
                                         } else if( neighborCheck[ih] ) {
                                             sha1_hash ihStatus = dhtTargetHash(n->string(), "status", "s");
 
@@ -796,7 +799,7 @@ void ThreadSessionAlerts()
                                                         n->string().c_str(), "status", "s");
 #endif
                                                 statusCheck[ihStatus] = GetTime();
-                                                dhtGetData(n->string(), "status", false);
+                                                dhtGetData(n->string(), "status", false, false);
                                             }
                                         }
                                     }
@@ -832,7 +835,7 @@ void ThreadSessionAlerts()
 #endif
                             sha1_hash ihStatus = dhtTargetHash(dd->m_username, "status", "s");
                             statusCheck[ihStatus] = GetTime();
-                            dhtGetData(dd->m_username, "status", false);
+                            dhtGetData(dd->m_username, "status", false, false);
                         }
                     }
                     if( statusCheck.count(ih) ) {
@@ -1546,7 +1549,7 @@ entry formatSpamPost(const string &msg, const string &username, uint64_t utcTime
 }
 
 
-void dhtGetData(std::string const &username, std::string const &resource, bool multi)
+void dhtGetData(std::string const &username, std::string const &resource, bool multi, bool local)
 {
     if( DhtProxy::fEnabled ) {
         printf("dhtGetData: not allowed - using proxy (bug!)\n");
@@ -1557,7 +1560,7 @@ void dhtGetData(std::string const &username, std::string const &resource, bool m
         printf("dhtGetData: libtorrent session not ready\n");
         return;
     }
-    ses->dht_getData(username,resource,multi);
+    ses->dht_getData(username,resource,multi,local);
 }
 
 void dhtPutData(std::string const &username, std::string const &resource, bool multi,
@@ -1685,7 +1688,7 @@ Value dhtget(const Array& params, bool fHelp)
     vector<CNode*> dhtProxyNodes;
     if( !DhtProxy::fEnabled ) {
         dhtgetMapAdd(ih, &am);
-        dhtGetData(strUsername, strResource, multi);
+        dhtGetData(strUsername, strResource, multi, true);
     } else {
         DhtProxy::dhtgetMapAdd(ih, &am);
         dhtProxyNodes = DhtProxy::dhtgetStartRequest(strUsername, strResource, multi);

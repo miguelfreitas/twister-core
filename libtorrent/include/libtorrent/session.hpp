@@ -441,7 +441,7 @@ namespace libtorrent
 		void dht_putDataSigned(std::string const &username, std::string const &resource, bool multi,
 		                       entry const &p, std::string const &sig_p, std::string const &sig_user, bool local);
 
-		void dht_getData(std::string const &username, std::string const &resource, bool multi);
+		void dht_getData(std::string const &username, std::string const &resource, bool multi, bool local);
 		entry dht_getLocalData() const;
 
 #ifndef TORRENT_NO_DEPRECATE

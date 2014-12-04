@@ -332,6 +332,9 @@ namespace libtorrent
 #define TORRENT_ASYNC_CALL3(x, a1, a2, a3) \
 	m_impl->m_io_service.dispatch(boost::bind(&session_impl:: x, m_impl.get(), a1, a2, a3))
 
+#define TORRENT_ASYNC_CALL4(x, a1, a2, a3, a4) \
+	m_impl->m_io_service.dispatch(boost::bind(&session_impl:: x, m_impl.get(), a1, a2, a3, a4))
+
 #define TORRENT_ASYNC_CALL6(x, a1, a2, a3, a4, a5, a6) \
 	m_impl->m_io_service.dispatch(boost::bind(&session_impl:: x, m_impl.get(), a1, a2, a3, a4, a5, a6))
 
@@ -862,10 +865,10 @@ namespace libtorrent
 #endif
 	}
 
-	void session::dht_getData(std::string const &username, std::string const &resource, bool multi)
+	void session::dht_getData(std::string const &username, std::string const &resource, bool multi, bool local)
 	{
 #ifndef TORRENT_DISABLE_DHT
-		TORRENT_ASYNC_CALL3(dht_getData, username, resource, multi);
+		TORRENT_ASYNC_CALL4(dht_getData, username, resource, multi, local);
 #endif
 	}
 

@@ -231,7 +231,7 @@ public:
 
 	void getData(std::string const &username, std::string const &resource, bool multi,
 		     boost::function<void(entry::list_type const&)> fdata,
-		     boost::function<void(bool, bool)> fdone);
+		     boost::function<void(bool, bool)> fdone, bool local);
 
 	bool verify_token(std::string const& token, char const* info_hash
 		, udp::endpoint const& addr);
