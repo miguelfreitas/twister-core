@@ -83,7 +83,7 @@ namespace libtorrent
 	struct TORRENT_EXPORT ptime
 	{
 		// hidden
-		ptime() {}
+		ptime() {time = 0;}
 		explicit ptime(boost::uint64_t t): time(t) {}
 
 		// these operators have the same semantics as signed 64 bit integers

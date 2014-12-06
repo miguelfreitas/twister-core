@@ -338,7 +338,7 @@ namespace
 
 	ptime getNextRefreshTime(bool confirmed = true)
 	{
-		static ptime nextRefreshTime[2] = { ptime(0), ptime(0) };
+		static ptime nextRefreshTime[2] = { ptime(), ptime() };
 		nextRefreshTime[confirmed] = std::max(
 				nextRefreshTime[confirmed] + milliseconds(500),
 				// add +/-10% diffusion to next refresh time
@@ -813,7 +813,7 @@ void node_impl::load_storage(entry const* e) {
         return;
 
     ptime const now = time_now();
-    time_duration const refresh_interval = std::max( DHT_REFRESH_CONFIRMED, e->dict().size() * milliseconds(500) );
+    time_duration const refresh_interval = std::max( DHT_REFRESH_CONFIRMED, milliseconds(e->dict().size() * 500) );
 
     printf("node dht: loading storage... (%lu node_id keys)\n", e->dict().size());
 

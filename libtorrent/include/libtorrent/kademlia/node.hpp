@@ -118,12 +118,12 @@ struct torrent_entry
 struct dht_storage_item
 {
     // FIXME: optimize so bdecode is not needed all the time
-    dht_storage_item() : p(), sig_p(), sig_user(), local_add_time(0), confirmed(true), next_refresh_time(0) {}
+    dht_storage_item() : p(), sig_p(), sig_user(), local_add_time(0), confirmed(true), next_refresh_time() {}
     dht_storage_item(std::string const &_p, lazy_entry const *_sig_p, lazy_entry const *_sig_user)
         : p(_p), sig_p(_sig_p->string_value()), sig_user(_sig_user->string_value()),
-          local_add_time(0), confirmed(true), next_refresh_time(0) {}
+          local_add_time(0), confirmed(true), next_refresh_time() {}
     dht_storage_item(std::string const &_p, std::string const &_sig_p, std::string const &_sig_user)
-        : p(_p), sig_p(_sig_p), sig_user(_sig_user), local_add_time(0), confirmed(true), next_refresh_time(0) {}
+        : p(_p), sig_p(_sig_p), sig_user(_sig_user), local_add_time(0), confirmed(true), next_refresh_time() {}
         std::string p;
         std::string sig_p;
         std::string sig_user;
