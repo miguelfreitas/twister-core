@@ -6,7 +6,7 @@ Tested on a pristine:
 ## Install
 
 1. sudo apt-get update
-1. sudo apt-get install git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev
+1. sudo apt-get install git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev automake
 1. git clone https://github.com/miguelfreitas/twister-core.git
 1. cd twister-core
 1. ./autotool.sh
