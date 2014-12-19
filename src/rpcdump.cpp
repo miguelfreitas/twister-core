@@ -301,3 +301,73 @@ Value dumpwallet(const Array& params, bool fHelp)
     file.close();
     return Value::null;
 }
+
+Value testvector(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "testvector <username>\n"
+            "Returns encryption testvectors using <username> private key");
+
+    EnsureWalletIsUnlocked();
+    Object obj;
+
+    string strUsername = params[0].get_str();
+
+    CKeyID keyID;
+    bool keyInWallet = pwalletMain->GetKeyIdFromUsername(strUsername, keyID);
+    if( !keyInWallet ) {
+        throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Error: no such user in wallet");
+    }
+    
+    CKey key;
+    if (!pwalletMain->GetKey(keyID, key))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error: could not obtain privkey");
+    obj.push_back(Pair("secret",CBitcoinSecret(key).ToString()));
+    
+    CPubKey pubkey;
+    getUserPubKey(strUsername, pubkey);
+
+    string strPubkey = string( reinterpret_cast<const char *>(pubkey.begin()), pubkey.size());
+    obj.push_back(Pair("pubkey",HexStr(strPubkey)));
+    
+    CHashWriter ssMagic(SER_GETHASH, 0);
+    ssMagic << strMessageMagic;
+    obj.push_back(Pair("hashMagic",ssMagic.GetHash().GetHex()));
+
+    string plainText = "The quick brown fox jumps over the lazy dog";
+    obj.push_back(Pair("plaintext",plainText));
+    
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << strMessageMagic;
+    ss << plainText;
+    
+    uint256 hash = ss.GetHash();
+    obj.push_back(Pair("hash",hash.GetHex()));
+    
+    vector<unsigned char> vchSig;
+    if (!key.SignCompact(hash, vchSig))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Sign failed");
+
+    CPubKey pubkeyRec;
+    if (!pubkeyRec.RecoverCompact(hash, vchSig) ||
+        pubkeyRec.GetID() != pubkey.GetID() )
+       throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Check Sign failed");
+
+    obj.push_back(Pair("sign",HexStr(vchSig)));
+
+    ecies_secure_t sec;
+    bool encrypted = pubkey.Encrypt(plainText, sec);
+
+    if( encrypted ) {
+        Object objSec;
+        objSec.push_back(Pair("key",HexStr(sec.key)));
+        objSec.push_back(Pair("mac",HexStr(sec.mac)));
+        objSec.push_back(Pair("orig",sec.orig));
+        objSec.push_back(Pair("body",HexStr(sec.body)));
+        obj.push_back(Pair("sec",objSec));
+    }
+
+    return obj;
+}
+
