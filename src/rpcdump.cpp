@@ -363,7 +363,7 @@ Value testvector(const Array& params, bool fHelp)
         Object objSec;
         objSec.push_back(Pair("key",HexStr(sec.key)));
         objSec.push_back(Pair("mac",HexStr(sec.mac)));
-        objSec.push_back(Pair("orig",sec.orig));
+        objSec.push_back(Pair("orig",(uint64_t)sec.orig));
         objSec.push_back(Pair("body",HexStr(sec.body)));
         obj.push_back(Pair("sec",objSec));
     }
