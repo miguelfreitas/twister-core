@@ -1654,6 +1654,62 @@ Value dhtput(const Array& params, bool fHelp)
     return Value();
 }
 
+Value dhtputraw(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "dhtput <hexdata>\n"
+            "Store resource in dht network");
+
+    string hexdata = params[0].get_str();
+
+    vector<unsigned char> vch = ParseHex(hexdata);
+
+    lazy_entry dhtroot;
+    int pos;
+    libtorrent::error_code ec;
+    if (lazy_bdecode((const char *)vch.data(), (const char *)vch.data()+vch.size(), dhtroot, ec, &pos) != 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"hexdata failed to bdecode");
+    }
+    if( dhtroot.type() != lazy_entry::dict_t) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"root not dict type");
+    }
+    lazy_entry const* p = dhtroot.dict_find_dict("p");
+    if( !p ) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"missing 'p' entry");
+    }
+    lazy_entry const* target = p->dict_find_dict("target");
+    if( !target ) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"missing 'target' entry");
+    }
+
+    string username = target->dict_find_string_value("n");
+    string resource = target->dict_find_string_value("r");
+    bool multi = target->dict_find_string_value("t") == "m";
+
+    string sig_p = dhtroot.dict_find_string_value("sig_p");
+    if( !sig_p.length() ) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"missing 'sig_p' entry");
+    }
+
+    string sig_user = dhtroot.dict_find_string_value("sig_user");
+    if( !sig_user.length() ) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"missing 'sig_user' entry");
+    }
+
+    std::pair<char const*, int> pbuf = p->data_section();
+    if (!verifySignature(std::string(pbuf.first,pbuf.second),
+                sig_user,sig_p)) {
+        throw JSONRPCError(RPC_INVALID_PARAMS,"invalid signature");
+    }
+
+    entry pEntry;
+    pEntry = *p;
+    dhtPutDataSigned(username, resource, multi,
+                     pEntry, sig_p, sig_user, true);
+    return Value();
+}
+
 Value dhtget(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 6)
@@ -1763,7 +1819,8 @@ int findLastPublicPostLocalUser( std::string strUsername )
             lazy_entry v;
             int pos;
             libtorrent::error_code ec;
-            if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
+            if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0 &&
+                v.type() == lazy_entry::dict_t) {
                 lazy_entry const* post = v.dict_find_dict("userpost");
                 lastk = post->dict_find_int_value("k",-1);
             }
@@ -2062,7 +2119,8 @@ Value getposts(const Array& params, bool fHelp)
                 lazy_entry v;
                 int pos;
                 libtorrent::error_code ec;
-                if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0) {
+                if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0 &&
+                    v.type() == lazy_entry::dict_t) {
                     lazy_entry const* post = v.dict_find_dict("userpost");
                     int64 time = post->dict_find_int_value("time",-1);
                     
@@ -2710,7 +2768,8 @@ lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, lazy_ent
 
     int pos;
     libtorrent::error_code ec;
-    if (lazy_bdecode(rawMessage.data(), rawMessage.data()+rawMessage.size(), v, ec, &pos) == 0) {
+    if (lazy_bdecode(rawMessage.data(), rawMessage.data()+rawMessage.size(), v, ec, &pos) == 0 && 
+        v.type() == lazy_entry::dict_t) {
         lazy_entry const* vv = v.dict_find_dict("v");
         lazy_entry const* post = vv ? vv->dict_find_dict("userpost") : v.dict_find_dict("userpost");
         if( post ) {
@@ -2908,7 +2967,10 @@ Value search(const Array& params, bool fHelp)
                     lazy_entry p;
                     int pos;
                     libtorrent::error_code err;
-                    int ret = lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos);
+                    if( lazy_bdecode(str_p.data(), str_p.data() + str_p.size(), p, err, &pos) != 0 ||
+                        p.type() != lazy_entry::dict_t) {
+                        continue;
+                    }
 
                     lazy_entry const* target = p.dict_find_dict("target");
                     if( target ) {

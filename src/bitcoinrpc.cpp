@@ -246,6 +246,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getlastsoftcheckpoint",  &getlastsoftcheckpoint,  true,      false,      false },
     // twister dht network
     { "dhtput",                 &dhtput,                 false,     true,       false },
+    { "dhtputraw",              &dhtputraw,              false,     true,       true },
     { "dhtget",                 &dhtget,                 false,     true,       true },
     { "newpostmsg",             &newpostmsg,             false,     true,       false },
     { "newdirectmsg",           &newdirectmsg,           false,     true,       false },
