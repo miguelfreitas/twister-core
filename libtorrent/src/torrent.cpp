@@ -6314,6 +6314,7 @@ namespace libtorrent
 
 	bool torrent::rename_file(int index, std::string const& name)
 	{
+		return false;
 	}
 
 	void torrent::move_storage(std::string const& save_path, int flags)

@@ -420,7 +420,7 @@ namespace libtorrent
                 m_db.RepairDB();
             }
         }
-
+        return -1;
 	}
 
 	size_type default_storage::physical_offset(int slot, int offset)
@@ -463,6 +463,7 @@ namespace libtorrent
                 m_db.RepairDB();
             }
         }
+        return -1;
 	}
 
 	int default_storage::write(
