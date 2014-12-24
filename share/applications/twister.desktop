@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=twister
+GenericName=P2P microblogging
+Comment=P2P microblogging
+Exec=/usr/bin/twister-control --launch
+Terminal=false
+Icon=/usr/share/pixmaps/twister128.png
+Type=Application
+Categories=Network;

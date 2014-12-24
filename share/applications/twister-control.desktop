@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=twister Control Center
+GenericName=twister Control Center
+Comment=twister Control Center
+Exec=/usr/bin/twister-control --gui
+Terminal=false
+Icon=/usr/share/pixmaps/twister128.png
+Type=Application
+Categories=Network;
