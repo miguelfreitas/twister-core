@@ -45,6 +45,9 @@ def loadConfig():
         pass
 
 def saveConfig():
+    configDir = os.path.dirname(configFilename)
+    if not os.path.exists(configDir):
+        os.makedirs(os.path.dirname(configDir))
     with open(configFilename, "wb") as csvfile:
         writer = csv.writer(csvfile, delimiter='=', escapechar='\\', quoting=csv.QUOTE_NONE)
         for key, value in sorted(configOptions.items(), key=operator.itemgetter(0)):
