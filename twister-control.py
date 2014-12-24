@@ -70,12 +70,16 @@ def getBrowser():
     return webbrowser
 
 def daemon():
+    twisterdArgs = ["-daemon"]
+    systemHtmlDir = '/usr/share/twister/html'
+    if os.path.exists(systemHtmlDir):
+        twisterdArgs += ['-htmldir='+systemHtmlDir]
     try:
-        call(["twisterd", "-daemon"])
+        call(["twisterd"] + twisterdArgs)
     except:
         try:
             twisterd = os.path.dirname(os.path.realpath(sys.argv[0])) + "/twisterd"
-            call([twisterd, "-daemon"])
+            call([twisterd] + twisterdArgs)
         except:
             print "running 'twisterd' failed. check if installed and PATH is correctly configured"
 
