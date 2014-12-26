@@ -8,7 +8,13 @@
 // Name of client reported in the 'version' message. Report the same name
 // for both bitcoind and bitcoin-qt, to make it harder for attackers to
 // target servers or GUI users specifically.
+#if defined(__ANDROID__)
+const std::string CLIENT_NAME("twisterd_android");
+#elif defined(WIN32)
+const std::string CLIENT_NAME("twisterd_windows");
+#else
 const std::string CLIENT_NAME("twisterd");
+#endif
 
 // Client version number
 #define CLIENT_VERSION_SUFFIX   "-beta"
