@@ -5,8 +5,11 @@
 # generates a default rpcpassword, twister.conf file etc.
 # may also setup automatic twisterd script on desktop login.
 
-from Tkinter import *
-from tkMessageBox import *
+try:
+    from Tkinter import *
+    from tkMessageBox import *
+except:
+    pass # we will fail later, only on GUI creation
 from subprocess import call, check_output
 import csv
 import operator
@@ -148,7 +151,11 @@ def guiRemoveStartup():
     showinfo('Ok', 'Startup script removed')
 
 def createGui():
-    root = Tk()
+    try:
+        root = Tk()
+    except:
+        print 'Module Tkinter not found. Try installing python-tk to use GUI.'
+        exit(-1)
     root.title('twister control')
     root.minsize(width=200,height=100)
     Button(text='Launch twister', command=guiLaunch).pack(fill=X)
