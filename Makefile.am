@@ -1,7 +1,9 @@
 ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = \
-  COPYING
+  COPYING twister-control.py
+  
+dist_doc_DATA = README.md
 
 LIBLEVELDB = src/leveldb/libleveldb.a
 LIBMEMENV  = src/leveldb/libmemenv.a
@@ -15,6 +17,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
           OPT="$(CXXFLAGS) $(CPPFLAGS)"
 
 bin_PROGRAMS = twisterd
+bin_SCRIPTS = twister-control
 
 KADEMLIA_SOURCES = \
   libtorrent/src/kademlia/dht_tracker.cpp      \
@@ -188,7 +191,11 @@ AM_CPPFLAGS = -ftemplate-depth-100 -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@
 
-CLEANFILES = $(LIBLEVELDB) $(LIBMEMENV)
+twister-control: twister-control.py Makefile
+	cat < $(srcdir)/twister-control.py > twister-control
+	chmod +x twister-control
+
+CLEANFILES = $(LIBLEVELDB) $(LIBMEMENV) $(bin_SCRIPTS) $(bin_PROGRAMS)
 
 clean-local:
 	-$(MAKE) -C src/leveldb clean
