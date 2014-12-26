@@ -1,8 +1,8 @@
-export PATH=/home/miguel/android/android-ndk-r8b/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86/bin/:$PATH
-export NDK=/home/miguel/android/android-ndk-r8b
+export PATH=$HOME/android/android-ndk-r8b/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86/bin/:$PATH
+export NDK=$HOME/android/android-ndk-r8b
 export NDK_BASE=$NDK
 export SYSROOT=$NDK/platforms/android-9/arch-arm
-export BOOSTDIR=/home/miguel/android/Boost-for-Android/build/
+export BOOSTDIR=$HOME/android/Boost-for-Android/build/
 export TARGET_OS=OS_ANDROID_CROSSCOMPILE
 
 export CXX=arm-linux-androideabi-gcc
