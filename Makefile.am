@@ -200,3 +200,16 @@ CLEANFILES = $(LIBLEVELDB) $(LIBMEMENV) $(bin_SCRIPTS) $(bin_PROGRAMS)
 clean-local:
 	-$(MAKE) -C src/leveldb clean
 	rm -f src/leveldb/*/*.gcno src/leveldb/helpers/memenv/*.gcno
+
+pixmapsdir = $(datadir)/pixmaps
+pixmaps_DATA = share/pixmaps/*
+
+desktopdir = $(datadir)/applications
+desktop_DATA = share/applications/twister.desktop share/applications/twister-control.desktop
+
+UPDATE_DESKTOP = update-desktop-database $(datadir)/applications || :
+
+install-data-hook: 
+	$(UPDATE_DESKTOP)
+uninstall-hook: 
+	$(UPDATE_DESKTOP)
