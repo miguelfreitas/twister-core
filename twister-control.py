@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # very simple wrapper for starting twisterd and launching the web browser
 #
