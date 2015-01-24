@@ -1099,10 +1099,13 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 boost::filesystem::path GetHTMLDir()
 {
     namespace fs = boost::filesystem;
+    fs::path sysHtmlDir("/usr/share/twister/html");
     fs::path path;
 
     if (mapArgs.count("-htmldir")) {
         path = fs::system_complete(mapArgs["-htmldir"]);
+    } else if (fs::is_directory(sysHtmlDir)) {
+        path = sysHtmlDir;
     } else {
         path = GetDataDir() / "html";
     }
