@@ -19,7 +19,7 @@ void InitRPCMining()
 {
     // getwork/getblocktemplate mining rewards paid here:
     salt.resize(4);
-    RAND_bytes(salt.data(), sizeof(salt));
+    RAND_bytes(salt.data(), 4);
 }
 
 void ShutdownRPCMining()
