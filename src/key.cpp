@@ -596,7 +596,7 @@ public:
 #ifdef DEBUG_ECIES
                 printf("The authentication code was invalid! The ciphered data has been corrupted!\n");
 #endif
-                return NULL;
+                return false;
         }
 
         // Create a buffer to hold the result.
