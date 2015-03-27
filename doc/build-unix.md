@@ -1,14 +1,12 @@
 UNIX BUILD NOTES
 ====================
-Some notes on how to build Bitcoin in Unix. 
+Some notes on how to build twister in Unix. 
 
 To Build
 ---------------------
 
-	cd src/
-	make -f makefile.unix		# Headless bitcoin
-
-See [readme-qt.md](readme-qt.md) for instructions on building Bitcoin-Qt, the graphical user interface.
+	./bootstrap.sh
+	make
 
 Dependencies
 ---------------------
