@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <openssl/rc4.h>
 #include <openssl/evp.h>
 #include <openssl/aes.h>
+#include <openssl/rand.h>
 #else
 // RC4 state from libtomcrypt
 struct rc4 {
