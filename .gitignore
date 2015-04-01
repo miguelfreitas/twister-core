@@ -4,6 +4,11 @@ src/bitcoind
 src/test_bitcoin
 src/.deps/
 src/.dirstamp
+libtorrent/src/.deps/
+libtorrent/src/.dirstamp
+libtorrent/src/kademlia/.deps/
+libtorrent/src/kademlia/.dirstamp
+build-aux/
 .*.swp
 *.*~*
 *.bak
@@ -59,13 +64,7 @@ build
 
 !src/leveldb-*/Makefile
 
-build-aux/
-libtool
-libtorrent/src/.deps/
-libtorrent/src/.dirstamp
-libtorrent/src/kademlia/.deps/
-libtorrent/src/kademlia/.dirstamp
-
 # Targets
+libtool
 twister-control
 twisterd
