@@ -202,7 +202,7 @@ clean-local:
 	rm -f src/leveldb/*/*.gcno src/leveldb/helpers/memenv/*.gcno
 
 cppcheck:
-	cppcheck ./src --force --quiet ./src/cppcheck-supressions.txt
+	cppcheck ./src --force --quiet --suppressions ./src/cppcheck-suppressions.txt
 
 pixmapsdir = $(datadir)/pixmaps
 pixmaps_DATA = share/pixmaps/*
