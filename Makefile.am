@@ -201,6 +201,9 @@ clean-local:
 	-$(MAKE) -C src/leveldb clean
 	rm -f src/leveldb/*/*.gcno src/leveldb/helpers/memenv/*.gcno
 
+cppcheck:
+	cppcheck ./src --force --quiet ./src/cppcheck-supressions.txt
+
 pixmapsdir = $(datadir)/pixmaps
 pixmaps_DATA = share/pixmaps/*
 
