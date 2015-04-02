@@ -2,6 +2,13 @@ src/*.exe
 src/bitcoin
 src/bitcoind
 src/test_bitcoin
+src/.deps/
+src/.dirstamp
+libtorrent/src/.deps/
+libtorrent/src/.dirstamp
+libtorrent/src/kademlia/.deps/
+libtorrent/src/kademlia/.dirstamp
+build-aux/
 .*.swp
 *.*~*
 *.bak
@@ -56,3 +63,8 @@ qrc_*.cpp
 build
 
 !src/leveldb-*/Makefile
+
+# Targets
+libtool
+twister-control
+twisterd

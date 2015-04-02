@@ -1,0 +1,2 @@
+uninitstring:src/scrypt.cpp:83
+arrayIndexOutOfBounds:src/test/DoS_tests.cpp:300
