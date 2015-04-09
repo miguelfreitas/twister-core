@@ -204,6 +204,9 @@ namespace libtorrent
 		utp_status utp_stats;
 
 		int peerlist_size;
+		
+		// external ip address
+		std::string external_addr_v4;
 	};
 
 }

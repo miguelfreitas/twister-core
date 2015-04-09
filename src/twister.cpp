@@ -3066,6 +3066,8 @@ Object getLibtorrentSessionStatus()
     boost::shared_ptr<session> ses(m_ses);
     if( ses ) {
         session_status stats = ses->status();
+        
+        obj.push_back( Pair("ext_addr_net2", stats.external_addr_v4) );
 
         obj.push_back( Pair("dht_torrents", stats.dht_torrents) );
         obj.push_back( Pair("num_peers", stats.num_peers) );

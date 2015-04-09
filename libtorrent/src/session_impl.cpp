@@ -5718,6 +5718,9 @@ retry:
 
 		s.peerlist_size = peerlist_size;
 
+		boost::system::error_code ec;
+		s.external_addr_v4 = external_address().external_address(address_v4()).to_string(ec);
+
 		return s;
 	}
 

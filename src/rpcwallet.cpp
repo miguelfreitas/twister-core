@@ -100,6 +100,10 @@ Value getinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     }
 
+    const CNetAddr paddrPeer("8.8.8.8");
+    CAddress addr( GetLocalAddress(&paddrPeer) );
+    obj.push_back(Pair("ext_addr_net1", addr.IsValid() ? addr.ToStringIP() : string()) );
+
     Object torrent_stats = getLibtorrentSessionStatus();
     obj.insert( obj.end(), torrent_stats.begin(), torrent_stats.end() );
 
