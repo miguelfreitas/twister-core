@@ -297,7 +297,7 @@ void ThreadWaitExtIP()
 
     m_ses.reset(new session(*m_swarmDb, fingerprint("TW", LIBTORRENT_VERSION_MAJOR, LIBTORRENT_VERSION_MINOR, 0, 0)
             , session::add_default_plugins
-            , alert::dht_notification
+            , alert::dht_notification | alert::status_notification
             , ipStr.size() ? ipStr.c_str() : NULL
             , !m_usingProxy ? std::make_pair(listen_port, listen_port) : std::make_pair(0, 0) ));
     boost::shared_ptr<session> ses(m_ses);
@@ -861,6 +861,27 @@ void ThreadSessionAlerts()
                 if (alert_cast<save_resume_data_failed_alert>(*i))
                 {
                     --num_outstanding_resume_data;
+                }
+
+                external_ip_alert const* ei = alert_cast<external_ip_alert>(*i);
+                if (ei)
+                {
+                    boost::system::error_code ec;
+                    std::string extip = ei->external_address.to_string(ec);
+                    
+                    printf("Learned new external IP from DHT peers: %s\n", extip.c_str());
+                    CNetAddr addrLocalHost(extip);
+                    
+                    // pretend it came from querying http server. try voting up to 10 times
+                    // to change current external ip in bitcoin code.
+                    for(int i=0; i < 10; i++) {
+                        AddLocal(addrLocalHost, LOCAL_HTTP);
+                        const CNetAddr paddrPeer("8.8.8.8");
+                        CAddress addr( GetLocalAddress(&paddrPeer) );
+                        if( addr.IsValid() && addr.ToStringIP() == extip)
+                            break;
+                    }
+                    continue;
                 }
         }
     }
