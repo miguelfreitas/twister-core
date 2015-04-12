@@ -181,11 +181,10 @@ Desktop and Mobile interfaces.
 
 ## Different themes
 
-If you prefer new modern look of twister with new untested things, you can try twister-calm theme
-But be careful, it is in beta stage.
+If you prefer a new modern look of twister, you should checkout the themes [Calm](https://github.com/iHedgehog/twister-calm) and [Nin](https://github.com/myleneb/twister-nin). Both are now in the official twister-html theme list.
 
     cd ~/.twister/
-    git clone https://github.com/iHedgehog/twister-calm.git ./html
+    git clone https://github.com/miguelfreitas/twister-html.git ./html
 
 ## Contributing
 
