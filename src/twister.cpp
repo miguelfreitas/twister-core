@@ -1831,7 +1831,7 @@ int findLastPublicPostLocalUser( std::string strUsername )
         std::vector<std::string> pieces;
         int max_id = std::numeric_limits<int>::max();
         int since_id = -1;
-        h.get_pieces(pieces, 1, max_id, since_id, ~USERPOST_FLAG_DM);
+        h.get_pieces(pieces, 1, max_id, since_id, ~USERPOST_FLAG_DM, 0);
 
         if( pieces.size() ) {
             string const& piece = pieces.front();
@@ -2105,15 +2105,17 @@ Value newrtmsg(const Array& params, bool fHelp)
 
 Value getposts(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
-            "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [flags]\n"
+            "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [allowed_flags] [required_flags]\n"
             "get posts from users\n"
-            "max_id and since_id may be omited");
+            "max_id and since_id may be omited\n"
+            "(optional) allowed/required flags are bitwise fields (1=RT,2=DM)");
 
     int count          = params[0].get_int();
     Array users        = params[1].get_array();
-    int flags          = (params.size() > 2) ? params[2].get_int() : ~USERPOST_FLAG_DM;
+    int allowed_flags  = (params.size() > 2) ? params[2].get_int() : ~USERPOST_FLAG_DM;
+    int required_flags = (params.size() > 3) ? params[3].get_int() : 0;
 
     std::multimap<int64,entry> postsByTime;
 
@@ -2132,7 +2134,7 @@ Value getposts(const Array& params, bool fHelp)
         torrent_handle h = getTorrentUser(strUsername);
         if( h.is_valid() ){
             std::vector<std::string> pieces;
-            h.get_pieces(pieces, count, max_id, since_id, flags);
+            h.get_pieces(pieces, count, max_id, since_id, allowed_flags, required_flags);
 
             BOOST_FOREACH(string const& piece, pieces) {
                 lazy_entry v;
@@ -2900,7 +2902,7 @@ Value search(const Array& params, bool fHelp)
 
             BOOST_FOREACH(const PAIRTYPE(std::string,torrent_handle)& item, users) {
                 std::vector<std::string> pieces;
-                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM);
+                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM, 0);
 
                 BOOST_FOREACH(string const& piece, pieces) {
                     lazy_entry const* p = searcher.matchRawMessage(piece, v);

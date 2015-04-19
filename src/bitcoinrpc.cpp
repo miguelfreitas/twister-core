@@ -1311,6 +1311,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getposts"               && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "getposts"               && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "getposts"               && n > 2) ConvertTo<boost::int64_t>(params[2]);
+    if (strMethod == "getposts"               && n > 3) ConvertTo<boost::int64_t>(params[3]);
     if (strMethod == "getdirectmsgs"          && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getdirectmsgs"          && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "getmentions"            && n > 1) ConvertTo<boost::int64_t>(params[1]);

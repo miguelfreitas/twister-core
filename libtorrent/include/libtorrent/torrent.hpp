@@ -200,7 +200,7 @@ namespace libtorrent
 		void read_piece(int piece);
 		void on_disk_read_complete(int ret, disk_io_job const& j, peer_request r, read_piece_struct* rp);
 
-		void get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id, uint32_t filter_flags,
+		void get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id, std::pair<uint32_t,uint32_t> flags,
 						mutex *mut, condition_variable *cond, int *reqs);
 		void on_disk_read_get_piece_complete(int ret, disk_io_job const& j,
 											 std::vector<std::string> *pieces, mutex *mut, condition_variable *cond, int *reqs);

@@ -823,7 +823,7 @@ namespace libtorrent
 		TORRENT_ASYNC_CALL1(read_piece, piece);
 	}
 
-	void torrent_handle::get_pieces(std::vector<std::string> &pieces, int count, int max_id, int since_id, uint32_t filter_flags) const
+	void torrent_handle::get_pieces(std::vector<std::string> &pieces, int count, int max_id, int since_id, uint32_t allowed_flags, uint32_t required_flags) const
 	{
 		INVARIANT_CHECK;
 
@@ -831,7 +831,7 @@ namespace libtorrent
 		libtorrent::condition_variable cond;
 		int reqs = 0;
 
-		TORRENT_SYNC_CALL8(get_pieces, &pieces, count, max_id, since_id, filter_flags, &mut, &cond, &reqs);
+		TORRENT_SYNC_CALL8(get_pieces, &pieces, count, max_id, since_id, std::make_pair(allowed_flags,required_flags), &mut, &cond, &reqs);
 
 		mutex::scoped_lock l2(mut);
 		while( reqs > 0 ) {

@@ -916,9 +916,11 @@ namespace libtorrent
 		}
 	}
 
-	void torrent::get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id, uint32_t filter_flags,
+	void torrent::get_pieces(std::vector<std::string> *pieces, int count, int max_id, int since_id, std::pair<uint32_t,uint32_t> flags,
 							 mutex *mut, condition_variable *cond, int *reqs)
 	{
+		uint32_t allowed_flags = flags.first;
+		uint32_t required_flags = flags.second;
 		if( !m_picker ) return;
 
 		max_id = std::min( max_id, m_picker->last_have() );
@@ -927,7 +929,8 @@ namespace libtorrent
 
 		for( int i = max_id; i >= 0 && i > since_id && (*reqs) < count; i--) {
 			if( m_picker->have_piece(i) &&
-			   (m_picker->post_flags(i) & filter_flags) == m_picker->post_flags(i) ) {
+			   (m_picker->post_flags(i) & allowed_flags) == m_picker->post_flags(i) && 
+			   (m_picker->post_flags(i) & required_flags) == required_flags ) {
 				(*reqs)++;
 
 				peer_request r;

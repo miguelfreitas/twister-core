@@ -168,7 +168,7 @@ namespace libtorrent
 		enum flags_t { overwrite_existing = 1 };
 		void add_piece(int piece, char const* data, int size, int flags = 0) const;
 		void read_piece(int piece) const;
-		void get_pieces(std::vector<std::string> &pieces, int count, int max_id, int since_id, uint32_t filter_flags) const;
+		void get_pieces(std::vector<std::string> &pieces, int count, int max_id, int since_id, uint32_t allowed_flags, uint32_t required_flags) const;
 		bool have_piece(int piece) const;
 		void recheck_pieces(uint32_t piece_flags) const;
 
