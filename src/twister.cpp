@@ -1490,7 +1490,7 @@ void receivedSpamMessage(std::string const &message, std::string const &user)
 {
     LOCK(cs_spamMsg);
     bool hasSingleLangCode = (message.find("[") == message.rfind("["));
-    bool hasPreferredLang  = m_preferredSpamLang.length();
+    bool hasPreferredLang  = m_preferredSpamLang.length() > 2;
     bool isSameLang        = hasPreferredLang && hasSingleLangCode &&
                              message.find(m_preferredSpamLang) != string::npos;
     bool currentlyEmpty    = !m_receivedSpamMsgStr.length();
@@ -2323,6 +2323,38 @@ Value getspammsg(const Array& params, bool fHelp)
     ret.push_back(strSpamMessage);
 
     return ret;
+}
+
+Value setpreferredspamlang(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 1))
+        throw runtime_error(
+            "setpreferredspamlang <langcode>\n"
+            "Set preferred spam language (or 'none')");
+
+    string strLangCode = params[0].get_str();
+
+    if (strLangCode == "none") {
+        m_preferredSpamLang = "[]";
+    } else {
+        if( strLangCode.find("[") == string::npos ) {
+            m_preferredSpamLang = "[" + strLangCode + "]";
+        } else {
+            m_preferredSpamLang = strLangCode;
+        }
+    }
+
+    return Value();
+}
+
+Value getpreferredspamlang(const Array& params, bool fHelp)
+{
+    if (fHelp || (params.size() != 0))
+        throw runtime_error(
+            "getpreferredspamlang\n"
+            "get preferred spam language");
+
+    return Value(m_preferredSpamLang);
 }
 
 Value follow(const Array& params, bool fHelp)

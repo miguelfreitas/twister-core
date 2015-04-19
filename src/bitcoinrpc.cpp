@@ -256,6 +256,8 @@ static const CRPCCommand vRPCCommands[] =
     { "getmentions",            &getmentions,            false,     true,       false },
     { "setspammsg",             &setspammsg,             false,     false,      false },
     { "getspammsg",             &getspammsg,             false,     false,      false },
+    { "setpreferredspamlang",   &setpreferredspamlang,   false,     false,      false },
+    { "getpreferredspamlang",   &getpreferredspamlang,   false,     false,      false },
     { "follow",                 &follow,                 false,     true,       false },
     { "unfollow",               &unfollow,               false,     true,       false },
     { "getfollowing",           &getfollowing,           false,     true,       false },
