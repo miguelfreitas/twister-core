@@ -167,7 +167,10 @@ in your twister data dir:
     cd ~/.twister/
     git clone https://github.com/miguelfreitas/twister-html.git ./html
 
-(In OS X go to cd  ${HOME}/Library/Application\ Support/Twister)
+In OS X
+
+    cd ~/Library/Application\ Support/twister
+    git clone https://github.com/miguelfreitas/twister-html.git ./html
 
 Next, run the twister daemon. The RPC username and password are currently
 hard coded as "user" and "pwd" in the web client so you'll need to specify
