@@ -1563,9 +1563,7 @@ entry formatSpamPost(const string &msg, const string &username, uint64_t utcTime
     userpost["height"] = height ? height : getBestHeight();
     userpost["msg"] = msg;
     
-    unsigned char vchSig[65];
-    RAND_bytes(vchSig,sizeof(vchSig));
-    v["sig_userpost"] = HexStr( string((const char *)vchSig, sizeof(vchSig)) );
+    v["sig_userpost"] = "";
     return v;
 }
 
