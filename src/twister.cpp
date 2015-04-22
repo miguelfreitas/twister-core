@@ -1677,7 +1677,7 @@ Value dhtputraw(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "dhtput <hexdata>\n"
+            "dhtputraw <hexdata>\n"
             "Store resource in dht network");
 
     string hexdata = params[0].get_str();
@@ -1947,6 +1947,33 @@ Value newpostmsg(const Array& params, bool fHelp)
     return entryToJson(v);
 }
 
+Value newpostraw(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            "newpostraw <username> <k> <hexdata>\n"
+            "Post a new raw post (already signed) to swarm");
+
+    string strUsername = params[0].get_str();
+    int k              = params[1].get_int();
+    string hexdata     = params[2].get_str();
+
+    vector<unsigned char> buf = ParseHex(hexdata);
+
+    std::string errmsg;
+    if( !acceptSignedPost((const char *)buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = getTorrentUser(strUsername);
+    if( h.is_valid() ) {
+        // if member of torrent post it directly
+        h.add_piece(k,(const char *)buf.data(),buf.size());
+    } else {
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"swarm resource forwarding not implemented");
+    }
+    return Value();
+}
+
 Value newdirectmsg(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 4 || params.size() > 5 )
@@ -2107,7 +2134,7 @@ Value getposts(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
-            "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [allowed_flags] [required_flags]\n"
+            "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [allowed_flags=~2] [required_flags=0]\n"
             "get posts from users\n"
             "max_id and since_id may be omited\n"
             "(optional) allowed/required flags are bitwise fields (1=RT,2=DM)");
