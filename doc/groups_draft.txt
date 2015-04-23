@@ -1,0 +1,74 @@
+twister group chat draft
+========================
+
+group chat is a private and encrypted timeline shared among some users
+which define a specific topic (or description).
+
+it is tempting to use a new torrent where members would subscribe in
+order to post their chat messages. however this idea does work as it is
+impossible (very difficult?) to implement a distributed torrent with
+multiple writers. (a clash occurs when two writers try to send the 
+same piece number)
+
+therefore, twister's group chat is a special case of direct messages
+using a private key pair (outside of the blockchain). non-members do not
+know about group chat creation as public key is never published.
+
+members are invited to group using a special (bencoded) group_invite DM:
+
+group_invite {
+  desc: "free text description",
+  key: "secret of the private key",
+}
+
+after sending the group_invite DM to a given user, another DM is sent
+to the group itself to notify all existing members about the new
+member list. this is another special DM:
+
+group_members {
+  [xxx,yyy,...]
+}
+
+it is true that, since every member knows both private/public keys of
+the group, symmetric-key could have been used for group chat's messages.
+however we reuse the same twister infrastructure of original DMs.
+any group chats, invites and messages are indistinguible from normal 
+DMs to non-members.
+
+because all members have access to private key, there is no concept of
+administrator. any member may invite new members and change group's 
+description. it is not possible to exclude a member, so frontends may
+offer an option to clone/create a new group excluding whoever they
+want.
+
+---
+
+new RPCs for group chat:
+
+- creategroup <description>
+  returns groupalias (which is added to wallet).
+  
+  group aliases are prepended with "*" so they are not valid usernames
+  and may not be propagated accidentaly to the network.
+  
+  group aliases are only valid locally, each twisterd instance will
+  create its own alias upon receiving an invitation.
+
+- listgroups
+  [ groupalias1, groupalias2, ... ]
+  
+- getgroupinfo
+  {alias:xxx,description:xxx,members:[xxx,yyy,...]}
+
+- newgroupinvite <username> <k> <groupalias> [<newmember1>,<newmember2>,...]
+  DM(group_invite) => newmember
+  DM(group_members) => groupalias
+  
+- newgroupdescription <username> <k> <groupalias> <description>
+  DM(group_invite) => groupalias
+  
+- leavegroup <username> <groupalias>
+  not yet implemented
+  
+note: use getdirectmsgs/newdirectmsgto to obtain/post new messages 
+      to group chats.

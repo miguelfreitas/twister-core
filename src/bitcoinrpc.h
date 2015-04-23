@@ -224,5 +224,11 @@ extern json_spirit::Value gettrendinghashtags(const json_spirit::Array& params, 
 extern json_spirit::Value getspamposts(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value torrentstatus(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value search(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value creategroup(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listgroups(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getgroupinfo(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value newgroupinvite(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value newgroupdescription(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value leavegroup(const json_spirit::Array& params, bool fHelp);
 
 #endif

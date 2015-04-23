@@ -66,6 +66,7 @@ static std::string m_receivedSpamMsgStr;
 static std::string m_receivedSpamUserStr;
 static int64       m_lastSpamTime = 0;
 static std::map<std::string,UserData> m_users;
+static std::map<std::string,GroupChat> m_groups;
 
 static CCriticalSection cs_seenHashtags;
 static std::map<std::string,double> m_seenHashtags;
@@ -100,6 +101,7 @@ private:
 
 #define USER_DATA_FILE "user_data"
 #define GLOBAL_DATA_FILE "global_data"
+#define GROUP_DATA_FILE "group_data"
 
 void dhtgetMapAdd(sha1_hash &ih, alert_manager *am)
 {
@@ -406,11 +408,23 @@ void ThreadWaitExtIP()
         loadUserData(userDataPath.string(), m_users);
         printf("loaded user_data for %zd users\n", m_users.size());
 
+        boost::filesystem::path groupDataPath = GetDataDir() / GROUP_DATA_FILE;
+        loadGroupData(groupDataPath.string(), m_groups);
+
         // add all user torrents to a std::set (all m_following)
         std::map<std::string,UserData>::const_iterator i;
         for (i = m_users.begin(); i != m_users.end(); ++i) {
             UserData const &data = i->second;
             BOOST_FOREACH(string username, data.m_following) {
+                torrentsToStart.insert(username);
+            }
+        }
+        
+        // add torrents from groups
+        std::map<std::string,GroupChat>::const_iterator j;
+        for (j = m_groups.begin(); j != m_groups.end(); ++j) {
+            GroupChat const &data = j->second;
+            BOOST_FOREACH(string username, data.m_members) {
                 torrentsToStart.insert(username);
             }
         }
@@ -472,6 +486,10 @@ void lockAndSaveUserData()
         printf("saving user_data (followers and DMs)...\n");
         boost::filesystem::path userDataPath = GetDataDir() / USER_DATA_FILE;
         saveUserData(userDataPath.string(), m_users);
+    }
+    if( m_groups.size() ) {
+        boost::filesystem::path groupDataPath = GetDataDir() / GROUP_DATA_FILE;
+        saveGroupData(groupDataPath.string(), m_groups);
     }
 }
 
@@ -1079,10 +1097,148 @@ bool verifySignature(std::string const &strMessage, std::string const &strUserna
     return (pubkeyRec.GetID() == pubkey.GetID());
 }
 
+void storeNewDM(const string &localuser, const string &dmUser, const StoredDirectMsg &stoDM)
+{
+    LOCK(cs_twister);
+    // store this dm in memory list, but prevent duplicates
+    std::vector<StoredDirectMsg> &dmsFromToUser = m_users[localuser].
+                                  m_directmsg[dmUser];
+    std::vector<StoredDirectMsg>::iterator it;
+    for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
+        if( stoDM.m_utcTime == (*it).m_utcTime &&
+            stoDM.m_text    == (*it).m_text ) {
+            break;
+        }
+        if( stoDM.m_utcTime < (*it).m_utcTime ) {
+            dmsFromToUser.insert(it, stoDM);
+            break;
+        }
+    }
+    if( it == dmsFromToUser.end() ) {
+        dmsFromToUser.push_back(stoDM);
+    }
+}
+
+void storeGroupDM(const string &groupAlias, const StoredDirectMsg &stoDM)
+{
+    LOCK(cs_twister);
+    if( !m_groups.count(groupAlias) )
+        return;
+    GroupChat &group = m_groups[groupAlias];
+
+    BOOST_FOREACH(string const &member, group.m_members) {
+        if( m_users.count(member) ) {
+            storeNewDM(member,groupAlias,stoDM);
+        }
+    }
+}
+
+string getGroupAliasByKey(const string &privKey)
+{
+    string groupAlias;
+    LOCK(cs_twister);
+    map<string,GroupChat>::iterator i;
+    for (i = m_groups.begin(); i != m_groups.end(); ++i) {
+        if( i->second.m_privKey == privKey ) {
+            groupAlias = i->first;
+            break;
+        }
+    }
+    return groupAlias;
+}
+
+void registerNewGroup(const string &privKey, const string &desc, const string &member, const string &invitedBy, int64_t utcTime)
+{
+    string groupAlias = getGroupAliasByKey(privKey);
+    if( !groupAlias.length() ) {
+        CBitcoinSecret vchSecret;
+        bool fGood = vchSecret.SetString(privKey);
+        if (!fGood) {
+            printf("registerGroupMember: Invalid private key\n");
+            return;
+        }
+        CKey key = vchSecret.GetKey();
+        CPubKey pubkey = key.GetPubKey();
+        CKeyID vchAddress = pubkey.GetID();
+        {
+            LOCK(pwalletMain->cs_wallet);
+            if (pwalletMain->HaveKey(vchAddress)) {
+                // already exists? reuse same alias (trying to fix inconsistency wallet x groups)
+                groupAlias = pwalletMain->mapKeyMetadata[vchAddress].username;
+                if( !groupAlias.length() || groupAlias.at(0) != '*' ) {
+                    printf("registerGroupMember: Invalid group alias '%s' from wallet\n", groupAlias.c_str());
+                    return;
+                }
+            } else {
+                groupAlias = getRandomGroupAlias();
+            }
+
+            pwalletMain->mapKeyMetadata[vchAddress] = CKeyMetadata(GetTime(), groupAlias);
+            if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
+                printf("registerGroupMember: Error adding key to wallet\n");
+                return;
+            }
+        }
+    }
+
+    LOCK(cs_twister);
+    GroupChat &group = m_groups[groupAlias];
+    group.m_description = desc;
+    group.m_privKey     = privKey;
+
+    if( member.length() ) {
+        if( member == groupAlias ) {
+            StoredDirectMsg stoDM;
+            stoDM.m_fromMe  = false;
+            stoDM.m_from    = invitedBy;
+            // temporary hack: we must add new fields to StoredDirectMsg so text may be translated by UI
+            stoDM.m_text    = "*** '" + invitedBy + "' changed group description to: " + desc;
+            stoDM.m_utcTime = utcTime;
+            storeGroupDM(groupAlias,stoDM);
+        } else {
+            group.m_members.insert(member);
+            
+            if( m_users.count(member) ) {
+                StoredDirectMsg stoDM;
+                stoDM.m_fromMe  = false;
+                stoDM.m_from    = invitedBy;
+                // temporary hack: we must add new fields to StoredDirectMsg so text may be translated by UI
+                stoDM.m_text    = "*** Invited by '" + invitedBy + "' to group: " + desc;
+                stoDM.m_utcTime = utcTime;
+                storeNewDM(member,groupAlias,stoDM);
+            }
+        }
+    }
+}
+
+void notifyNewGroupMember(string &groupAlias, string &newmember, string &invitedBy, int64_t utcTime)
+{
+    LOCK(cs_twister);
+    if( !m_groups.count(groupAlias) )
+        return;
+
+    GroupChat &group = m_groups[groupAlias];
+
+    if( group.m_members.count(newmember) )
+        return;
+
+    group.m_members.insert(newmember);
+
+    StoredDirectMsg stoDM;
+    stoDM.m_fromMe  = false;
+    stoDM.m_from    = invitedBy;
+    // temporary hack: we must add new fields to StoredDirectMsg so text may be translated by UI
+    stoDM.m_text    = "*** New member '" + newmember + "' invited by '" + invitedBy + "'";
+    stoDM.m_utcTime = utcTime;
+    storeGroupDM(groupAlias,stoDM);
+}
+
 // try decrypting new DM received by any torrent we follow
 bool processReceivedDM(lazy_entry const* post)
 {
     bool result = false;
+
+    std::set<std::string> torrentsToStart;
 
     lazy_entry const* dm = post->dict_find_dict("dm");
     if( dm ) {
@@ -1097,7 +1253,7 @@ bool processReceivedDM(lazy_entry const* post)
         {
             CKey key;
             if (!pwalletMain->GetKey(item.first, key)) {
-                printf("acceptSignedPost: private key not available trying to decrypt DM.\n");
+                printf("processReceivedDM: private key not available trying to decrypt DM.\n");
             } else {
                 std::string textOut;
                 if( key.Decrypt(sec, textOut) ) {
@@ -1108,10 +1264,25 @@ bool processReceivedDM(lazy_entry const* post)
                            textOut.c_str());
                     */
 
-                    std::string from   = post->dict_find_string_value("n");
-                    std::string to     = item.second.username; // default (old format)
-                    std::string msg    = textOut;              // default (old format)
-                    bool        fromMe = (from == to);
+                    int64_t     utcTime = post->dict_find_int_value("time");
+                    std::string from    = post->dict_find_string_value("n");
+                    std::string to      = item.second.username; // default (old format)
+                    std::string msg     = textOut;              // default (old format)
+                    bool        fromMe  = (from == to);
+                    bool        isGroup = false;
+
+                    {
+                        LOCK(cs_twister);
+                        isGroup = m_groups.count(to);
+                        if( !isGroup && m_users.count(to) &&
+                            !m_users.at(to).m_following.count(from) ) {
+                            /* DM not allowed from users we don't follow.*/
+                            printf("processReceivedDM: from '%s' to '%s' not allowed (not following)\n",
+                                   from.c_str(), to.c_str());
+                            break;
+                        }
+                    }
+
                     // try bdecoding the new format (copy to self etc)
                     {
                         lazy_entry v;
@@ -1119,6 +1290,34 @@ bool processReceivedDM(lazy_entry const* post)
                         libtorrent::error_code ec;
                         if (lazy_bdecode(textOut.data(), textOut.data()+textOut.size(), v, ec, &pos) == 0
                                 && v.type() == lazy_entry::dict_t) {
+
+                            /* group_invite: register new private key and group's description.
+                             * if sent to groupalias then it is a change description request. */
+                            lazy_entry const* pGroupInvite = v.dict_find_dict("group_invite");
+                            if (pGroupInvite) {
+                                lazy_entry const* pDesc = pGroupInvite->dict_find_string("desc");
+                                lazy_entry const* pKey  = pGroupInvite->dict_find_string("key");
+                                if (pDesc && pKey) {
+                                    string desc     = pDesc->string_value();
+                                    string privKey  = pKey->string_value();
+                                    registerNewGroup(privKey, desc, to, from, utcTime);
+                                }
+                                break;
+                            }
+
+                            /* update group members list. we may need to start torrent for
+                             * new members to receive their chat updates */
+                            lazy_entry const* pGroupMembers = v.dict_find_list("group_members");
+                            if (pGroupMembers && isGroup) {
+                                for (int i = 0; i < pGroupMembers->list_size(); ++i) {
+                                    std::string member = pGroupMembers->list_string_value_at(i);
+                                    if (member.empty()) continue;
+                                    notifyNewGroupMember(to, member, from, utcTime);
+                                    torrentsToStart.insert(member);
+                                }
+                                break;
+                            }
+
                             lazy_entry const* pMsg = v.dict_find_string("msg");
                             lazy_entry const* pTo  = v.dict_find_string("to");
                             if (pMsg && pTo) {
@@ -1134,33 +1333,26 @@ bool processReceivedDM(lazy_entry const* post)
 
                     StoredDirectMsg stoDM;
                     stoDM.m_fromMe  = fromMe;
+                    stoDM.m_from    = from;
                     stoDM.m_text    = msg;
-                    stoDM.m_utcTime = post->dict_find_int_value("time");
+                    stoDM.m_utcTime = utcTime;
 
-                    LOCK(cs_twister);
-                    // store this dm in memory list, but prevent duplicates
-                    std::vector<StoredDirectMsg> &dmsFromToUser = m_users[item.second.username].
-                                                  m_directmsg[fromMe ? to : from];
-                    std::vector<StoredDirectMsg>::iterator it;
-                    for( it = dmsFromToUser.begin(); it != dmsFromToUser.end(); ++it ) {
-                        if( stoDM.m_utcTime == (*it).m_utcTime &&
-                            stoDM.m_text    == (*it).m_text ) {
-                            break;
-                        }
-                        if( stoDM.m_utcTime < (*it).m_utcTime ) {
-                            dmsFromToUser.insert(it, stoDM);
-                            break;
-                        }
+                    if( isGroup ) {
+                        storeGroupDM(item.second.username, stoDM);
+                    } else {
+                        storeNewDM(item.second.username, fromMe ? to : from, stoDM);
                     }
-                    if( it == dmsFromToUser.end() ) {
-                        dmsFromToUser.push_back(stoDM);
-                    }
-
                     break;
                 }
             }
         }
     }
+
+    // start torrents outside cs_wallet to prevent deadlocks
+    BOOST_FOREACH(string username, torrentsToStart) {
+        startTorrentUser(username, true);
+    }
+
     return result;
 }
 
@@ -1388,7 +1580,13 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
 bool createDirectMessage(entry &dm, std::string const &to, std::string const &msg)
 {
     CPubKey pubkey;
-    if( !getUserPubKey(to, pubkey) ) {
+    
+    /* try obtaining key from wallet first */
+    CKeyID keyID;
+    if (pwalletMain->GetKeyIdFromUsername(to, keyID) &&
+        pwalletMain->GetPubKey( keyID, pubkey) ) {
+        /* success: key obtained from wallet */
+    } else if( !getUserPubKey(to, pubkey) ) {
       printf("createDirectMessage: no pubkey for user '%s'\n", to.c_str());
       return false;
     }
@@ -2248,6 +2446,7 @@ Value getdirectmsgs(const Array& params, bool fHelp)
                 dmObj.push_back(Pair("time",dmsFromToUser.at(i).m_utcTime));
                 dmObj.push_back(Pair("text",dmsFromToUser.at(i).m_text));
                 dmObj.push_back(Pair("fromMe",dmsFromToUser.at(i).m_fromMe));
+                dmObj.push_back(Pair("from",dmsFromToUser.at(i).m_from));
                 userMsgs.push_back(dmObj);
             }
             if( userMsgs.size() ) {
@@ -3175,3 +3374,230 @@ Object getLibtorrentSessionStatus()
     // @TODO: Is there a way to get some statistics for dhtProxy?
     return obj;
 }
+
+Value creategroup(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "creategroup <description>\n"
+            "Create a new key pair for group chat and add it to wallet\n"
+            "Hint: use groupcreate to invite yourself\n"
+            "Returns the group alias");
+
+    string strDescription = params[0].get_str();
+
+    RandAddSeedPerfmon();
+    CKey secret;
+    secret.MakeNewKey(true);
+    string privKey = CBitcoinSecret(secret).ToString();
+
+    string noMember;
+    registerNewGroup(privKey, strDescription, noMember, noMember, GetTime());
+
+    return getGroupAliasByKey(privKey);
+}
+
+Value listgroups(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "listgroups\n"
+            "get list of group chats");
+
+    Array ret;
+
+    LOCK(cs_twister);
+    map<string,GroupChat>::const_iterator i;
+    for (i = m_groups.begin(); i != m_groups.end(); ++i) {
+        ret.push_back(i->first);
+    }
+
+    return ret;
+}
+
+Value getgroupinfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "getgroupinfo <groupalias>\n"
+            "get group description and members");
+
+    string strGroupAlias = params[0].get_str();
+
+    Object ret;
+
+    LOCK(cs_twister);
+    if (!m_groups.count(strGroupAlias))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown group alias");
+
+    ret.push_back(Pair("alias",strGroupAlias));
+    ret.push_back(Pair("description",m_groups.at(strGroupAlias).m_description));
+
+    Array membersList;
+    BOOST_FOREACH( std::string const &n, m_groups.at(strGroupAlias).m_members) {
+        membersList.push_back(n);
+    }
+    ret.push_back(Pair("members",membersList));
+
+    return ret;
+}
+
+static void signAndAddDM(const std::string &strFrom, int k, const entry *dm)
+{
+    entry v;
+    if( !createSignedUserpost(v, strFrom, k, "",
+                              NULL, NULL, dm,
+                              std::string(""), 0) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
+
+    std::vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    std::string errmsg;
+    if( !acceptSignedPost(buf.data(),buf.size(),strFrom,k,errmsg,NULL) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = startTorrentUser(strFrom, true);
+    h.add_piece(k++,buf.data(),buf.size());
+}
+
+Value newgroupinvite(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4 )
+        throw runtime_error(
+            "newgroupinvite <username> <k> <groupalias> '[<newmember>,...]'\n"
+            "Invite some new members for a group chat.\n"
+            "note: k is increased by at least 2, check getlasthave");
+
+    EnsureWalletIsUnlocked();
+
+    string strFrom        = params[0].get_str();
+    int k                 = params[1].get_int();
+    string strGroupAlias  = params[2].get_str();
+    Array newmembers      = params[3].get_array();
+
+    std::set<std::string> membersList;
+    {
+        LOCK(cs_twister);
+        if (!m_groups.count(strGroupAlias))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown group alias");
+        membersList = m_groups.at(strGroupAlias).m_members;
+    }
+
+    /* create group_invite DM and send it to each new member */
+    for( unsigned int u = 0; u < newmembers.size(); u++ ) {
+        string strMember = newmembers[u].get_str();
+        membersList.insert(strMember);
+        entry groupInvite;
+        {
+            LOCK(cs_twister);
+            groupInvite["desc"] = m_groups.at(strGroupAlias).m_description;
+            groupInvite["key"]  = m_groups.at(strGroupAlias).m_privKey;
+        }
+        entry payloadMsg;
+        payloadMsg["group_invite"] = groupInvite;
+        std::vector<char> payloadbuf;
+        bencode(std::back_inserter(payloadbuf), payloadMsg);
+        std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
+
+        entry dmInvite;
+        if( !createDirectMessage(dmInvite, strMember, strMsgData) )
+            throw JSONRPCError(RPC_INTERNAL_ERROR,
+                               "error encrypting to pubkey of destination user");
+        signAndAddDM(strFrom, k++, &dmInvite);
+    }
+
+    /* create group_members DM and send it to group */
+    {
+        /* FIXME: if we have too many members, this code will break!
+         * we must check byteCounter and split in multiple DMs as needed to not exceed max size.
+         */
+        entry groupMembers;
+        int byteCounter = 0;
+        BOOST_FOREACH( string const &member, membersList) {
+            groupMembers.list().push_back(member);
+            byteCounter += member.length() + 3;
+        }
+        entry payloadMsg;
+        payloadMsg["group_members"] = groupMembers;
+        std::vector<char> payloadbuf;
+        bencode(std::back_inserter(payloadbuf), payloadMsg);
+        std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
+
+        entry dmMembers;
+        if( !createDirectMessage(dmMembers, strGroupAlias, strMsgData) )
+            throw JSONRPCError(RPC_INTERNAL_ERROR,
+                               "error encrypting to pubkey of group alias");
+        signAndAddDM(strFrom, k++, &dmMembers);
+    }
+
+    return Value();
+}
+
+Value newgroupdescription(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4 )
+        throw runtime_error(
+            "newgroupdescription <username> <k> <groupalias> <description>\n"
+            "Change group description by sending a new invite DM to group");
+
+    EnsureWalletIsUnlocked();
+
+    string strFrom        = params[0].get_str();
+    int k                 = params[1].get_int();
+    string strGroupAlias  = params[2].get_str();
+    string strDescription = params[3].get_str();
+
+    entry groupInvite;
+    {
+        LOCK(cs_twister);
+        if (!m_groups.count(strGroupAlias))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown group alias");
+
+        m_groups[strGroupAlias].m_description = strDescription;
+        groupInvite["desc"] = m_groups.at(strGroupAlias).m_description;
+        groupInvite["key"]  = m_groups.at(strGroupAlias).m_privKey;
+    }
+    entry payloadMsg;
+    payloadMsg["group_invite"] = groupInvite;
+    std::vector<char> payloadbuf;
+    bencode(std::back_inserter(payloadbuf), payloadMsg);
+    std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
+
+    entry dmInvite;
+    if( !createDirectMessage(dmInvite, strGroupAlias, strMsgData) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,
+                           "error encrypting to pubkey of group alias");
+    signAndAddDM(strFrom, k++, &dmInvite);
+
+    return Value();
+}
+
+Value leavegroup(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4 )
+        throw runtime_error(
+            "leavegroup <username> <groupalias>\n"
+            "Stop receive chats from group");
+
+    string strUser        = params[0].get_str();
+    string strGroupAlias  = params[1].get_str();
+
+    LOCK(cs_twister);
+    if (!m_groups.count(strGroupAlias))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown group alias");
+
+    if (!m_users.count(strUser))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown user");
+
+    throw JSONRPCError(RPC_INTERNAL_ERROR, "not implemented");
+    /*
+     * The idea is to remove strGroupAlias from m_users[strUser].m_directmsg and
+     * also add strGroupAlias to a m_users[strUser].m_ignoreGroups list to prevent
+     * being invited again. however how would one revert a leavegroup?
+     */
+
+    return Value();
+}
+
+

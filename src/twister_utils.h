@@ -14,6 +14,13 @@ struct StoredDirectMsg {
     int64_t m_utcTime;
     std::string m_text;
     bool m_fromMe;
+    std::string m_from; // used for group chat
+};
+
+struct GroupChat {
+    std::string m_description;
+    std::string m_privKey;
+    std::set<std::string> m_members;
 };
 
 // in-memory data per wallet user
@@ -44,6 +51,9 @@ libtorrent::entry jsonToEntry(const json_spirit::Value &v);
 int saveUserData(std::string const& filename, std::map<std::string,UserData> const &users);
 int loadUserData(std::string const& filename, std::map<std::string,UserData> &users);
 
+int saveGroupData(std::string const& filename, std::map<std::string,GroupChat> const &groups);
+int loadGroupData(std::string const& filename, std::map<std::string,GroupChat> &groups);
+
 void hexcapePost(libtorrent::entry &e);
 void unHexcapePost(libtorrent::entry &e);
 
@@ -55,5 +65,7 @@ int safeGetEntryInt(libtorrent::entry const &e, std::string const& key);
 libtorrent::entry safeGetEntryDict(libtorrent::entry const &e, std::string const& key);
 
 libtorrent::sha1_hash dhtTargetHash(std::string const &username, std::string const &resource, std::string const &type);
+
+std::string getRandomGroupAlias();
 
 #endif // TWISTER_UTILS_H

@@ -271,6 +271,12 @@ static const CRPCCommand vRPCCommands[] =
     { "getspamposts",           &getspamposts,           false,     true,       false },
     { "torrentstatus",          &torrentstatus,          false,     true,       false },
     { "search",                 &search,                 false,     true,       false },
+    { "creategroup",            &creategroup,            false,     true,       false },
+    { "listgroups",             &listgroups,             false,     true,       false },
+    { "getgroupinfo",           &getgroupinfo,           false,     true,       false },
+    { "newgroupinvite",         &newgroupinvite,         false,     true,       false },
+    { "newgroupdescription",    &newgroupdescription,    false,     true,       false },
+    { "leavegroup",             &leavegroup,             false,     true,       false },
 };
 
 CRPCTable::CRPCTable()
@@ -1327,6 +1333,9 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getspamposts"           && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getspamposts"           && n > 2) ConvertTo<boost::int64_t>(params[2]);
     if (strMethod == "search"                 && n > 2) ConvertTo<boost::int64_t>(params[2]);
+    if (strMethod == "newgroupinvite"         && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "newgroupinvite"         && n > 3) ConvertTo<Array>(params[3]);
+    if (strMethod == "newgroupdescription"    && n > 1) ConvertTo<boost::int64_t>(params[1]);
 
     return params;
 }
