@@ -1109,7 +1109,7 @@ void storeNewDM(const string &localuser, const string &dmUser, const StoredDirec
             stoDM.m_text    == (*it).m_text ) {
             break;
         }
-        if( stoDM.m_utcTime < (*it).m_utcTime ) {
+        if( stoDM.m_utcTime <= (*it).m_utcTime ) {
             dmsFromToUser.insert(it, stoDM);
             break;
         }
@@ -3508,15 +3508,19 @@ Value newgroupinvite(const Array& params, bool fHelp)
     }
 
     /* create group_members DM and send it to group */
-    {
-        /* FIXME: if we have too many members, this code will break!
-         * we must check byteCounter and split in multiple DMs as needed to not exceed max size.
-         */
+    while( !membersList.empty() ) {
         entry groupMembers;
         int byteCounter = 0;
-        BOOST_FOREACH( string const &member, membersList) {
+        while( !membersList.empty() ) {
+            std::set<std::string>::iterator it = membersList.begin();
+            std::string member=*it;
             groupMembers.list().push_back(member);
-            byteCounter += member.length() + 3;
+            membersList.erase(it);
+
+            // estimate bencoded size. split in multiple DMs.
+            byteCounter += member.length() + 2 + member.length()/10;
+            if( byteCounter > 150 )
+                break;
         }
         entry payloadMsg;
         payloadMsg["group_members"] = groupMembers;
