@@ -174,6 +174,14 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
                 }
             }
         }
+
+        if( udata.m_ignoreGroups.size() ) {
+            entry &userData = userDict[i->first];
+            entry &ignoreGroupsList = userData["ignore_groups"];
+            BOOST_FOREACH( std::string const &n, udata.m_ignoreGroups) {
+                ignoreGroupsList.list().push_back(n);
+            }
+        }
     }
 
     std::vector<char> buf;
@@ -252,6 +260,16 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
                         }
                     }
                 }
+
+                const lazy_entry *ignoreGroupsList = userData->dict_find("ignore_groups");
+                if( ignoreGroupsList ) {
+                    if( ignoreGroupsList->type() != lazy_entry::list_t ) goto data_error;
+
+                    for( int j = 0; j < ignoreGroupsList->list_size(); j++ ) {
+                        udata.m_ignoreGroups.insert( ignoreGroupsList->list_string_value_at(j) );
+                    }
+                }
+
                 users[userDict.dict_at(i).first] = udata;
             }
             return 0;

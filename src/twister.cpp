@@ -1127,7 +1127,7 @@ void storeGroupDM(const string &groupAlias, const StoredDirectMsg &stoDM)
     GroupChat &group = m_groups[groupAlias];
 
     BOOST_FOREACH(string const &member, group.m_members) {
-        if( m_users.count(member) ) {
+        if( m_users.count(member) && !m_users.at(member).m_ignoreGroups.count(groupAlias) ) {
             storeNewDM(member,groupAlias,stoDM);
         }
     }
@@ -3579,10 +3579,10 @@ Value newgroupdescription(const Array& params, bool fHelp)
 
 Value leavegroup(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 4 )
+    if (fHelp || params.size() != 2 )
         throw runtime_error(
             "leavegroup <username> <groupalias>\n"
-            "Stop receive chats from group");
+            "Stop receiving chats from group");
 
     string strUser        = params[0].get_str();
     string strGroupAlias  = params[1].get_str();
@@ -3594,12 +3594,8 @@ Value leavegroup(const Array& params, bool fHelp)
     if (!m_users.count(strUser))
         throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown user");
 
-    throw JSONRPCError(RPC_INTERNAL_ERROR, "not implemented");
-    /*
-     * The idea is to remove strGroupAlias from m_users[strUser].m_directmsg and
-     * also add strGroupAlias to a m_users[strUser].m_ignoreGroups list to prevent
-     * being invited again. however how would one revert a leavegroup?
-     */
+    m_users[strUser].m_directmsg.erase(strGroupAlias);
+    m_users[strUser].m_ignoreGroups.insert(strGroupAlias);
 
     return Value();
 }

@@ -33,6 +33,8 @@ struct UserData {
     std::set<std::string> m_mentionsKeys;
     // known posts mentioning this user (by users in m_following)
     std::vector<libtorrent::entry> m_mentionsPosts;
+    // group chats to ignore
+    std::set<std::string> m_ignoreGroups;
 };
 
 
