@@ -2197,36 +2197,28 @@ Value newdirectmsg(const Array& params, bool fHelp)
     bencode(std::back_inserter(payloadbuf), payloadNewFormat);
     std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
 
-    if( copySelf ) {
-        // add padding to strMsg so both DMs will have exactly the same size.
-        // should be removed in future when all clients move to new format.
-        while( strMsg.length() < strMsgData.length() ) {
-            strMsg.push_back(' ');
-        }
-    }
-
-    entry dmOldFormat;
-    if( !createDirectMessage(dmOldFormat, strTo, strMsg) )
+    entry dmRcpt;
+    if( !createDirectMessage(dmRcpt, strTo, strMsgData) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,
                            "error encrypting to pubkey of destination user");
 
-    entry dmNewFormat;
+    entry dmSelf;
     if( copySelf ) {
         // use new format to send a copy to ourselves. in future, message
         // to others might use the new format as well.
-        if( !createDirectMessage(dmNewFormat, strFrom, strMsgData) )
+        if( !createDirectMessage(dmSelf, strFrom, strMsgData) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,
-                               "error encrypting to pubkey of destination user");
+                               "error encrypting to pubkey to ourselve");
 
         if( rand() < (RAND_MAX/2) ) {
-            dmsToSend.push_back(&dmOldFormat);
-            dmsToSend.push_back(&dmNewFormat);
+            dmsToSend.push_back(&dmRcpt);
+            dmsToSend.push_back(&dmSelf);
         } else {
-            dmsToSend.push_back(&dmNewFormat);
-            dmsToSend.push_back(&dmOldFormat);
+            dmsToSend.push_back(&dmSelf);
+            dmsToSend.push_back(&dmRcpt);
         }
     } else {
-        dmsToSend.push_back(&dmOldFormat);
+        dmsToSend.push_back(&dmRcpt);
     }
 
     Value ret;
@@ -2249,6 +2241,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
             // do not send a copy to self, so just store it locally.
             StoredDirectMsg stoDM;
             stoDM.m_fromMe  = true;
+            stoDM.m_from    = strFrom;
             stoDM.m_text    = strMsg;
             stoDM.m_utcTime = v["userpost"]["time"].integer();
 
