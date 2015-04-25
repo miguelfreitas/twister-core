@@ -1198,7 +1198,7 @@ void registerNewGroup(const string &privKey, const string &desc, const string &m
         } else {
             group.m_members.insert(member);
             
-            if( m_users.count(member) ) {
+            if( m_users.count(member) && !m_users.at(member).m_ignoreGroups.count(groupAlias) ) {
                 StoredDirectMsg stoDM;
                 stoDM.m_fromMe  = false;
                 stoDM.m_from    = invitedBy;
@@ -3486,6 +3486,8 @@ Value newgroupinvite(const Array& params, bool fHelp)
             LOCK(cs_twister);
             groupInvite["desc"] = m_groups.at(strGroupAlias).m_description;
             groupInvite["key"]  = m_groups.at(strGroupAlias).m_privKey;
+            if( m_users.count(strMember) )
+                m_users[strMember].m_ignoreGroups.erase(strGroupAlias);
         }
         entry payloadMsg;
         payloadMsg["group_invite"] = groupInvite;
