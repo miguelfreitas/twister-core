@@ -1422,6 +1422,9 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 } else if( k != seq ) {
                     sprintf(errbuf,"expected piece '%d' got '%d'",
                            seq, k);
+                } else if (torrentLastHave(username) >= seq) {
+                    sprintf(errbuf, "duplicate or backward post sequence number (k=%d)",
+                            seq);
                 } else if( !validatePostNumberForUser(username, k) ) {
                     sprintf(errbuf,"too much posts from user '%s' rejecting post",
                             username.c_str());
