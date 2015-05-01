@@ -1422,9 +1422,6 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                 } else if( k != seq ) {
                     sprintf(errbuf,"expected piece '%d' got '%d'",
                            seq, k);
-                } else if (torrentLastHave(username) >= seq) {
-                    sprintf(errbuf, "duplicate or backward post sequence number (k=%d)",
-                            seq);
                 } else if( !validatePostNumberForUser(username, k) ) {
                     sprintf(errbuf,"too much posts from user '%s' rejecting post",
                             username.c_str());
@@ -2049,7 +2046,6 @@ int findLastPublicPostLocalUser( std::string strUsername )
     return lastk;
 }
 
-
 Value newpostmsg(const Array& params, bool fHelp)
 {
     if (fHelp || (params.size() != 3 && params.size() != 5))
@@ -2071,6 +2067,9 @@ Value newpostmsg(const Array& params, bool fHelp)
         replyK = params[4].get_int();
         strReplyK = boost::lexical_cast<std::string>(replyK);
     }
+
+    if (k <= torrentLastHave(strUsername))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid k number");
 
     entry v;
     // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
@@ -2159,6 +2158,9 @@ Value newpostraw(const Array& params, bool fHelp)
     int k              = params[1].get_int();
     string hexdata     = params[2].get_str();
 
+    if (k <= torrentLastHave(strUsername))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid k number");
+
     vector<unsigned char> buf = ParseHex(hexdata);
 
     std::string errmsg;
@@ -2190,6 +2192,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
     string strTo       = params[2].get_str();
     string strMsg      = params[3].get_str();
     bool copySelf      = (params.size() > 4) ? params[4].get_bool() : false;
+
+    if (k <= torrentLastHave(strFrom))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid k number");
 
     std::list<entry *> dmsToSend;
 
@@ -2277,6 +2282,9 @@ Value newrtmsg(const Array& params, bool fHelp)
     unHexcapePost(vrt);
     entry const *rt    = vrt.find_key("userpost");
     entry const *sig_rt= vrt.find_key("sig_userpost");
+
+    if (k <= torrentLastHave(strUsername))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid k number");
 
     entry v;
     // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
