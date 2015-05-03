@@ -2643,14 +2643,22 @@ Value getfollowing(const Array& params, bool fHelp)
 
 Value getlasthave(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 1))
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "getlasthave <username>\n"
-            "get last 'have' (higher post number) of each user user we follow");
-
-    string localUser = params[0].get_str();
+            "getlasthave <username> | <groupname> [user1,user2...]\n"
+            "get last 'have' (higher post number) of each user local user follows.\n"
+            "if a groupname with an array is given, only those users' last 'have' values will be returned.");
 
     std::set<std::string> following;
+
+    string localUser = params[0].get_str();
+    if (params.size() > 1)
+    {
+        Array userlist = params[1].get_array();
+        for (unsigned int i = 0; i < userlist.size(); i++)
+            following.insert(userlist[i].get_str());
+    }
+    else
     {
         LOCK(cs_twister);
         if( m_users.count(localUser) )
