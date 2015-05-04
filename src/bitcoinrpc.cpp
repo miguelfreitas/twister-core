@@ -252,9 +252,11 @@ static const CRPCCommand vRPCCommands[] =
     { "newpostraw",             &newpostraw,             false,     true,       true },
     { "newdirectmsg",           &newdirectmsg,           false,     true,       false },
     { "newrtmsg",               &newrtmsg,               false,     true,       false },
+    { "newfavmsg",              &newfavmsg,              false,     true,       false },
     { "getposts",               &getposts,               false,     true,       false },
     { "getdirectmsgs",          &getdirectmsgs,          false,     true,       false },
     { "getmentions",            &getmentions,            false,     true,       false },
+    { "getfavs",                &getfavs,                false,     true,       false },
     { "setspammsg",             &setspammsg,             false,     false,      false },
     { "getspammsg",             &getspammsg,             false,     false,      false },
     { "setpreferredspamlang",   &setpreferredspamlang,   false,     false,      false },
@@ -1316,6 +1318,9 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "newdirectmsg"           && n > 4) ConvertTo<bool>(params[4]);
     if (strMethod == "newrtmsg"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newrtmsg"               && n > 2) ConvertTo<Object>(params[2]);
+    if (strMethod == "newfavmsg"              && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "newfavmsg"              && n > 2) ConvertTo<Object>(params[2]);
+    if (strMethod == "newfavmsg"              && n > 3) ConvertTo<bool>(params[3]);
     if (strMethod == "getlasthave"            && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "getposts"               && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "getposts"               && n > 1) ConvertTo<Array>(params[1]);
@@ -1325,6 +1330,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getdirectmsgs"          && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "getmentions"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getmentions"            && n > 2) ConvertTo<Object>(params[2]);
+    if (strMethod == "getfavs"                && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "getfavs"                && n > 2) ConvertTo<Object>(params[2]);
     if (strMethod == "follow"                 && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "unfollow"               && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "listusernamespartial"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
