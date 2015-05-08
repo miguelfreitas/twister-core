@@ -28,7 +28,7 @@ run)
     docker pull $IMAGE_NAME
   fi
   echo Running $IMAGE_NAME
-  docker run -d -p 28332:28332 -p 28333:28333 -v $HOME/.twister:/root/.twister $IMAGE_NAME "$@"
+  docker run -d -p 28332:28332 -p 28333:28333 -p 29333:29333 -v $HOME/.twister:/root/.twister $IMAGE_NAME "$@"
   echo "Twister should now be running at http://localhost:28332 (access with \"user\" / \"pwd\")"
   ;;
 
