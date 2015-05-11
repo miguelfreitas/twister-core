@@ -2289,9 +2289,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
 
 Value newrtmsg(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 3))
+    if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "newrtmsg <username> <k> <rt_v_object>\n"
+            "newrtmsg <username> <k> <rt_v_object> [msg]\n"
             "Post a new RT to swarm");
 
     EnsureWalletIsUnlocked();
@@ -2303,6 +2303,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     unHexcapePost(vrt);
     entry const *rt    = vrt.find_key("userpost");
     entry const *sig_rt= vrt.find_key("sig_userpost");
+    string msg         = params.size() > 3 ? params[3].get_str() : "";
 
     entry v;
     // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
@@ -2310,7 +2311,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     if( lastk >= 0 )
         v["userpost"]["lastk"] = lastk;
 
-    if( !createSignedUserpost(v, strUsername, k, "",
+    if( !createSignedUserpost(v, strUsername, k, msg,
                               rt, sig_rt, NULL,
                               NULL, NULL, NULL,
                               std::string(""), 0) )
