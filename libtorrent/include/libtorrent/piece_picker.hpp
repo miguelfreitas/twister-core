@@ -428,8 +428,8 @@ namespace libtorrent
 #else
 			boost::uint32_t peer_count : 16;
 #endif
-			// post flags (1 = rt, 2 = dm)
-			boost::uint32_t post_flags : 2;
+			// post flags (1 = rt, 2 = dm, 4 = fav, 12 = pfav)
+			boost::uint32_t post_flags : 4;
 			// is 1 if the piece is marked as being downloaded
 			boost::uint32_t downloading : 1;
 			// set when downloading, but no free blocks to request left

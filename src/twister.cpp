@@ -1457,11 +1457,30 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                             }
                         }
 
+                        lazy_entry const* fav = post->dict_find_dict("fav");
+                        string sig_fav = post->dict_find_string_value("sig_fav");
+
+                        if ( fav ) {
+                            if ( flags )
+                                (*flags) |= USERPOST_FLAG_FAV;
+                            string username_fav = fav->dict_find_string_value("n");
+                            int height_fav = fav->dict_find_int_value("height", -1);
+
+                            pair<char const*, int> favbuf = fav->data_section();
+                            ret = verifySignature(string(favbuf.first, favbuf.second),
+                                                  username_fav, sig_fav, height_fav);
+                            if ( !ret )
+                                sprintf(errbuf, "bad FAV signature");
+                        }
+
                         if( flags ) {
                             lazy_entry const* dm = post->dict_find_dict("dm");
+                            lazy_entry const* pfav = post->dict_find_dict("pfav");
                             if( dm ) {
                                 (*flags) |= USERPOST_FLAG_DM;
                                 processReceivedDM(post);
+                            } else if (pfav) {
+                                (*flags) |= USERPOST_FLAG_P_FAV;
                             } else {
                                 processReceivedPost(v, username, time, msg);
                             }
@@ -1533,6 +1552,8 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
                           std::string const &msg,               // either msg.size() or
                           entry const *rt, entry const *sig_rt, // rt != NULL or
                           entry const *dm,                      // dm != NULL.
+                          entry const *fav, entry const *sig_fav,
+                          entry const *pfav,
                           std::string const &reply_n, int reply_k
                           )
 {
@@ -1547,14 +1568,20 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
     if( msg.size() ) {
         //userpost["t"] = "post";
         userpost["msg"] = msg;
-    } else if ( rt != NULL && sig_rt != NULL ) {
+    }
+    if ( rt != NULL && sig_rt != NULL ) {
         //userpost["t"] = "rt";
         userpost["rt"] = *rt;
         userpost["sig_rt"] = *sig_rt;
+    } else if ( fav != NULL && sig_fav != NULL ) {
+        userpost["fav"] = *fav;
+        userpost["sig_fav"] = *sig_fav;
     } else if ( dm != NULL ) {
         //userpost["t"] = "dm";
         userpost["dm"] = *dm;
-    } else {
+    } else if ( pfav != NULL ) {
+        userpost["pfav"] = *pfav;
+    } else if ( !msg.size() ) {
         printf("createSignedUserpost: unknown type\n");
         return false;
     }
@@ -2029,7 +2056,7 @@ int findLastPublicPostLocalUser( std::string strUsername )
         std::vector<std::string> pieces;
         int max_id = std::numeric_limits<int>::max();
         int since_id = -1;
-        h.get_pieces(pieces, 1, max_id, since_id, ~USERPOST_FLAG_DM, 0);
+        h.get_pieces(pieces, 1, max_id, since_id, USERPOST_FLAG_HOME, 0);
 
         if( pieces.size() ) {
             string const& piece = pieces.front();
@@ -2076,6 +2103,7 @@ Value newpostmsg(const Array& params, bool fHelp)
         v["userpost"]["lastk"] = lastk;
 
     if( !createSignedUserpost(v, strUsername, k, strMsg,
+                         NULL, NULL, NULL,
                          NULL, NULL, NULL,
                          strReplyN, replyK) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
@@ -2227,6 +2255,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
         entry v;
         if( !createSignedUserpost(v, strFrom, k, "",
                                   NULL, NULL, dm,
+                                  NULL, NULL, NULL,
                                   std::string(""), 0) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2260,9 +2289,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
 
 Value newrtmsg(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 3))
+    if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "newrtmsg <username> <k> <rt_v_object>\n"
+            "newrtmsg <username> <k> <rt_v_object> [msg]\n"
             "Post a new RT to swarm");
 
     EnsureWalletIsUnlocked();
@@ -2274,6 +2303,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     unHexcapePost(vrt);
     entry const *rt    = vrt.find_key("userpost");
     entry const *sig_rt= vrt.find_key("sig_userpost");
+    string msg         = params.size() > 3 ? params[3].get_str() : "";
 
     entry v;
     // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
@@ -2281,8 +2311,9 @@ Value newrtmsg(const Array& params, bool fHelp)
     if( lastk >= 0 )
         v["userpost"]["lastk"] = lastk;
 
-    if( !createSignedUserpost(v, strUsername, k, "",
+    if( !createSignedUserpost(v, strUsername, k, msg,
                               rt, sig_rt, NULL,
+                              NULL, NULL, NULL,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2321,6 +2352,68 @@ Value newrtmsg(const Array& params, bool fHelp)
     return entryToJson(v);
 }
 
+
+Value newfavmsg(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 5)
+        throw runtime_error(
+            "newfavmsg <username> <k> <fav_v_object> [private=false] [msg=''] \n"
+            "Add a post to swarm as a favorite");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    int k              = params[1].get_int();
+    string strK        = boost::lexical_cast<std::string>(k);
+    string msg         = (params.size() > 4) ? params[4].get_str() : "";
+    entry  vfav        = jsonToEntry(params[2].get_obj());
+    bool isPriv        = (params.size() > 3) ? params[3].get_bool() : false;
+    unHexcapePost(vfav);
+    entry const *fav    = vfav.find_key("userpost");
+    entry const *sig_fav= vfav.find_key("sig_userpost");
+
+    entry v;
+
+    if (isPriv)
+    {
+        std::vector<char> payloadbuf;
+        bencode(std::back_inserter(payloadbuf), vfav);
+        std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
+
+        entry pfav;
+        if( !createDirectMessage(pfav, strUsername, strMsgData) )
+            throw JSONRPCError(RPC_INTERNAL_ERROR,
+                               "error encrypting to pubkey of destination user");
+
+        if( !createSignedUserpost(v, strUsername, k, msg,
+                                  NULL, NULL, NULL,
+                                  NULL, NULL, &pfav,
+                                  std::string(""), 0) )
+            throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
+    }
+    else if( !createSignedUserpost(v, strUsername, k, msg,
+                                   NULL, NULL, NULL,
+                                   fav, sig_fav, NULL,
+                                   std::string(""), 0) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
+
+    vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    std::string errmsg;
+    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = startTorrentUser(strUsername, true);
+    if( h.is_valid() ) {
+        // if member of torrent post it directly
+        h.add_piece(k,buf.data(),buf.size());
+    }
+
+    hexcapePost(v);
+    return entryToJson(v);
+}
+
 Value getposts(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 4)
@@ -2328,11 +2421,11 @@ Value getposts(const Array& params, bool fHelp)
             "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [allowed_flags=~2] [required_flags=0]\n"
             "get posts from users\n"
             "max_id and since_id may be omited\n"
-            "(optional) allowed/required flags are bitwise fields (1=RT,2=DM)");
+            "(optional) allowed/required flags are bitwise fields (1=RT,2=DM,4=FAV,12=PFAV)");
 
     int count          = params[0].get_int();
     Array users        = params[1].get_array();
-    int allowed_flags  = (params.size() > 2) ? params[2].get_int() : ~USERPOST_FLAG_DM;
+    int allowed_flags  = (params.size() > 2) ? params[2].get_int() : USERPOST_FLAG_HOME;
     int required_flags = (params.size() > 3) ? params[3].get_int() : 0;
 
     std::multimap<int64,entry> postsByTime;
@@ -2501,6 +2594,114 @@ Value getmentions(const Array& params, bool fHelp)
                 }
             }
         }
+    }
+
+    return ret;
+}
+
+Value getfavs(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3 )
+        throw runtime_error(
+            "getfavs <localuser> <count> '{\"max_id\":max_id,\"since_id\":since_id}'\n"
+            "Get favorite posts (private favorites are included) of localuser\n"
+            "max_id and since_id may be omited. up to <count> posts are returned.");
+
+    string strUsername  = params[0].get_str();
+    int cnt             = params[1].get_int();
+    int max_id = std::numeric_limits<int>::max();
+    int since_id = -1;
+
+    if( params.size() > 2 ) {
+        Object optParms    = params[2].get_obj();
+        for (Object::const_iterator i = optParms.begin(); i != optParms.end(); ++i) {
+            if( i->name_ == "max_id" ) max_id = i->value_.get_int();
+            if( i->name_ == "since_id" ) since_id = i->value_.get_int();
+        }
+    }
+
+    multimap<int64,entry> postsByTime;
+
+    torrent_handle h = startTorrentUser(strUsername, true);
+    if( h.is_valid() ) {
+        std::vector<std::string> pieces;
+        h.get_pieces(pieces, cnt, max_id, since_id, USERPOST_FLAG_P_FAV, USERPOST_FLAG_FAV);
+
+        BOOST_FOREACH(string const& piece, pieces) {
+            lazy_entry v;
+            int pos;
+            libtorrent::error_code ec;
+            if (lazy_bdecode(piece.data(), piece.data()+piece.size(), v, ec, &pos) == 0 &&
+                v.type() == lazy_entry::dict_t) {
+                lazy_entry const* post = v.dict_find_dict("userpost");
+                if (!post || post->type() != lazy_entry::dict_t)
+                    continue;
+                int64 time = post->dict_find_int_value("time",-1);
+
+                if(time == -1 || time > GetAdjustedTime() + MAX_TIME_IN_FUTURE ) {
+                    printf("getposts: ignoring far-future message by '%s'\n", strUsername.c_str());
+                    continue;
+                }
+
+                lazy_entry const* fav = post->dict_find_dict("fav");
+                lazy_entry const* pfav = post->dict_find_dict("pfav");
+                if (fav && fav->type() == lazy_entry::dict_t)
+                {
+                    entry vEntry;
+                    vEntry = v;
+                    vEntry["isPrivate"] = false;
+                    hexcapePost(vEntry);
+                    postsByTime.insert( pair<int64,entry>(time, vEntry) );
+                }
+                else if (pfav && pfav->type() == lazy_entry::dict_t)
+                {
+                    ecies_secure_t sec;
+                    sec.key = pfav->dict_find_string_value("key");
+                    sec.mac = pfav->dict_find_string_value("mac");
+                    sec.orig = pfav->dict_find_int_value("orig");
+                    sec.body = pfav->dict_find_string_value("body");
+
+                    CKey key;
+                    CKeyID keyID;
+                    if (pwalletMain->GetKeyIdFromUsername(strUsername, keyID) &&
+                        pwalletMain->GetKey( keyID, key) ) {
+                        /* success: key obtained from wallet */
+
+                        string textOut;
+                        if (key.Decrypt(sec, textOut))
+                        {
+                            lazy_entry dfav;
+                            if (lazy_bdecode(textOut.data(), textOut.data()+textOut.size(), dfav, ec, &pos) == 0
+                                    && dfav.type() == lazy_entry::dict_t) {
+                                        entry vEntry, upst;
+
+                                        upst["fav"] = *(dfav.dict_find_dict("userpost"));
+                                        upst["sig_fav"] = dfav.dict_find_string_value("sig_userpost");
+                                        upst["n"] = post->dict_find_string_value("n");
+                                        upst["k"] = post->dict_find_int_value("k");
+                                        upst["msg"] = post->dict_find_string_value("msg");
+                                        upst["time"] = post->dict_find_int_value("time");
+                                        upst["height"] = post->dict_find_int_value("height");
+
+                                        vEntry["isPrivate"] = true;
+                                        vEntry["userpost"] = upst;
+
+                                        hexcapePost(vEntry);
+                                        postsByTime.insert( pair<int64,entry>(time, vEntry) );
+
+                                }
+                        }
+                    } else
+                      printf("getfavs: no key for user '%s'\n", strUsername.c_str());
+                }
+            }
+        }
+    }
+
+    Array ret;
+    std::multimap<int64,entry>::reverse_iterator rit;
+    for (rit=postsByTime.rbegin(); rit!=postsByTime.rend() && (int)ret.size() < cnt; ++rit) {
+        ret.push_back( entryToJson(rit->second) );
     }
 
     return ret;
@@ -3448,6 +3649,7 @@ static void signAndAddDM(const std::string &strFrom, int k, const entry *dm)
     entry v;
     if( !createSignedUserpost(v, strFrom, k, "",
                               NULL, NULL, dm,
+                              NULL, NULL, NULL,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
