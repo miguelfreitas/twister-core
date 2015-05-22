@@ -255,7 +255,7 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
                             stoDm.m_text    = dmElem->dict_find_string_value("text");
                             stoDm.m_utcTime = dmElem->dict_find_int_value("time");
                             stoDm.m_fromMe  = dmElem->dict_find_int_value("fromMe");
-                            stoDm.m_from    = dmElem->dict_find_int_value("from");
+                            stoDm.m_from    = dmElem->dict_find_string_value("from");
                             udata.m_directmsg[dmDict->dict_at(j).first].push_back(stoDm);
                         }
                     }
