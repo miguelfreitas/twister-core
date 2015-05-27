@@ -172,7 +172,8 @@ Value listwalletusers(const Array& params, bool fHelp)
     LOCK(pwalletMain->cs_wallet);
     BOOST_FOREACH(const PAIRTYPE(CKeyID, CKeyMetadata)& item, pwalletMain->mapKeyMetadata)
     {
-      ret.push_back(item.second.username);
+        if (item.second.username[0] != '*')
+            ret.push_back(item.second.username);
     }
     return ret;
 }
