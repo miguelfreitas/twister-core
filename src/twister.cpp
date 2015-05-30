@@ -3806,3 +3806,21 @@ Value leavegroup(const Array& params, bool fHelp)
 }
 
 
+Value getpieceavailability(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2 )
+        throw runtime_error(
+            "getpieceavailability <username> <k>'\n"
+            "Get piece availability (peer count for this piece)");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername    = params[0].get_str();
+    int k                 = params[1].get_int();
+
+    torrent_handle h = getTorrentUser(strUsername);
+    std::vector<int> avail;
+    h.piece_availability(avail);
+
+    return avail.size() > k ? avail.at(k) : 0;
+}

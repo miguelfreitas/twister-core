@@ -279,6 +279,7 @@ static const CRPCCommand vRPCCommands[] =
     { "newgroupinvite",         &newgroupinvite,         false,     true,       false },
     { "newgroupdescription",    &newgroupdescription,    false,     true,       false },
     { "leavegroup",             &leavegroup,             false,     true,       false },
+    { "getpieceavailability",   &getpieceavailability,   false,     true,       true },
 };
 
 CRPCTable::CRPCTable()
@@ -1344,6 +1345,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "newgroupinvite"         && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newgroupinvite"         && n > 3) ConvertTo<Array>(params[3]);
     if (strMethod == "newgroupdescription"    && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "getpieceavailability"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
 
     return params;
 }
