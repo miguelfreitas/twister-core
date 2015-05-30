@@ -3824,3 +3824,23 @@ Value getpieceavailability(const Array& params, bool fHelp)
 
     return avail.size() > k ? avail.at(k) : 0;
 }
+
+Value getpiecemaxseen(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2 )
+        throw runtime_error(
+            "getpiecemaxseen <username> <k>'\n"
+            "Get piece max seen availability (max peer count for this piece)");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername    = params[0].get_str();
+    int k                 = params[1].get_int();
+
+    torrent_handle h = getTorrentUser(strUsername);
+    std::vector<int> max_seen;
+    h.piece_max_seen(max_seen);
+
+    return max_seen.size() > k ? max_seen.at(k) : 0;
+}
+

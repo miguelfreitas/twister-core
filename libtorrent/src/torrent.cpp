@@ -3830,6 +3830,20 @@ namespace libtorrent
 		m_picker->get_availability(avail);
 	}
 
+	void torrent::piece_max_seen(std::vector<int>& max_seen) const
+	{
+		INVARIANT_CHECK;
+
+		TORRENT_ASSERT(valid_metadata());
+		if (!has_picker())
+		{
+			max_seen.clear();
+			return;
+		}
+
+		m_picker->get_max_seen(max_seen);
+	}
+
 	void torrent::set_piece_priority(int index, int priority)
 	{
 //		INVARIANT_CHECK;
@@ -5043,6 +5057,15 @@ namespace libtorrent
 			m_policy.recalculate_connect_candidates();
 		}
 
+		lazy_entry const* piece_max_seen = rd.dict_find_string("piece_max_seen");
+		if (piece_max_seen && piece_max_seen->string_length()
+			== m_torrent_file->num_pieces())
+		{
+			char const* p = piece_max_seen->string_ptr();
+			for (int i = 0; i < piece_max_seen->string_length(); ++i)
+				m_picker->set_piece_max_seen(i, p[i]);
+		}
+		
 		if (!m_override_resume_data)
 		{
 			int auto_managed_ = rd.dict_find_int_value("auto_managed", -1);
@@ -5384,6 +5407,12 @@ namespace libtorrent
 			for (int i = 0, end(piece_priority.size()); i < end; ++i)
 				piece_priority[i] = m_picker->piece_priority(i);
 		}
+
+		// write piece max_seen
+		entry::string_type& piece_max_seen = ret["piece_max_seen"].string();
+		piece_max_seen.resize(m_torrent_file->num_pieces());
+		for (int i = 0, end(piece_max_seen.size()); i < end; ++i)
+			piece_max_seen[i] = m_picker->piece_max_seen(i);
 
 		// write file priorities
 		entry::list_type& file_priority = ret["file_priority"].list();

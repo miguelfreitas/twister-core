@@ -555,6 +555,12 @@ namespace libtorrent
 		TORRENT_SYNC_CALL1(piece_availability, boost::ref(avail));
 	}
 
+	void torrent_handle::piece_max_seen(std::vector<int>& max_seen) const
+	{
+		INVARIANT_CHECK;
+		TORRENT_SYNC_CALL1(piece_max_seen, boost::ref(max_seen));
+	}
+
 	void torrent_handle::piece_priority(int index, int priority) const
 	{
 		INVARIANT_CHECK;

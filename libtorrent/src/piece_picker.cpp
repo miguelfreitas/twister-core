@@ -111,6 +111,7 @@ namespace libtorrent
 			, end(m_piece_map.end()); i != end; ++i)
 		{
 			i->peer_count = 0;
+			i->max_seen = 0;
 			i->downloading = 0;
 			i->index = 0;
 #ifdef TORRENT_DEBUG_REFCOUNTS
@@ -157,6 +158,7 @@ namespace libtorrent
             , end(m_piece_map.end()); i != end; ++i)
         {
             i->peer_count = 0;
+            i->max_seen = 0;
             i->downloading = 0;
             i->index = 0;
 #ifdef TORRENT_DEBUG_REFCOUNTS
@@ -987,6 +989,11 @@ namespace libtorrent
 
 		int prev_priority = p.priority(this);
 		++p.peer_count;
+		if( p.peer_count > p.max_seen ) {
+			p.max_seen = (p.peer_count <= piece_pos::max_seen_count)
+			    ? p.peer_count : piece_pos::max_seen_count;
+		}
+
 		if (m_dirty) return;
 		int new_priority = p.priority(this);
 		if (prev_priority == new_priority) return;
@@ -1013,6 +1020,10 @@ namespace libtorrent
 			, end(m_piece_map.end()); i != end; ++i)
 		{
 			++i->peer_count;
+			if( i->peer_count > i->max_seen ) {
+				i->max_seen = (i->peer_count <= piece_pos::max_seen_count)
+				    ? i->peer_count : piece_pos::max_seen_count;
+			}
 		}
 
 		m_dirty = true;
@@ -1068,6 +1079,10 @@ namespace libtorrent
 #endif
 
 				++m_piece_map[index].peer_count;
+				if( m_piece_map[index].peer_count > m_piece_map[index].max_seen ) {
+					m_piece_map[index].max_seen = (m_piece_map[index].peer_count <= piece_pos::max_seen_count)
+					    ? m_piece_map[index].peer_count : piece_pos::max_seen_count;
+				}
 				updated = true;
 			}
 		}
@@ -1447,6 +1462,26 @@ namespace libtorrent
 		{
 			*j = i->piece_priority;
 		}
+	}
+
+	void piece_picker::set_piece_max_seen(int index, int new_piece_max_seen)
+	{
+#ifdef TORRENT_EXPENSIVE_INVARIANT_CHECKS
+		TORRENT_PIECE_PICKER_INVARIANT_CHECK;
+#endif
+		TORRENT_ASSERT(new_piece_max_seen >= 0);
+		TORRENT_ASSERT(index >= 0);
+		TORRENT_ASSERT(index < (int)m_piece_map.size());
+		m_piece_map[index].max_seen = new_piece_max_seen < piece_pos::max_seen_count ? 
+		    new_piece_max_seen : piece_pos::max_seen_count;
+	}
+
+	int piece_picker::piece_max_seen(int index) const
+	{
+		TORRENT_ASSERT(index >= 0);
+		TORRENT_ASSERT(index < (int)m_piece_map.size());
+
+		return m_piece_map[index].max_seen;
 	}
 
 	// ============ start deprecation ==============
@@ -2337,6 +2372,17 @@ namespace libtorrent
 		for (std::vector<piece_pos>::const_iterator i = m_piece_map.begin()
 			, end(m_piece_map.end()); i != end; ++i, ++j)
 			*j = i->peer_count + m_seeds;
+	}
+
+	void piece_picker::get_max_seen(std::vector<int>& max_seen) const
+	{
+		TORRENT_PIECE_PICKER_INVARIANT_CHECK;
+	
+		max_seen.resize(m_piece_map.size());
+		std::vector<int>::iterator j = max_seen.begin();
+		for (std::vector<piece_pos>::const_iterator i = m_piece_map.begin()
+			, end(m_piece_map.end()); i != end; ++i, ++j)
+			*j = i->max_seen;
 	}
 
 	bool piece_picker::mark_as_writing(piece_block block, void* peer)

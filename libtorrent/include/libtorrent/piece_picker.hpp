@@ -180,6 +180,7 @@ namespace libtorrent
 		piece_picker();
 
 		void get_availability(std::vector<int>& avail) const;
+		void get_max_seen(std::vector<int>& max_seen) const;
 
 		// increases the peer count for the given piece
 		// (is used when a HAVE message is received)
@@ -248,6 +249,12 @@ namespace libtorrent
 
 		// returns the current piece priorities for all pieces
 		void piece_priorities(std::vector<int>& pieces) const;
+
+		// sets the max_seen of a piece.
+		void set_piece_max_seen(int index, int new_piece_max_seen);
+
+		// returns the max_seen for the piece at 'index'
+		int piece_max_seen(int index) const;
 
 		// ========== start deprecation ==============
 
@@ -412,6 +419,7 @@ namespace libtorrent
 			piece_pos() {}
 			piece_pos(int peer_count_, int index_)
 				: peer_count(peer_count_)
+				, max_seen((peer_count_ <= max_seen_count) ? peer_count_ : max_seen_count)
 				, downloading(0)
 				, full(0)
 				, piece_priority(1)
@@ -428,6 +436,8 @@ namespace libtorrent
 #else
 			boost::uint32_t peer_count : 16;
 #endif
+			// max_seen is max of peer_count (saturated to 6 bits = max_seen_count)
+			boost::uint32_t max_seen : 6;
 			// post flags (1 = rt, 2 = dm, 4 = fav, 12 = pfav)
 			boost::uint32_t post_flags : 4;
 			// is 1 if the piece is marked as being downloaded
@@ -467,10 +477,11 @@ namespace libtorrent
 				filter_priority = 0,
 				// the max number the peer count can hold
 #if TORRENT_COMPACT_PICKER
-				max_peer_count = 0x1ff
+				max_peer_count = 0x1ff,
 #else
-				max_peer_count = 0xffff
+				max_peer_count = 0xffff,
 #endif
+				max_seen_count = 0x3f
 			};
 			
 			bool have() const { return index == we_have_index; }

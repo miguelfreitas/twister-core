@@ -233,5 +233,6 @@ extern json_spirit::Value newgroupinvite(const json_spirit::Array& params, bool 
 extern json_spirit::Value newgroupdescription(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value leavegroup(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpieceavailability(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getpiecemaxseen(const json_spirit::Array& params, bool fHelp);
 
 #endif

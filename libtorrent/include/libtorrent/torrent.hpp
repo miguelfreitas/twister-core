@@ -302,6 +302,7 @@ namespace libtorrent
 		// ============ end deprecation =============
 
 		void piece_availability(std::vector<int>& avail) const;
+		void piece_max_seen(std::vector<int>& max_seen) const;
 		
 		void set_piece_priority(int index, int priority);
 		int piece_priority(int index) const;
