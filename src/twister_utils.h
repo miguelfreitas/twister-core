@@ -15,6 +15,7 @@ struct StoredDirectMsg {
     std::string m_text;
     bool m_fromMe;
     std::string m_from; // used for group chat
+    int m_k; // (m_from,m_k) is location of this post in torrent
 };
 
 struct GroupChat {

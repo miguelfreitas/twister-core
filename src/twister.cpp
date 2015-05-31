@@ -1147,7 +1147,7 @@ string getGroupAliasByKey(const string &privKey)
     return groupAlias;
 }
 
-void registerNewGroup(const string &privKey, const string &desc, const string &member, const string &invitedBy, int64_t utcTime)
+void registerNewGroup(const string &privKey, const string &desc, const string &member, const string &invitedBy, int64_t utcTime, int k)
 {
     string groupAlias = getGroupAliasByKey(privKey);
     if( !groupAlias.length() ) {
@@ -1191,6 +1191,7 @@ void registerNewGroup(const string &privKey, const string &desc, const string &m
             StoredDirectMsg stoDM;
             stoDM.m_fromMe  = false;
             stoDM.m_from    = invitedBy;
+            stoDM.m_k       = k;
             // temporary hack: we must add new fields to StoredDirectMsg so text may be translated by UI
             stoDM.m_text    = "*** '" + invitedBy + "' changed group description to: " + desc;
             stoDM.m_utcTime = utcTime;
@@ -1202,6 +1203,7 @@ void registerNewGroup(const string &privKey, const string &desc, const string &m
                 StoredDirectMsg stoDM;
                 stoDM.m_fromMe  = false;
                 stoDM.m_from    = invitedBy;
+                stoDM.m_k       = k;
                 // temporary hack: we must add new fields to StoredDirectMsg so text may be translated by UI
                 stoDM.m_text    = "*** Invited by '" + invitedBy + "' to group: " + desc;
                 stoDM.m_utcTime = utcTime;
@@ -1211,7 +1213,7 @@ void registerNewGroup(const string &privKey, const string &desc, const string &m
     }
 }
 
-void notifyNewGroupMember(string &groupAlias, string &newmember, string &invitedBy, int64_t utcTime)
+void notifyNewGroupMember(string &groupAlias, string &newmember, string &invitedBy, int64_t utcTime, int k)
 {
     LOCK(cs_twister);
     if( !m_groups.count(groupAlias) )
@@ -1227,6 +1229,7 @@ void notifyNewGroupMember(string &groupAlias, string &newmember, string &invited
     StoredDirectMsg stoDM;
     stoDM.m_fromMe  = false;
     stoDM.m_from    = invitedBy;
+    stoDM.m_k       = k;
     // temporary hack: we must add new fields to StoredDirectMsg so text may be translated by UI
     stoDM.m_text    = "*** New member '" + newmember + "' invited by '" + invitedBy + "'";
     stoDM.m_utcTime = utcTime;
@@ -1266,6 +1269,7 @@ bool processReceivedDM(lazy_entry const* post)
 
                     int64_t     utcTime = post->dict_find_int_value("time");
                     std::string from    = post->dict_find_string_value("n");
+                    int         k       = post->dict_find_int_value("k",-1);
                     std::string to      = item.second.username; // default (old format)
                     std::string msg     = textOut;              // default (old format)
                     bool        fromMe  = (from == to);
@@ -1300,7 +1304,7 @@ bool processReceivedDM(lazy_entry const* post)
                                 if (pDesc && pKey) {
                                     string desc     = pDesc->string_value();
                                     string privKey  = pKey->string_value();
-                                    registerNewGroup(privKey, desc, to, from, utcTime);
+                                    registerNewGroup(privKey, desc, to, from, utcTime, k);
                                 }
                                 break;
                             }
@@ -1312,7 +1316,7 @@ bool processReceivedDM(lazy_entry const* post)
                                 for (int i = 0; i < pGroupMembers->list_size(); ++i) {
                                     std::string member = pGroupMembers->list_string_value_at(i);
                                     if (member.empty()) continue;
-                                    notifyNewGroupMember(to, member, from, utcTime);
+                                    notifyNewGroupMember(to, member, from, utcTime, k);
                                     torrentsToStart.insert(member);
                                 }
                                 break;
@@ -1334,6 +1338,7 @@ bool processReceivedDM(lazy_entry const* post)
                     StoredDirectMsg stoDM;
                     stoDM.m_fromMe  = fromMe;
                     stoDM.m_from    = from;
+                    stoDM.m_k       = k;
                     stoDM.m_text    = msg;
                     stoDM.m_utcTime = utcTime;
 
@@ -2271,6 +2276,7 @@ Value newdirectmsg(const Array& params, bool fHelp)
             StoredDirectMsg stoDM;
             stoDM.m_fromMe  = true;
             stoDM.m_from    = strFrom;
+            stoDM.m_k       = k;
             stoDM.m_text    = strMsg;
             stoDM.m_utcTime = v["userpost"]["time"].integer();
 
@@ -2533,6 +2539,7 @@ Value getdirectmsgs(const Array& params, bool fHelp)
                 dmObj.push_back(Pair("text",dmsFromToUser.at(i).m_text));
                 dmObj.push_back(Pair("fromMe",dmsFromToUser.at(i).m_fromMe));
                 dmObj.push_back(Pair("from",dmsFromToUser.at(i).m_from));
+                dmObj.push_back(Pair("k",dmsFromToUser.at(i).m_k));
                 userMsgs.push_back(dmObj);
             }
             if( userMsgs.size() ) {
@@ -3416,6 +3423,8 @@ Value search(const Array& params, bool fHelp)
                                 vEntry["text"] = item.m_text;
                                 vEntry["time"] = time;
                                 vEntry["fromMe"] = item.m_fromMe;
+                                vEntry["from"] = item.m_from;
+                                vEntry["k"] = item.m_k;
                                 hexcapePost(vEntry);
                                 postsByTime.insert( pair<int64,entry>(time, vEntry) );
                             }
@@ -3594,7 +3603,7 @@ Value creategroup(const Array& params, bool fHelp)
     string privKey = CBitcoinSecret(secret).ToString();
 
     string noMember;
-    registerNewGroup(privKey, strDescription, noMember, noMember, GetTime());
+    registerNewGroup(privKey, strDescription, noMember, noMember, GetTime(), -1);
 
     return getGroupAliasByKey(privKey);
 }

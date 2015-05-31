@@ -417,7 +417,7 @@ namespace libtorrent
 		struct piece_pos
 		{
 			piece_pos() {}
-			piece_pos(int peer_count_, int index_)
+			piece_pos(boost::uint32_t peer_count_, int index_)
 				: peer_count(peer_count_)
 				, max_seen((peer_count_ <= max_seen_count) ? peer_count_ : max_seen_count)
 				, downloading(0)

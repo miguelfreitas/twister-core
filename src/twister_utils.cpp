@@ -170,6 +170,7 @@ int saveUserData(std::string const& filename, std::map<std::string,UserData> con
                     dmElem["text"]   = stoDm.m_text;
                     dmElem["fromMe"] = stoDm.m_fromMe;
                     dmElem["from"]   = stoDm.m_from;
+                    dmElem["k"]      = stoDm.m_k;
                     dmList.list().push_back(dmElem);
                 }
             }
@@ -256,6 +257,7 @@ int loadUserData(std::string const& filename, std::map<std::string,UserData> &us
                             stoDm.m_utcTime = dmElem->dict_find_int_value("time");
                             stoDm.m_fromMe  = dmElem->dict_find_int_value("fromMe");
                             stoDm.m_from    = dmElem->dict_find_string_value("from");
+                            stoDm.m_k       = dmElem->dict_find_int_value("k",-1);
                             udata.m_directmsg[dmDict->dict_at(j).first].push_back(stoDm);
                         }
                     }
