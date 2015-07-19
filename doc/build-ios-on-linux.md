@@ -18,7 +18,7 @@ You can get them from [iOS toolchain based on clang for linux](https://code.goog
 You need to install [openssl](http://cydia.saurik.com/package/openssl/) ([view in cydia...](cydia://package/openssl)) to your
 device and copy headers and libraries to your SDK as well.
 
-*REQUIRMENTS (leveldb, berkeley db and boost) WILL BE DOWNLOADED AND BUILDED BY `runme-ios-onlinux.sh` *
+REQUIRMENTS (leveldb, berkeley db and boost) WILL BE DOWNLOADED AND BUILDED BY `runme-ios-onlinux.sh`
 You need also to build [leveldb](http://github.com/google/leveldb), [Berkeley DB](http://download.oracle.com/otn/berkeley-db/db-5.3.28.tar.gz)
 for IOS.
 
@@ -29,7 +29,7 @@ Instructions:
 
 #### Setting required variable
 
-    You should check variables set in `runme-ios-onlinux.sh` script.
+You should check variables set in `runme-ios-onlinux.sh` script.
 
 
     export IOS_SDK=/usr/share/iPhoneOS6.0.sdk
@@ -41,7 +41,7 @@ Instructions:
     export CC="clang"
     export CXX="clang++"
     export PJC=2
-#### Building dependecies and `twisterd`
+#### Building dependencies and `twisterd`
 
 1. Clone the github tree to get the source code and go into the directory.
 
