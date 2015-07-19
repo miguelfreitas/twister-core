@@ -32,6 +32,7 @@ Instructions:
 You should check variables set in `runme-ios-onlinux.sh` script.
 
 
+    export IPHONE_IP=""
     export IOS_SDK=/usr/share/iPhoneOS6.0.sdk
     export ARCH=armv7
     export TARGET=arm-apple-darwin11
@@ -64,11 +65,11 @@ See the Running instructions below.
 Running
 -------
 
-It's now available at `./twisterd`, provided that you are still in the `twister-core`
-directory. We have to first create the RPC configuration file, though.
+If you have been set IPHONE_IP before running script, it's now available at `/usr/bin/twisterd` on your device.
+We have to first create the RPC configuration file, though.
 
-Run `./twisterd` to get the filename where it should be put, or just try these
-commands:
+Run `/usr/bin/twisterd` from SSH or on [Mobile Terminal](http://cydia.saurik.com/package/mobileterminal/) to get
+the filename where it should be put, or just try these commands:
 
     mkdir -p "/User/.twister"
     echo -e "rpcuser=user\nrpcpassword=pwd\nrpcallowip=127.0.0.1" > "/User/.twister/twister.conf"

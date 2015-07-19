@@ -1,5 +1,6 @@
 #twister building script for IOS on linux
 
+export IPHONE_IP=""
 export IOS_SDK=/usr/share/iPhoneOS6.0.sdk
 export ARCH=armv7
 export TARGET=arm-apple-darwin11
@@ -90,3 +91,5 @@ echo 'Building libtorrent...'
 echo 'Building twister...'
 make -f makefile.ios -j$PJC
 
+echo "Installing twisterd to your device..."
+[ -n "$IPHONE_IP" ] && make -f makefile.ios install

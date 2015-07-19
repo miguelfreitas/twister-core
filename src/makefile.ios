@@ -109,4 +109,13 @@ check:
 clean:
 	rm -fr $(BLDDIR)
 
+install:
+ifeq ($(IPHONE_IP),)
+	echo "Please set IPHONE_IP"
+else
+	ssh root@$(IPHONE_IP) 'rm -fr /usr/bin/twisterd'
+	scp -r $(BLDDIR)/twisterd root@$(IPHONE_IP):/usr/bin/twisterd
+	echo "twisterd installed, now you can run it in 'Mobile Terminal' or via SSH."
+endif
+
 .PHONY: all dist install uninstall clean
