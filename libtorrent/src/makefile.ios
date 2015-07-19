@@ -1,0 +1,38 @@
+PROJECTNAME:=libtorrent-rasterbar
+
+libtorrent_INCLUDE:=../include
+twister_INCLUDE:=../../src
+boost_SOURCE:=$(twister_INCLUDE)/ios-build/ext/boost_1_58_0
+leveldb_SOURCE:=$(twister_INCLUDE)/ios-build/ext/leveldb-master
+
+CXXFLAGS += -fobjc-arc
+CXXFLAGS += -fblocks
+CXXFLAGS += -g0 -O2 -DIOS
+CXXFLAGS += -I"$(libtorrent_INCLUDE)" -I"$(twister_INCLUDE)" -I"$(boost_SOURCE)" -I"$(leveldb_SOURCE)/include"
+CXXFLAGS += -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS=64 -DBOOST_ASIO_SEPARATE_COMPILATION -DBOOST_LOCALE_WITH_ICONV
+CXXFLAGS += -DBOOST_LOCALE_NO_WINAPI_BACKEND -DBOOST_ASIO_HASH_MAP_BUCKETS=1021 -DBOOST_EXCEPTION_DISABLE=1 -DBOOST_ASIO_ENABLE_CANCELIO=1
+CXXFLAGS += -DTORRENT_DISABLE_GEO_IP -DTORRENT_USE_OPENSSL=1
+
+BLDDIR=ios-build
+SRCDIR=.
+OBJS+=$(patsubst $(SRCDIR)/%.cpp,$(BLDDIR)/%.o,$(wildcard $(SRCDIR)/*.cpp))
+OBJS+=$(patsubst $(SRCDIR)/kademlia/%.cpp,$(BLDDIR)/%.o,$(wildcard $(SRCDIR)/kademlia/*.cpp))
+
+all:	$(BLDDIR)/$(PROJECTNAME)
+
+$(BLDDIR)/$(PROJECTNAME):	$(OBJS) check
+	$(AR) cr $@.a $(OBJS)
+
+$(BLDDIR)/%.o:	%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/%.o:	kademlia/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+check:
+	test -d $(BLDDIR) || mkdir $(BLDDIR)
+
+clean:
+	rm -fr $(BLDDIR)
+
+.PHONY: all dist install uninstall clean
