@@ -1,0 +1,121 @@
+PROJECTNAME:=twisterd
+
+BLDDIR:=ios-build
+libtorrent_INCLUDE:=../libtorrent/include
+boost_SOURCE:=$(BLDDIR)/ext/boost_1_58_0
+leveldb_SOURCE:=$(BLDDIR)/ext/leveldb-master
+bdb_SOURCE:=$(BLDDIR)/ext/db-5.3.28
+
+CXXFLAGS += -fobjc-arc
+CXXFLAGS += -fblocks
+CXXFLAGS += -g0 -O2 -DIOS
+CXXFLAGS += -I. -I"$(libtorrent_INCLUDE)" -I"$(boost_SOURCE)" -I"$(leveldb_SOURCE)/include" -I"$(leveldb_SOURCE)/helper" -I"$(bdb_SOURCE)/build_unix"
+CXXFLAGS += -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS=64 -DBOOST_ASIO_SEPARATE_COMPILATION -DBOOST_LOCALE_WITH_ICONV
+CXXFLAGS += -DBOOST_LOCALE_NO_WINAPI_BACKEND -DBOOST_ASIO_HASH_MAP_BUCKETS=1021 -DBOOST_EXCEPTION_DISABLE=1 -DBOOST_ASIO_ENABLE_CANCELIO=1
+CXXFLAGS += -DTORRENT_DISABLE_GEO_IP -DTORRENT_USE_OPENSSL=1 -DHAVE_CXX_STDHEADERS
+
+LDFLAGS += -lssl -lcrypto -liconv -lz -ldl
+LDFLAGS += -L$(leveldb_SOURCE) -lleveldb -lmemenv
+LDFLAGS += -L$(bdb_SOURCE)/build_unix -ldb_cxx-5.3
+LDFLAGS += -L"../libtorrent/src/ios-build" -ltorrent-rasterbar
+
+SRCDIR=.
+OBJS+=$(patsubst $(SRCDIR)/%.cpp,$(BLDDIR)/%.o,$(wildcard $(SRCDIR)/*.cpp))
+OBJS+=$(patsubst $(SRCDIR)/json/%.cpp,$(BLDDIR)/%.o,$(wildcard $(SRCDIR)/json/*.cpp))
+
+boostlibs=$(boost_SOURCE)/libs
+OBJS+=$(BLDDIR)/boost/system/error_code.o
+OBJS+=$(patsubst $(boostlibs)/filesystem/src/%.cpp,$(BLDDIR)/boost/filesystem/%.o,$(wildcard $(boostlibs)/filesystem/src/*.cpp))
+OBJS:=$(subst $(BLDDIR)/scrypt-sse2.o,,$(OBJS))
+OBJS+=$(patsubst $(boostlibs)/program_options/src/%.cpp,$(BLDDIR)/boost/program_options/%.o,$(wildcard $(boostlibs)/program_options/src/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/thread/src/%.cpp,$(BLDDIR)/boost/thread/%.o,$(wildcard $(boostlibs)/thread/src/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/thread/src/pthread/%.cpp,$(BLDDIR)/boost/thread/pthread/%.o,$(wildcard $(boostlibs)/thread/src/pthread/*.cpp))
+OBJS:=$(subst $(BLDDIR)/boost/thread/pthread/once_atomic.o,,$(OBJS))
+OBJS+=$(patsubst $(boostlibs)/locale/src/encoding/%.cpp,$(BLDDIR)/boost/locale/encoding/%.o,$(wildcard $(boostlibs)/locale/src/encoding/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/locale/src/posix/%.cpp,$(BLDDIR)/boost/locale/posix/%.o,$(wildcard $(boostlibs)/locale/src/posix/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/locale/src/shared/%.cpp,$(BLDDIR)/boost/locale/shared/%.o,$(wildcard $(boostlibs)/locale/src/shared/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/locale/src/std/%.cpp,$(BLDDIR)/boost/locale/std/%.o,$(wildcard $(boostlibs)/locale/src/std/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/locale/src/util/%.cpp,$(BLDDIR)/boost/locale/util/%.o,$(wildcard $(boostlibs)/locale/src/util/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/chrono/src/%.cpp,$(BLDDIR)/boost/chrono/%.o,$(wildcard $(boostlibs)/chrono/src/*.cpp))
+OBJS+=$(patsubst $(boostlibs)/regex/src/%.cpp,$(BLDDIR)/boost/regex/%.o,$(wildcard $(boostlibs)/regex/src/*.cpp))
+
+all:	$(BLDDIR)/$(PROJECTNAME)
+
+$(BLDDIR)/$(PROJECTNAME):	$(OBJS) check
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJS) -o $@ 
+
+$(BLDDIR)/%.o:	%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/%.o:	json/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/thread/%.o:	$(boostlibs)/thread/src/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/thread/pthread/%.o:	$(boostlibs)/thread/src/pthread/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/locale/encoding/%.o:	$(boostlibs)/locale/src/encoding/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/locale/shared/%.o:	$(boostlibs)/locale/src/shared/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/locale/util/%.o:	$(boostlibs)/locale/src/util/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/locale/std/%.o:	$(boostlibs)/locale/src/std/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/locale/posix/%.o:	$(boostlibs)/locale/src/posix/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/locale/icu/%.o:	$(boostlibs)/locale/src/icu/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/system/%.o:	$(boostlibs)/system/src/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/filesystem/%.o:	$(boostlibs)/filesystem/src/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/program_options/%.o:	$(boostlibs)/program_options/src/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/chrono/%.o:	$(boostlibs)/chrono/src/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+$(BLDDIR)/boost/regex/%.o:	$(boostlibs)/regex/src/%.cpp check
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+check:
+	@test -d $(BLDDIR)/boost/system || mkdir -p $(BLDDIR)/boost/system
+	@test -d $(BLDDIR)/boost/filesystem || mkdir -p $(BLDDIR)/boost/filesystem
+	@test -d $(BLDDIR)/boost/program_options || mkdir -p $(BLDDIR)/boost/program_options
+	@test -d $(BLDDIR)/boost/thread/pthread || mkdir -p $(BLDDIR)/boost/thread/pthread
+	@test -d $(BLDDIR)/boost/locale/encoding || mkdir -p $(BLDDIR)/boost/locale/{encoding,icu,posix,std,shared,util}
+	@test -d $(BLDDIR)/boost/chrono || mkdir -p $(BLDDIR)/boost/chrono
+	@test -d $(BLDDIR)/boost/regex || mkdir -p $(BLDDIR)/boost/regex
+	@if test -z $(boost_SOURCE); then \
+		echo "please set the 'boost_SOURCE' variable";\
+		exit 1;\
+	fi
+	@if ! test -d $(boost_SOURCE); then \
+		echo "please check 'boost_SOURCE=$(boost_SOURCE)', directory not found.";\
+		exit 1;\
+	fi
+
+clean:
+	rm -fr $(BLDDIR)
+
+install:
+ifeq ($(IPHONE_IP),)
+	echo "Please set IPHONE_IP"
+else
+	ssh root@$(IPHONE_IP) 'rm -fr /usr/bin/twisterd'
+	scp -r $(BLDDIR)/twisterd root@$(IPHONE_IP):/usr/bin/twisterd
+	echo "twisterd installed, now you can run it in 'Mobile Terminal' or via SSH."
+endif
+
+.PHONY: all dist install uninstall clean
