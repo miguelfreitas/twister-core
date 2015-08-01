@@ -66,6 +66,7 @@ class CNetAddr
         std::string ToStringIP() const;
         unsigned int GetByte(int n) const;
         uint64 GetHash() const;
+        unsigned short crc16() const;
         bool GetInAddr(struct in_addr* pipv4Addr) const;
         std::vector<unsigned char> GetGroup() const;
         int GetReachabilityFrom(const CNetAddr *paddrPartner = NULL) const;

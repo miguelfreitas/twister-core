@@ -894,6 +894,21 @@ uint64 CNetAddr::GetHash() const
     return nRet;
 }
 
+unsigned short CNetAddr::crc16() const
+{
+    unsigned char x;
+    unsigned short crc = 0xFFFF;
+    const unsigned char* data_p = IsIPv4() ? &ip[12] : &ip[0];
+    unsigned char length = IsIPv4() ? 4 : 16;
+
+    while (length--){
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+    }
+    return crc;
+}
+
 void CNetAddr::print() const
 {
     printf("CNetAddr(%s)\n", ToString().c_str());
