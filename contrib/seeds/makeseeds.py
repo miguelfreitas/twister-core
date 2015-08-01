@@ -13,7 +13,8 @@ def main():
     lines = sys.stdin.readlines()
 
     ips = []
-    pattern = re.compile(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):8333")
+    ports = []
+    pattern = re.compile(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})")
     for line in lines:
         m = pattern.match(line)
         if m is None:
@@ -24,9 +25,14 @@ def main():
         if ip == 0:
             continue
         ips.append(ip)
+        ports.append(int(m.group(5)))
 
     for row in range(0, min(NSEEDS,len(ips)), 8):
         print "    " + ", ".join([ "0x%08x"%i for i in ips[row:row+8] ]) + ","
+
+    for row in range(0, min(NSEEDS,len(ports)), 8):
+        print "    " + ", ".join([ "0x%04x"%i for i in ports[row:row+8] ]) + ","
+
 
 if __name__ == '__main__':
     main()
