@@ -77,6 +77,8 @@ CCriticalSection cs_setservAddNodeAddresses;
 vector<std::string> vAddedNodes;
 CCriticalSection cs_vAddedNodes;
 
+int portUsedLastTime = 0;
+
 static CSemaphore *semOutbound = NULL;
 
 // Signals for message handling
@@ -91,7 +93,14 @@ void AddOneShot(string strDest)
 
 unsigned short GetListenPort()
 {
-    return (unsigned short)(GetArg("-port", Params().GetDefaultPort()));
+    int64 portFromArg = GetArg("-port", 0);
+    if( portFromArg )
+        return (unsigned short)portFromArg;
+    if( !portUsedLastTime ) {
+        //portUsedLastTime = Params().GetDefaultPort();
+        portUsedLastTime = 1024 + GetRand(30000);
+    }
+    return (unsigned short)portUsedLastTime;
 }
 
 // find 'best' local address for a particular peer

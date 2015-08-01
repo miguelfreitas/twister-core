@@ -100,7 +100,7 @@ extern limitedmap<CInv, int64> mapAlreadyAskedFor;
 extern std::vector<std::string> vAddedNodes;
 extern CCriticalSection cs_vAddedNodes;
 
-
+extern int portUsedLastTime;
 
 
 class CNodeStats

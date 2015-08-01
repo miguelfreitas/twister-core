@@ -71,6 +71,9 @@ static std::map<std::string,GroupChat> m_groups;
 static CCriticalSection cs_seenHashtags;
 static std::map<std::string,double> m_seenHashtags;
 
+static bool generateOpt = 0;
+static int genproclimit = 1;
+
 const double hashtagHalfLife      = 8*60*60;    // Halve votes within 8 hours (sec)
 const double hashtagExpiration    = 7*24*60*60; // Remove a hashtag from the list after ~ hashtagExpiration*count (sec)
 const int    hashtagTimerInterval = 60;         // Timer interval (sec)
@@ -217,6 +220,7 @@ int saveGlobalData(std::string const& filename)
     int genproclimit = GetArg("-genproclimit", -1);
     if( genproclimit > 0 )
         globalDict["genproclimit"]  = genproclimit;
+    globalDict["portUsedLastTime"]  = GetListenPort();
 
     std::vector<char> buf;
     bencode(std::back_inserter(buf), globalDict);
@@ -241,16 +245,9 @@ int loadGlobalData(std::string const& filename)
             if( sendSpamMsg.size() ) strSpamMessage = sendSpamMsg;
             string sendSpamUser   = userDict.dict_find_string_value("sendSpamUser");
             if( sendSpamUser.size() ) strSpamUser = sendSpamUser;
-            bool generate         = userDict.dict_find_int_value("generate");
-            int genproclimit      = userDict.dict_find_int_value("genproclimit");
-
-            if( generate ) {
-                Array params;
-                params.push_back( generate );
-                if( genproclimit > 0 )
-                    params.push_back( genproclimit );
-                setgenerate(params, false);
-            }
+            generateOpt           = userDict.dict_find_int_value("generate");
+            genproclimit          = userDict.dict_find_int_value("genproclimit");
+            portUsedLastTime      = userDict.dict_find_int_value("portUsedLastTime");
 
             return 0;
         }
@@ -267,7 +264,6 @@ void ThreadWaitExtIP()
     SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "wait-extip");
 
     std::string ipStr;
-
     // wait up to 10 seconds for bitcoin to get the external IP
     for( int i = 0; i < 20; i++ ) {
         const CNetAddr paddrPeer("8.8.8.8");
@@ -397,9 +393,14 @@ void ThreadWaitExtIP()
         if( ss.dht_nodes )
             break;
     }
-
-    boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
-    loadGlobalData(globalDataPath.string());
+    
+    if( generateOpt ) {
+        Array params;
+        params.push_back( generateOpt );
+        if( genproclimit > 0 )
+            params.push_back( genproclimit );
+        setgenerate(params, false);
+    }
 
     std::set<std::string> torrentsToStart;
     {
@@ -931,6 +932,12 @@ void ThreadHashtagsAging()
             MilliSleep(1000);
         }
     }
+}
+
+void preinitSessionTorrent()
+{
+    boost::filesystem::path globalDataPath = GetDataDir() / GLOBAL_DATA_FILE;
+    loadGlobalData(globalDataPath.string());
 }
 
 void startSessionTorrent(boost::thread_group& threadGroup)

@@ -576,6 +576,10 @@ bool AppInit2(boost::thread_group& threadGroup)
             return InitError(_("twisterwallet.dat corrupt, salvage failed"));
     }
 
+    // ********************************************************* Step 5 1/2: preinit twister/torrent before network
+
+    preinitSessionTorrent();
+
     // ********************************************************* Step 6: network initialization
 
     RegisterNodeSignals(GetNodeSignals());
