@@ -13,7 +13,10 @@
 #include "db.h"
 
 #include "twister_utils.h"
+
+#ifdef ENABLE_RSS
 #include "twister_rss.h"
+#endif // ENABLE_RSS
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
@@ -1057,6 +1060,7 @@ void ServiceConnection(AcceptedConnection *conn)
             continue;
         }
 
+#ifdef ENABLE_RSS
         if(strMethod == "GET" && strURI.substr(0, 4) == "/rss" && !GetBoolArg("-public_server_mode",false))
         {
             string rssOutput;
@@ -1081,6 +1085,7 @@ void ServiceConnection(AcceptedConnection *conn)
                     continue;
             }
         }
+#endif // ENABLE_RSS
 
         JSONRequest jreq;
         try
