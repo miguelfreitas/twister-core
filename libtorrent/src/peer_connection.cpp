@@ -1941,6 +1941,13 @@ namespace libtorrent
 			, r.piece, r.start, r.length);
 #endif
 
+        if (t->post_flags(r.piece) == USERPOST_FLAG_DRPD)
+        {
+            // we don't share dropped posts...
+            write_reject_request(r);
+            return;
+        }
+
 		if (t->super_seeding()
 			&& !super_seeded_piece(r.piece))
 		{

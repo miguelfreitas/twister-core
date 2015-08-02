@@ -858,6 +858,18 @@ namespace libtorrent
 		TORRENT_SYNC_CALL1(recheck_pieces, piece_flags);
 	}
 
+    void torrent_handle::edit_piece(int piece, char const *data, int size, bool drop) const
+    {
+        INVARIANT_CHECK;
+        TORRENT_SYNC_CALL4(edit_piece, piece, data, size, drop);
+    }
+
+    void torrent_handle::drop_piece(int piece) const
+    {
+        INVARIANT_CHECK;
+        TORRENT_SYNC_CALL1(drop_piece, piece);
+    }
+
 	storage_interface* torrent_handle::get_storage_impl() const
 	{
 		INVARIANT_CHECK;

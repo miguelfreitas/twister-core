@@ -12,8 +12,12 @@
 #define USERPOST_FLAG_DM    0x02
 #define USERPOST_FLAG_FAV   0x04
 #define USERPOST_FLAG_P_FAV 0x0C
+//a post can't be flaged as RT and DM or FAV and DM at same time, i hope...
+#define USERPOST_FLAG_EDIT  0x03
+#define USERPOST_FLAG_DRPD  0x06
 
-#define USERPOST_FLAG_HOME  (~USERPOST_FLAG_DM & ~USERPOST_FLAG_FAV & ~USERPOST_FLAG_P_FAV)
+//flags that will be displayed at main postboard ( 0 | 1 )
+#define USERPOST_FLAG_HOME  (USERPOST_FLAG_RT)
 
 #define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY (2016)   // about 2 weeks
 #define BLOCK_AGE_TO_EXPIRE_DHT_POSTS (4320*2) // about 2 months

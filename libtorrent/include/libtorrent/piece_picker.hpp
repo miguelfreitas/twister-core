@@ -438,7 +438,7 @@ namespace libtorrent
 #endif
 			// max_seen is max of peer_count (saturated to 6 bits = max_seen_count)
 			boost::uint32_t max_seen : 6;
-			// post flags (1 = rt, 2 = dm, 4 = fav, 12 = pfav)
+			// post flags (1 = rt, 2 = dm, 4 = fav, 12 = pfav, 3 = edit, 6 = droped)
 			boost::uint32_t post_flags : 4;
 			// is 1 if the piece is marked as being downloaded
 			boost::uint32_t downloading : 1;

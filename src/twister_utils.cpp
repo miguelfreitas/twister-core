@@ -378,6 +378,7 @@ void hexcapePost(libtorrent::entry &e)
             if( userpost.type() == libtorrent::entry::dictionary_t ) {
                 findAndHexcape(userpost,"sig_rt");
                 findAndHexcape(userpost, "sig_fav");
+                findAndHexcape(userpost, "sig_drpd");
                 if( userpost.find_key("dm") ) {
                     entry &dm = userpost["dm"];
                     if( dm.type() == libtorrent::entry::dictionary_t ) {
@@ -392,6 +393,8 @@ void hexcapePost(libtorrent::entry &e)
                         findAndHexcape(pfav,"key");
                         findAndHexcape(pfav,"mac");
                     }
+                } else if ( userpost.find_key("edit") ) {
+                    findAndHexcape(userpost["edit"], "sig_userpost");
                 }
             }
         }

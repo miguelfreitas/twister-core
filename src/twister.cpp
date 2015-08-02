@@ -1401,6 +1401,31 @@ void processReceivedPost(lazy_entry const &v, std::string &username, int64 time,
     }
 }
 
+void doEditPost(string username, lazy_entry const *edit, char *errbuf)
+{
+    torrent_handle h = getTorrentUser(username);
+    if (h.is_valid())
+    {
+        bool drop = false;
+        const lazy_entry *up = edit->dict_find_dict("userpost");
+        if (up)
+        {
+            int post_k = up->dict_find_int_value("k", -1);
+            if (post_k > 0)
+            {
+                drop = (up->dict_find_dict("drpd") != 0);
+                h.edit_piece(post_k, edit->data_section().first, edit->data_section().second, drop);
+            }
+            else
+                sprintf(errbuf, "invalid k (%d)", post_k);
+        }
+        else
+            sprintf(errbuf, "invalid edit post");
+    }
+    else
+        sprintf(errbuf, "cannot get user (%s) torrent", username.c_str());
+}
+
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags)
 {
     bool ret = false;
@@ -1485,15 +1510,46 @@ bool acceptSignedPost(char const *data, int data_size, std::string username, int
                                 sprintf(errbuf, "bad FAV signature");
                         }
 
+                        lazy_entry const *drpd = post->dict_find_dict("drpd");
+                        string sig_drpd = post->dict_find_string_value("sig_drpd");
+
+                        if (drpd)
+                        {
+                            if (flags)
+                                (*flags) |= USERPOST_FLAG_DRPD;
+                            //only own dropped posts have a signature...
+                            if (sig_drpd.size())
+                            {
+                                int height_drpd = drpd->dict_find_int_value("height", -1);
+
+                                pair<char const*, int> drpdbuf = drpd->data_section();
+                                ret = verifySignature(string(drpdbuf.first, drpdbuf.second),
+                                                      username, sig_drpd, height_drpd);
+
+                                if (!ret)
+                                    sprintf(errbuf, "bad DRPD signature");
+                            }
+                        }
+
                         if( flags ) {
                             lazy_entry const* dm = post->dict_find_dict("dm");
                             lazy_entry const* pfav = post->dict_find_dict("pfav");
+                            lazy_entry const* edit = post->dict_find_dict("edit");
+
                             if( dm ) {
                                 (*flags) |= USERPOST_FLAG_DM;
                                 processReceivedDM(post);
                             } else if (pfav) {
                                 (*flags) |= USERPOST_FLAG_P_FAV;
-                            } else {
+                            }
+                            else if (edit)
+                            {
+                                (*flags) |= USERPOST_FLAG_EDIT;
+
+                                doEditPost(username, edit, errbuf);
+                            }
+                            else
+                            {
                                 processReceivedPost(v, username, time, msg);
                             }
                         }
@@ -1561,13 +1617,10 @@ bool usernameExists(std::string const &username)
 */
 
 bool createSignedUserpost(entry &v, std::string const &username, int k,
-                          std::string const &msg,               // either msg.size() or
-                          entry const *rt, entry const *sig_rt, // rt != NULL or
-                          entry const *dm,                      // dm != NULL.
-                          entry const *fav, entry const *sig_fav,
-                          entry const *pfav,
-                          std::string const &reply_n, int reply_k
-                          )
+                          int flag,
+                          std::string const &msg,
+                          entry const *ent, entry const *sig,
+                          std::string const &reply_n, int reply_k)
 {
     entry &userpost = v["userpost"];
 
@@ -1581,21 +1634,37 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
         //userpost["t"] = "post";
         userpost["msg"] = msg;
     }
-    if ( rt != NULL && sig_rt != NULL ) {
+    switch(flag)
+    {
+    case USERPOST_FLAG_RT:
         //userpost["t"] = "rt";
-        userpost["rt"] = *rt;
-        userpost["sig_rt"] = *sig_rt;
-    } else if ( fav != NULL && sig_fav != NULL ) {
-        userpost["fav"] = *fav;
-        userpost["sig_fav"] = *sig_fav;
-    } else if ( dm != NULL ) {
+        userpost["rt"] = *ent;
+        userpost["sig_rt"] = *sig;
+        break;
+    case USERPOST_FLAG_FAV:
+        userpost["fav"] = *ent;
+        userpost["sig_fav"] = *sig;
+        break;
+    case USERPOST_FLAG_DM:
         //userpost["t"] = "dm";
-        userpost["dm"] = *dm;
-    } else if ( pfav != NULL ) {
-        userpost["pfav"] = *pfav;
-    } else if ( !msg.size() ) {
-        printf("createSignedUserpost: unknown type\n");
-        return false;
+        userpost["dm"] = *ent;
+        break;
+    case USERPOST_FLAG_P_FAV:
+        userpost["pfav"] = *ent;
+        break;
+    case USERPOST_FLAG_EDIT:
+        userpost["edit"] = *ent;
+        break;
+    case USERPOST_FLAG_DRPD:
+        userpost["drpd"] = *ent;
+        if (sig)
+            userpost["sig_drpd"] = *sig;
+        break;
+    default:
+        if ( !msg.size() ) {
+            printf("createSignedUserpost: unknown type\n");
+            return false;
+        }
     }
 
     if( reply_n.size() ) {
@@ -2114,10 +2183,9 @@ Value newpostmsg(const Array& params, bool fHelp)
     if( lastk >= 0 )
         v["userpost"]["lastk"] = lastk;
 
-    if( !createSignedUserpost(v, strUsername, k, strMsg,
-                         NULL, NULL, NULL,
-                         NULL, NULL, NULL,
-                         strReplyN, replyK) )
+    if( !createSignedUserpost(v, strUsername, k, 0, strMsg,
+                              NULL, NULL,
+                              strReplyN, replyK) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
     vector<char> buf;
@@ -2265,9 +2333,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
 
     BOOST_FOREACH(entry *dm, dmsToSend) {
         entry v;
-        if( !createSignedUserpost(v, strFrom, k, "",
-                                  NULL, NULL, dm,
-                                  NULL, NULL, NULL,
+        if( !createSignedUserpost(v, strFrom, k,
+                                  USERPOST_FLAG_DM, "",
+                                  dm, NULL,
                                   std::string(""), 0) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2324,9 +2392,9 @@ Value newrtmsg(const Array& params, bool fHelp)
     if( lastk >= 0 )
         v["userpost"]["lastk"] = lastk;
 
-    if( !createSignedUserpost(v, strUsername, k, msg,
-                              rt, sig_rt, NULL,
-                              NULL, NULL, NULL,
+    if( !createSignedUserpost(v, strUsername, k,
+                              USERPOST_FLAG_RT, msg,
+                              rt, sig_rt,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2398,15 +2466,15 @@ Value newfavmsg(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INTERNAL_ERROR,
                                "error encrypting to pubkey of destination user");
 
-        if( !createSignedUserpost(v, strUsername, k, msg,
-                                  NULL, NULL, NULL,
-                                  NULL, NULL, &pfav,
+        if( !createSignedUserpost(v, strUsername, k,
+                                  USERPOST_FLAG_P_FAV, msg,
+                                  &pfav, NULL,
                                   std::string(""), 0) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
     }
-    else if( !createSignedUserpost(v, strUsername, k, msg,
-                                   NULL, NULL, NULL,
-                                   fav, sig_fav, NULL,
+    else if( !createSignedUserpost(v, strUsername, k,
+                                   USERPOST_FLAG_FAV, msg,
+                                   fav, sig_fav,
                                    std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2427,6 +2495,112 @@ Value newfavmsg(const Array& params, bool fHelp)
     return entryToJson(v);
 }
 
+Value editpost(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 4)
+        throw runtime_error(
+            "editpost <username> <k> <edit_k> [msg='']\n"
+            "Edit post\n"
+            "if msg is omited, post <edit_k> will be dropped");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    int k              = params[1].get_int();
+    int edit_k         = params[2].get_int();
+    string msg         = (params.size() > 3) ? params[3].get_str() : "";
+    entry origpost;
+
+    torrent_handle h = startTorrentUser(strUsername, true);
+    if( h.is_valid() )
+    {
+        vector<string> piece;
+        h.get_pieces(piece, 1, edit_k, -1, 0xff, 0);
+        if (piece.size())
+        {
+            string pstr = piece.front();
+            lazy_entry p;
+            int pos;
+            libtorrent::error_code ec;
+            if (lazy_bdecode(pstr.c_str(), pstr.c_str() + pstr.size(), p, ec, &pos) == 0)
+                origpost = p;
+        }
+        else
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "error getting original post");
+    }
+    else
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "error starting torrent user");
+
+    entry const* vuserp = origpost.find_key("userpost");
+    entry const* vsig  = origpost.find_key("sig_userpost");
+    bool drop          = (msg.size() == 0);
+
+    entry v;
+    entry edited;
+    std::string errmsg;
+
+    if (drop)
+    {
+        entry drpd;
+        drpd["time"] = *(vuserp->find_key("time"));
+
+        //for other users.. they should replace original post...
+        if (!createSignedUserpost(edited, strUsername, edit_k,
+                                  USERPOST_FLAG_DRPD, "", &drpd, 0, "", 0))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "error signing post with private key of user");
+        //for us, we may want to store the original post..
+        if ( !createSignedUserpost(drpd, strUsername, edit_k,
+                                   USERPOST_FLAG_DRPD, "",
+                                   vuserp, vsig, "", 0) )
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "error re-signing dropping post with private key of user");
+
+        vector<char> dbuf;
+        bencode(std::back_inserter(dbuf), drpd);
+
+        if( !acceptSignedPost(dbuf.data(), dbuf.size(), strUsername, edit_k, errmsg, NULL) )
+            throw JSONRPCError(RPC_INVALID_PARAMS, errmsg);
+
+        h.edit_piece(edit_k, dbuf.data(), dbuf.size(), true);
+    }
+    else
+    {
+        entry userp;
+        userp = *vuserp;
+        userp["orig_time"] = userp["time"];
+        edited["userpost"] = userp;
+        entry const* rply = vuserp->find_key("reply");
+        if (!createSignedUserpost(edited, strUsername, edit_k,
+                                  0, msg, 0, 0,
+                                  (rply ? rply->find_key("reply_n")->string() : ""),
+                                  (rply ? rply->find_key("reply_k")->integer() : 0)))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "error signing post with private key of user");
+        //we may edit it immediately..
+        vector<char> buf;
+        bencode(std::back_inserter(buf), edited);
+
+        if( !acceptSignedPost(buf.data(), buf.size(), strUsername, edit_k, errmsg, NULL) )
+            throw JSONRPCError(RPC_INVALID_PARAMS, errmsg);
+
+        h.edit_piece(edit_k, buf.data(), buf.size());
+    }
+
+    if( !createSignedUserpost(v, strUsername, k,
+                              USERPOST_FLAG_EDIT, "",
+                              &edited, NULL, "", 0) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "error signing post with private key of user");
+
+    vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    if( !acceptSignedPost(buf.data(), buf.size(), strUsername, k, errmsg, NULL) )
+        throw JSONRPCError(RPC_INVALID_PARAMS, errmsg);
+
+    h.add_piece(k, buf.data(), buf.size());
+
+    hexcapePost(v);
+    return entryToJson(v);
+}
+
 Value getposts(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 4)
@@ -2434,7 +2608,7 @@ Value getposts(const Array& params, bool fHelp)
             "getposts <count> '[{\"username\":username,\"max_id\":max_id,\"since_id\":since_id},...]' [allowed_flags=~2] [required_flags=0]\n"
             "get posts from users\n"
             "max_id and since_id may be omited\n"
-            "(optional) allowed/required flags are bitwise fields (1=RT,2=DM,4=FAV,12=PFAV)");
+            "(optional) allowed/required flags are bitwise fields (1=RT,2=DM,3=EDIT,4=FAV,6=DROPPED,12=PFAV)");
 
     int count          = params[0].get_int();
     Array users        = params[1].get_array();
@@ -3344,7 +3518,7 @@ Value search(const Array& params, bool fHelp)
 
             BOOST_FOREACH(const PAIRTYPE(std::string,torrent_handle)& item, users) {
                 std::vector<std::string> pieces;
-                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM, 0);
+                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM & ~USERPOST_FLAG_DRPD, 0);
 
                 BOOST_FOREACH(string const& piece, pieces) {
                     lazy_entry const* p = searcher.matchRawMessage(piece, v);
@@ -3663,9 +3837,9 @@ Value getgroupinfo(const Array& params, bool fHelp)
 static void signAndAddDM(const std::string &strFrom, int k, const entry *dm)
 {
     entry v;
-    if( !createSignedUserpost(v, strFrom, k, "",
-                              NULL, NULL, dm,
-                              NULL, NULL, NULL,
+    if( !createSignedUserpost(v, strFrom, k,
+                              USERPOST_FLAG_DM, "",
+                              dm, NULL,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
