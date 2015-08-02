@@ -2571,8 +2571,8 @@ Value editpost(const Array& params, bool fHelp)
         entry const* rply = vuserp->find_key("reply");
         if (!createSignedUserpost(edited, strUsername, edit_k,
                                   0, msg, 0, 0,
-                                  (rply ? rply->find_key("reply_n")->string() : ""),
-                                  (rply ? rply->find_key("reply_k")->integer() : 0)))
+                                  (rply ? rply->find_key("n")->string() : ""),
+                                  (rply ? rply->find_key("k")->integer() : 0)))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "error signing post with private key of user");
         //we may edit it immediately..
         vector<char> buf;
