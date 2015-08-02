@@ -131,6 +131,10 @@ if USE_SSE2
 SSE2_SOURCES = src/scrypt-sse2.cpp
 endif
 
+if ENABLE_RSS
+RSS_SOURCE = src/twister_rss.cpp
+endif
+
 BITCOIN_TWISTER_SOURCES = \
     src/alert.cpp \
     src/version.cpp \
@@ -169,9 +173,9 @@ BITCOIN_TWISTER_SOURCES = \
     src/chainparams.cpp \
     src/dhtproxy.cpp \
     src/twister.cpp \
-    src/twister_rss.cpp \
     src/twister_utils.cpp \
-    $(SSE2_SOURCES)
+    $(SSE2_SOURCES) \
+    $(RSS_SOURCES)
 
 twisterd_SOURCES = $(LIBTORRENT_SOURCES) $(BITCOIN_TWISTER_SOURCES)
 
