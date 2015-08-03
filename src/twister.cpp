@@ -2508,6 +2508,7 @@ Value editpost(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     int k              = params[1].get_int();
     int edit_k         = params[2].get_int();
+    string strK        = boost::lexical_cast<std::string>(edit_k);
     string msg         = (params.size() > 3) ? params[3].get_str() : "";
     entry origpost;
 
@@ -2596,6 +2597,24 @@ Value editpost(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMS, errmsg);
 
     h.add_piece(k, buf.data(), buf.size());
+
+    //edit dht as well
+    string r = string("post") + strK;
+    int seq = 1;
+
+    Array prm;
+    prm.push_back(strUsername);
+    prm.push_back(r);
+    prm.push_back("s");
+    Value dhtv = dhtget(prm, false);
+    Array dhta;
+    if (dhtv.type() == array_type && (dhta = dhtv.get_array()).size())
+    {
+        entry dhte = jsonToEntry(dhta[0]);
+        seq = dhte["p"]["seq"].integer() + 1;
+    }
+
+    dhtPutData(strUsername, r, false, edited, strUsername, GetAdjustedTime(), seq);
 
     hexcapePost(v);
     return entryToJson(v);
