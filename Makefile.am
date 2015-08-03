@@ -132,7 +132,7 @@ SSE2_SOURCES = src/scrypt-sse2.cpp
 endif
 
 if ENABLE_RSS
-RSS_SOURCE = src/twister_rss.cpp
+RSS_SOURCES = src/twister_rss.cpp
 endif
 
 BITCOIN_TWISTER_SOURCES = \
