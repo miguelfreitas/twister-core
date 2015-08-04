@@ -533,6 +533,14 @@ namespace libtorrent
 
 		void we_dont_have(int index);
 
+        void edit_piece(int index, char const* data, int size, bool drop);
+        void drop_piece(int index);
+
+        boost::uint32_t post_flags(int index) const
+        {
+            return m_picker->post_flags(index);
+        }
+
 		int num_have() const
 		{
 			return has_picker()

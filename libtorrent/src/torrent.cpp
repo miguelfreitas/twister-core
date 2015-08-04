@@ -89,6 +89,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif // TORRENT_USE_OPENSSL
 
 #include "../../src/util.h"
+#include "../../src/twister.h"
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 #include "libtorrent/struct_debug.hpp"
 #endif
@@ -3154,6 +3155,47 @@ namespace libtorrent
 		m_picker->we_dont_have(index);
 	}
 
+    void torrent::edit_piece(int index, char const* data, int size, bool drop)
+    {
+        TORRENT_ASSERT(m_ses.is_network_thread());
+
+        if (drop && post_flags(index) == USERPOST_FLAG_DRPD)
+            return;
+
+        peer_request r;
+        r.piece = index;
+        r.length = size;
+        r.start = 0;
+
+        char* buffer = m_ses.allocate_disk_buffer("add piece");
+        // out of memory
+        if (buffer == 0)
+        {
+            return;
+        }
+        disk_buffer_holder holder(m_ses, buffer);
+        std::memcpy(buffer, data + r.start, r.length);
+        filesystem().async_write(r, holder, boost::bind(&torrent::on_disk_write_complete,
+                                                        shared_from_this(), _1, _2, r));
+        //if it's a dropping, set flag...
+        if (drop)
+            drop_piece(index);
+    }
+
+    void torrent::drop_piece(int index)
+    {
+        TORRENT_ASSERT(has_picker());
+
+        if (post_flags(index) == USERPOST_FLAG_DRPD)
+            return;
+
+        if (m_picker->have_piece(index))
+            m_picker->we_dont_have(index);
+
+        m_picker->we_have(index, USERPOST_FLAG_DRPD);
+
+        save_resume_data(0);
+    }
 
 	void torrent::piece_passed(int index, boost::uint32_t post_flags)
 	{

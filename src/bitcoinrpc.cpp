@@ -284,6 +284,7 @@ static const CRPCCommand vRPCCommands[] =
     { "leavegroup",             &leavegroup,             false,     true,       false },
     { "getpieceavailability",   &getpieceavailability,   false,     true,       true },
     { "getpiecemaxseen",        &getpiecemaxseen,        false,     true,       true },
+    { "editpost",               &editpost,               false,     true,       false },
 };
 
 CRPCTable::CRPCTable()
@@ -1355,6 +1356,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "newgroupdescription"    && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getpieceavailability"   && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "getpiecemaxseen"        && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "editpost"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "editpost"               && n > 2) ConvertTo<boost::int64_t>(params[2]);
 
     return params;
 }
