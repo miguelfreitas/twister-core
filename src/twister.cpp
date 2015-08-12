@@ -2403,6 +2403,8 @@ Value newfavmsg(const Array& params, bool fHelp)
 
     if (isPriv)
     {
+        //comments for private favs should be private too...
+        vfav["comment"] = strComment;
         std::vector<char> payloadbuf;
         bencode(std::back_inserter(payloadbuf), vfav);
         std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
@@ -2414,7 +2416,7 @@ Value newfavmsg(const Array& params, bool fHelp)
 
         if( !createSignedUserpost(v, strUsername, k,
                                   USERPOST_FLAG_P_FAV,
-                                  strComment, &pfav, NULL,
+                                  "", &pfav, NULL,
                                   std::string(""), 0) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
     }
@@ -2436,8 +2438,9 @@ Value newfavmsg(const Array& params, bool fHelp)
         // if member of torrent post it directly
         h.add_piece(k,buf.data(),buf.size());
     }
-    //look for mentions and hashtags in comment
-    dispatchHM(strComment, strUsername, v);
+    //look for mentions and hashtags in comment if it isn't private...
+    if (!isPriv)
+        dispatchHM(strComment, strUsername, v);
 
     hexcapePost(v);
     return entryToJson(v);
@@ -2709,7 +2712,7 @@ Value getfavs(const Array& params, bool fHelp)
                                         upst["sig_fav"] = dfav.dict_find_string_value("sig_userpost");
                                         upst["n"] = post->dict_find_string_value("n");
                                         upst["k"] = post->dict_find_int_value("k");
-                                        upst["msg"] = post->dict_find_string_value("msg");
+                                        upst["msg"] = dfav.dict_find_string_value("comment");
                                         upst["time"] = post->dict_find_int_value("time");
                                         upst["height"] = post->dict_find_int_value("height");
 
