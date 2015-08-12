@@ -1618,10 +1618,24 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
     switch(flag)
     {
     case USERPOST_FLAG_RT:
+    {
+        if (msg.size())
+        {
+            std::vector<char> buf;
+            bencode(std::back_inserter(buf), userpost);
+            std::string sig = createSignature(std::string(buf.data(),buf.size()), username);
+            if(sig.size())
+            {
+                v["sig_wort"] = sig;
+            } else {
+                return false;
+            }
+        }
         //userpost["t"] = "rt";
         userpost["rt"] = *ent;
         userpost["sig_rt"] = *sig;
         break;
+    }
     case USERPOST_FLAG_FAV:
         userpost["fav"] = *ent;
         userpost["sig_fav"] = *sig;
