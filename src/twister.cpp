@@ -1243,6 +1243,44 @@ void notifyNewGroupMember(string &groupAlias, string &newmember, string &invited
     storeGroupDM(groupAlias,stoDM);
 }
 
+// dispatch new msg for mentions and hashtags
+void dispatchHM(string const &strMsg, string const &strUsername, entry const &v)
+{
+    if (strMsg.size() == 0)
+        return;
+    // split and look for mentions and hashtags
+    vector<string> tokens;
+    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(msgTokensDelimiter),
+                            boost::algorithm::token_compress_on);
+    BOOST_FOREACH(string const& token, tokens) {
+        if( token.length() >= 2 ) {
+            char delim = token.at(0);
+            if( delim != '#' && delim != '@' ) continue;
+            string target = (delim == '#') ? "hashtag" : "mention";
+            string word = token.substr(1);
+#ifdef HAVE_BOOST_LOCALE
+            word = boost::locale::to_lower(word);
+#else
+            boost::algorithm::to_lower(word);
+#endif
+            if( word.find(delim) == string::npos ) {
+                dhtPutData(word, target, true,
+                                 v, strUsername, GetAdjustedTime(), 0);
+            } else {
+                vector<string> subtokens;
+                boost::algorithm::split(subtokens,word,std::bind1st(std::equal_to<char>(),delim),
+                                        boost::algorithm::token_compress_on);
+                BOOST_FOREACH(string const& word, subtokens) {
+                    if( word.length() ) {
+                        dhtPutData(word, target, true,
+                                         v, strUsername, GetAdjustedTime(), 0);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // try decrypting new DM received by any torrent we follow
 bool processReceivedDM(lazy_entry const* post)
 {
@@ -1561,13 +1599,9 @@ bool usernameExists(std::string const &username)
 */
 
 bool createSignedUserpost(entry &v, std::string const &username, int k,
-                          std::string const &msg,               // either msg.size() or
-                          entry const *rt, entry const *sig_rt, // rt != NULL or
-                          entry const *dm,                      // dm != NULL.
-                          entry const *fav, entry const *sig_fav,
-                          entry const *pfav,
-                          std::string const &reply_n, int reply_k
-                          )
+                          int flag, std::string const &msg,
+                          entry const *ent, entry const *sig,
+                          std::string const &reply_n = "", int reply_k = 0)
 {
     entry &userpost = v["userpost"];
 
@@ -1581,21 +1615,43 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
         //userpost["t"] = "post";
         userpost["msg"] = msg;
     }
-    if ( rt != NULL && sig_rt != NULL ) {
+    switch(flag)
+    {
+    case USERPOST_FLAG_RT:
+    {
+        if (msg.size())
+        {
+            std::vector<char> buf;
+            bencode(std::back_inserter(buf), userpost);
+            std::string sig = createSignature(std::string(buf.data(),buf.size()), username);
+            if(sig.size())
+            {
+                v["sig_wort"] = sig;
+            } else {
+                return false;
+            }
+        }
         //userpost["t"] = "rt";
-        userpost["rt"] = *rt;
-        userpost["sig_rt"] = *sig_rt;
-    } else if ( fav != NULL && sig_fav != NULL ) {
-        userpost["fav"] = *fav;
-        userpost["sig_fav"] = *sig_fav;
-    } else if ( dm != NULL ) {
+        userpost["rt"] = *ent;
+        userpost["sig_rt"] = *sig;
+        break;
+    }
+    case USERPOST_FLAG_FAV:
+        userpost["fav"] = *ent;
+        userpost["sig_fav"] = *sig;
+        break;
+    case USERPOST_FLAG_DM:
         //userpost["t"] = "dm";
-        userpost["dm"] = *dm;
-    } else if ( pfav != NULL ) {
-        userpost["pfav"] = *pfav;
-    } else if ( !msg.size() ) {
-        printf("createSignedUserpost: unknown type\n");
-        return false;
+        userpost["dm"] = *ent;
+        break;
+    case USERPOST_FLAG_P_FAV:
+        userpost["pfav"] = *ent;
+        break;
+    default:
+        if ( !msg.size() ) {
+            printf("createSignedUserpost: unknown type\n");
+            return false;
+        }
     }
 
     if( reply_n.size() ) {
@@ -2114,10 +2170,9 @@ Value newpostmsg(const Array& params, bool fHelp)
     if( lastk >= 0 )
         v["userpost"]["lastk"] = lastk;
 
-    if( !createSignedUserpost(v, strUsername, k, strMsg,
-                         NULL, NULL, NULL,
-                         NULL, NULL, NULL,
-                         strReplyN, replyK) )
+    if( !createSignedUserpost(v, strUsername, k, 0,
+                              strMsg, NULL, NULL,
+                              strReplyN, replyK) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
     vector<char> buf;
@@ -2149,37 +2204,8 @@ Value newpostmsg(const Array& params, bool fHelp)
                          v, strUsername, GetAdjustedTime(), 0);
     }
 
-    // split and look for mentions and hashtags
-    vector<string> tokens;
-    boost::algorithm::split(tokens,strMsg,boost::algorithm::is_any_of(msgTokensDelimiter),
-                            boost::algorithm::token_compress_on);
-    BOOST_FOREACH(string const& token, tokens) {
-        if( token.length() >= 2 ) {
-            char delim = token.at(0);
-            if( delim != '#' && delim != '@' ) continue;
-            string target = (delim == '#') ? "hashtag" : "mention";
-            string word = token.substr(1);
-#ifdef HAVE_BOOST_LOCALE
-            word = boost::locale::to_lower(word);
-#else
-            boost::algorithm::to_lower(word);
-#endif
-            if( word.find(delim) == string::npos ) {
-                dhtPutData(word, target, true,
-                                 v, strUsername, GetAdjustedTime(), 0);
-            } else {
-                vector<string> subtokens;
-                boost::algorithm::split(subtokens,word,std::bind1st(std::equal_to<char>(),delim),
-                                        boost::algorithm::token_compress_on);
-                BOOST_FOREACH(string const& word, subtokens) {
-                    if( word.length() ) {
-                        dhtPutData(word, target, true,
-                                         v, strUsername, GetAdjustedTime(), 0);
-                    }
-                }
-            }
-        }
-    }
+    //look for mentions and hashtags in msg
+    dispatchHM(strMsg, strUsername, v);
 
     hexcapePost(v);
     return entryToJson(v);
@@ -2265,9 +2291,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
 
     BOOST_FOREACH(entry *dm, dmsToSend) {
         entry v;
-        if( !createSignedUserpost(v, strFrom, k, "",
-                                  NULL, NULL, dm,
-                                  NULL, NULL, NULL,
+        if( !createSignedUserpost(v, strFrom, k,
+                                  USERPOST_FLAG_DM,
+                                  "", dm, NULL,
                                   std::string(""), 0) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2304,7 +2330,7 @@ Value newrtmsg(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "newrtmsg <username> <k> <rt_v_object> [msg]\n"
+            "newrtmsg <username> <k> <rt_v_object> [comment]\n"
             "Post a new RT to swarm");
 
     EnsureWalletIsUnlocked();
@@ -2316,7 +2342,7 @@ Value newrtmsg(const Array& params, bool fHelp)
     unHexcapePost(vrt);
     entry const *rt    = vrt.find_key("userpost");
     entry const *sig_rt= vrt.find_key("sig_userpost");
-    string msg         = params.size() > 3 ? params[3].get_str() : "";
+    string strComment  = params.size() > 3 ? params[3].get_str() : "";
 
     entry v;
     // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
@@ -2324,9 +2350,9 @@ Value newrtmsg(const Array& params, bool fHelp)
     if( lastk >= 0 )
         v["userpost"]["lastk"] = lastk;
 
-    if( !createSignedUserpost(v, strUsername, k, msg,
-                              rt, sig_rt, NULL,
-                              NULL, NULL, NULL,
+    if( !createSignedUserpost(v, strUsername, k,
+                              USERPOST_FLAG_RT,
+                              strComment, rt, sig_rt,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2360,6 +2386,8 @@ Value newrtmsg(const Array& params, bool fHelp)
         dhtPutData(rt_user, string("rts")+rt_k, true,
                          v, strUsername, GetAdjustedTime(), 0);
     }
+    //look for hashtags and mentions in comment
+    dispatchHM(strComment, strUsername, v);
 
     hexcapePost(v);
     return entryToJson(v);
@@ -2370,7 +2398,7 @@ Value newfavmsg(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
         throw runtime_error(
-            "newfavmsg <username> <k> <fav_v_object> [private=false] [msg=''] \n"
+            "newfavmsg <username> <k> <fav_v_object> [private=false] [comment=''] \n"
             "Add a post to swarm as a favorite");
 
     EnsureWalletIsUnlocked();
@@ -2378,7 +2406,7 @@ Value newfavmsg(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     int k              = params[1].get_int();
     string strK        = boost::lexical_cast<std::string>(k);
-    string msg         = (params.size() > 4) ? params[4].get_str() : "";
+    string strComment  = (params.size() > 4) ? params[4].get_str() : "";
     entry  vfav        = jsonToEntry(params[2].get_obj());
     bool isPriv        = (params.size() > 3) ? params[3].get_bool() : false;
     unHexcapePost(vfav);
@@ -2389,6 +2417,8 @@ Value newfavmsg(const Array& params, bool fHelp)
 
     if (isPriv)
     {
+        //comments for private favs should be private too...
+        vfav["comment"] = strComment;
         std::vector<char> payloadbuf;
         bencode(std::back_inserter(payloadbuf), vfav);
         std::string strMsgData = std::string(payloadbuf.data(),payloadbuf.size());
@@ -2398,15 +2428,15 @@ Value newfavmsg(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INTERNAL_ERROR,
                                "error encrypting to pubkey of destination user");
 
-        if( !createSignedUserpost(v, strUsername, k, msg,
-                                  NULL, NULL, NULL,
-                                  NULL, NULL, &pfav,
+        if( !createSignedUserpost(v, strUsername, k,
+                                  USERPOST_FLAG_P_FAV,
+                                  "", &pfav, NULL,
                                   std::string(""), 0) )
             throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
     }
-    else if( !createSignedUserpost(v, strUsername, k, msg,
-                                   NULL, NULL, NULL,
-                                   fav, sig_fav, NULL,
+    else if( !createSignedUserpost(v, strUsername, k,
+                                   USERPOST_FLAG_FAV,
+                                   strComment, fav, sig_fav,
                                    std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 
@@ -2422,6 +2452,9 @@ Value newfavmsg(const Array& params, bool fHelp)
         // if member of torrent post it directly
         h.add_piece(k,buf.data(),buf.size());
     }
+    //look for mentions and hashtags in comment if it isn't private...
+    if (!isPriv)
+        dispatchHM(strComment, strUsername, v);
 
     hexcapePost(v);
     return entryToJson(v);
@@ -2693,7 +2726,7 @@ Value getfavs(const Array& params, bool fHelp)
                                         upst["sig_fav"] = dfav.dict_find_string_value("sig_userpost");
                                         upst["n"] = post->dict_find_string_value("n");
                                         upst["k"] = post->dict_find_int_value("k");
-                                        upst["msg"] = post->dict_find_string_value("msg");
+                                        upst["msg"] = dfav.dict_find_string_value("comment");
                                         upst["time"] = post->dict_find_int_value("time");
                                         upst["height"] = post->dict_find_int_value("height");
 
@@ -3663,9 +3696,9 @@ Value getgroupinfo(const Array& params, bool fHelp)
 static void signAndAddDM(const std::string &strFrom, int k, const entry *dm)
 {
     entry v;
-    if( !createSignedUserpost(v, strFrom, k, "",
-                              NULL, NULL, dm,
-                              NULL, NULL, NULL,
+    if( !createSignedUserpost(v, strFrom, k,
+                              USERPOST_FLAG_DM,
+                              "", dm, NULL,
                               std::string(""), 0) )
         throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
 

@@ -373,6 +373,7 @@ void hexcapePost(libtorrent::entry &e)
 {
     if( e.type() == libtorrent::entry::dictionary_t ) {
         findAndHexcape(e,"sig_userpost");
+        findAndHexcape(e,"sig_wort");
         if( e.find_key("userpost") ) {
             entry &userpost = e["userpost"];
             if( userpost.type() == libtorrent::entry::dictionary_t ) {
