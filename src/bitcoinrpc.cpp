@@ -1350,6 +1350,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getspamposts"           && n > 2) ConvertTo<boost::int64_t>(params[2]);
     if (strMethod == "search"                 && n > 2) ConvertTo<boost::int64_t>(params[2]);
     if (strMethod == "search"                 && n > 3) ConvertTo<Object>(params[3]);
+    if (strMethod == "listgroups"             && n > 1) ConvertTo<bool>(params[1]);
     if (strMethod == "newgroupinvite"         && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "newgroupinvite"         && n > 3) ConvertTo<Array>(params[3]);
     if (strMethod == "newgroupdescription"    && n > 1) ConvertTo<boost::int64_t>(params[1]);
