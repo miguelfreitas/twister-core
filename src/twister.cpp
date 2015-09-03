@@ -3650,17 +3650,35 @@ Value creategroup(const Array& params, bool fHelp)
 
 Value listgroups(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() > 2 )
         throw runtime_error(
-            "listgroups\n"
-            "get list of group chats");
+            "listgroups [username] [list_only_ignored=false]\n"
+            "get list of group chats\n"
+            "if username is given, it will return list of user's groups.");
+
+    string strUsername = (params.size() > 0 ? params[0].get_str() : "");
+    bool onlyIgnored = (params.size() > 1 ? params[1].get_bool() : false);
 
     Array ret;
 
-    LOCK(cs_twister);
-    map<string,GroupChat>::const_iterator i;
-    for (i = m_groups.begin(); i != m_groups.end(); ++i) {
-        ret.push_back(i->first);
+    if (strUsername.size() && !m_users.count(strUsername))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "unknown user");
+
+    if (onlyIgnored)
+    {
+        LOCK(cs_twister);
+        BOOST_FOREACH(string const &strGroup, m_users[strUsername].m_ignoreGroups)
+            ret.push_back(strGroup);
+    }
+    else
+    {
+        LOCK(cs_twister);
+        map<string,GroupChat>::const_iterator i;
+        for (i = m_groups.begin(); i != m_groups.end(); ++i) {
+            if (strUsername.size() && !i->second.m_members.count(strUsername))
+                continue;
+            ret.push_back(i->first);
+        }
     }
 
     return ret;
@@ -3850,6 +3868,7 @@ Value leavegroup(const Array& params, bool fHelp)
 
     m_users[strUser].m_directmsg.erase(strGroupAlias);
     m_users[strUser].m_ignoreGroups.insert(strGroupAlias);
+    m_groups[strGroupAlias].m_members.erase(strUser);
 
     return Value();
 }
