@@ -64,6 +64,7 @@ static CCriticalSection cs_spamMsg;
 static std::string m_preferredSpamLang = "[en]";
 static std::string m_receivedSpamMsgStr;
 static std::string m_receivedSpamUserStr;
+static int         m_receivedSpamHeight;
 static int64       m_lastSpamTime = 0;
 static std::map<std::string,UserData> m_users;
 static std::map<std::string,GroupChat> m_groups;
@@ -213,8 +214,16 @@ int saveGlobalData(std::string const& filename)
     globalDict["preferredSpamLang"] = m_preferredSpamLang;
     globalDict["receivedSpamMsg"]   = m_receivedSpamMsgStr;
     globalDict["receivedSpamUser"]  = m_receivedSpamUserStr;
+    globalDict["receivedSpamHeight"]= m_receivedSpamHeight;
     globalDict["lastSpamTime"]      = m_lastSpamTime;
-    globalDict["sendSpamMsg"]       = strSpamMessage;
+
+    entry spams(entry::list_t);
+    {
+        LOCK(cs_spamMessages);
+        BOOST_FOREACH(string msg, spamMessages)
+            spams.list().push_back(msg);
+    }
+    globalDict["sendSpamMsg"]       = spams;
     globalDict["sendSpamUser"]      = strSpamUser;
     globalDict["generate"]          = GetBoolArg("-gen", false);
     int genproclimit = GetArg("-genproclimit", -1);
@@ -240,9 +249,24 @@ int loadGlobalData(std::string const& filename)
             m_preferredSpamLang   = userDict.dict_find_string_value("preferredSpamLang");
             m_receivedSpamMsgStr  = userDict.dict_find_string_value("receivedSpamMsg");
             m_receivedSpamUserStr = userDict.dict_find_string_value("receivedSpamUser");
+            m_receivedSpamHeight  = userDict.dict_find_int_value("receivedSpamHeight");
             m_lastSpamTime        = userDict.dict_find_int_value("lastSpamTime");
-            string sendSpamMsg    = userDict.dict_find_string_value("sendSpamMsg");
-            if( sendSpamMsg.size() ) strSpamMessage = sendSpamMsg;
+
+            const lazy_entry *sendSpamMsg    = userDict.dict_find_list("sendSpamMsg");
+            if (sendSpamMsg)
+            {
+                LOCK(cs_spamMessages);
+                for (int i = 0; i < sendSpamMsg->list_size(); i++)
+                    spamMessages.push_back(sendSpamMsg->list_string_value_at(i));
+            }
+            else
+            {
+                string strSSM = userDict.dict_find_string_value("sendSpamMsg");
+                LOCK(cs_spamMessages);
+                if(strSSM.size() && strSSM != strSpamMessage)
+                    spamMessages.push_back(strSSM);
+            }
+
             string sendSpamUser   = userDict.dict_find_string_value("sendSpamUser");
             if( sendSpamUser.size() ) strSpamUser = sendSpamUser;
             generateOpt           = userDict.dict_find_int_value("generate");
@@ -1791,6 +1815,7 @@ void receivedSpamMessage(std::string const &message, std::string const &user)
     if( currentlyEmpty || (isSameLang && rand() < (RAND_MAX/2)) ) {
         m_receivedSpamMsgStr = message;
         m_receivedSpamUserStr = user;
+        m_receivedSpamHeight = nBestHeight;
     }
 }
 
@@ -2528,7 +2553,7 @@ Value getposts(const Array& params, bool fHelp)
         if( m_receivedSpamMsgStr.length() && GetAdjustedTime() > m_lastSpamTime + (8*3600) ) {
             m_lastSpamTime = GetAdjustedTime();
 
-            entry v = formatSpamPost(m_receivedSpamMsgStr, m_receivedSpamUserStr);
+            entry v = formatSpamPost(m_receivedSpamMsgStr, m_receivedSpamUserStr, 0, m_receivedSpamHeight);
             ret.insert(ret.begin(),entryToJson(v));
 
             m_receivedSpamMsgStr = "";
@@ -2756,13 +2781,15 @@ Value getfavs(const Array& params, bool fHelp)
 
 Value setspammsg(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 2))
+    if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
-            "setspammsg <username> <msg>\n"
-            "Set spam message attached to generated blocks");
+            "setspammsg <username> <msg> [add|remove|replace]\n"
+            "Set spam message attached to generated blocks\n"
+            "replace is default operation.");
 
     string strUsername = params[0].get_str();
     string strMsg      = params[1].get_str();
+    string strOp       = params.size() == 3 ? params[2].get_str() : "replace";
 
     int spamMsgUtf8Size = utf8::num_characters(strMsg.begin(), strMsg.end());
     if (spamMsgUtf8Size < 0)
@@ -2772,10 +2799,30 @@ Value setspammsg(const Array& params, bool fHelp)
     if (spamMsgUtf8Size > MAX_SPAM_MSG_SIZE)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "spam message too big");
 
-    strSpamUser    = strUsername;
-    strSpamMessage = strMsg;
+    Array ret;
+    {
+        LOCK(cs_spamMessages);
+        strSpamUser    = strUsername;
+        if (strOp == "add")
+        {
+            spamMessages.push_back(strMsg);
+            spamMessages.unique();
+        }
+        else if (strOp == "remove")
+            spamMessages.remove(strMsg);
+        else if (strOp == "replace")
+        {
+            spamMessages.clear();
+            spamMessages.push_back(strMsg);
+        }
+        else
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "unknown operation");
 
-    return Value();
+        BOOST_FOREACH(string msg, spamMessages)
+            ret.push_back(msg);
+    }
+
+    return ret;
 }
 
 Value getspammsg(const Array& params, bool fHelp)
@@ -2787,7 +2834,15 @@ Value getspammsg(const Array& params, bool fHelp)
 
     Array ret;
     ret.push_back(strSpamUser);
-    ret.push_back(strSpamMessage);
+
+    {
+        LOCK(cs_spamMessages);
+        BOOST_FOREACH(string msg, spamMessages)
+            ret.push_back(msg);
+    }
+    //if spamMessages is empty, use default message...
+    if (ret.size() == 1)
+        ret.push_back(strSpamMessage);
 
     return ret;
 }
