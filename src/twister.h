@@ -13,7 +13,8 @@
 #define USERPOST_FLAG_FAV   0x04
 #define USERPOST_FLAG_P_FAV 0x0C
 
-#define USERPOST_FLAG_HOME  (~USERPOST_FLAG_DM & ~USERPOST_FLAG_FAV & ~USERPOST_FLAG_P_FAV)
+//only no flagged posts and RTs are displayed at home postboard
+#define USERPOST_FLAG_HOME  USERPOST_FLAG_RT
 
 #define BLOCK_AGE_TO_EXPIRE_DHT_ENTRY (2016)   // about 2 weeks
 #define BLOCK_AGE_TO_EXPIRE_DHT_POSTS (4320*2) // about 2 months

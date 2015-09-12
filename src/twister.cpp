@@ -3358,21 +3358,32 @@ lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, lazy_ent
         if( post ) {
             lazy_entry const* rt = post->dict_find_dict("rt");
             lazy_entry const* p = rt ? rt : post;
+            string comment;
+            if (rt)
+                comment = post->dict_find_string_value("msg");
 
             if( username.length() ) {
                 string user = p->dict_find_string_value("n");
-                if( user != username ) {
+                string rtuser;
+                if (rt)
+                    rtuser = post->dict_find_string_value("n");
+                if( user != username && (!comment.size() || rtuser != username)) {
                     return 0;
                 }
             }
 
             int64_t time = p->dict_find_int_value("time");
-            if( !matchTime(time) ) {
+            int64_t rttime = 0;
+            if (comment.size())
+                rttime = post->dict_find_int_value("time");
+            if( !matchTime(time) && (!rttime || !matchTime(rttime)) ) {
                 return 0;
             }
 
             string msg = p->dict_find_string_value("msg");
-            return matchText( msg ) ? p : 0;
+            if (matchText(msg) || matchText(comment))
+                //for RTable results, it returns signed post instead of userpost
+                return vv ? vv : &v;
         }
     }
     return 0;
@@ -3384,7 +3395,7 @@ Value search(const Array& params, bool fHelp)
         throw runtime_error(
             "search <scope> <text> <count> ['{\"username\":username,\"mode\":\"exact\"|\"all\"|\"any\",\"case\":\"sensitive\"|\"insensitive\",\"agemin\":agemin,\"agemax\":agemin}']\n"
             "search text in available data\n"
-            "<scope> is data area: messages, directmsgs, profiles, users, hashtags\n"
+            "<scope> is data area: messages, directmsgs, profiles, users, hashtags, favorites\n"
             "<text> is a phrase to search\n"
             "up to <count> entries are returned\n"
             "<username> in messages scope is optional and allows to search in username's messages only\n"
@@ -3432,20 +3443,24 @@ Value search(const Array& params, bool fHelp)
 
             BOOST_FOREACH(const PAIRTYPE(std::string,torrent_handle)& item, users) {
                 std::vector<std::string> pieces;
-                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, ~USERPOST_FLAG_DM, 0);
+                item.second.get_pieces(pieces, std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), -1, USERPOST_FLAG_HOME, 0);
 
                 BOOST_FOREACH(string const& piece, pieces) {
                     lazy_entry const* p = searcher.matchRawMessage(piece, v);
                     if( p ) {
-                        string n = p->dict_find_string_value("n");
-                        int k = p->dict_find_int_value("k");
-                        int64 time = p->dict_find_int_value("time",-1);
+                        const lazy_entry *up = p->dict_find_dict("userpost");
+                        if (up)
+                        {
+                            string n = up->dict_find_string_value("n");
+                            int k = up->dict_find_int_value("k");
+                            int64 time = up->dict_find_int_value("time",-1);
 
-                        entry vEntry;
-                        vEntry = *p;
-                        hexcapePost(vEntry);
+                            entry vEntry;
+                            vEntry = *p;
+                            hexcapePost(vEntry);
 
-                        posts[pair<std::string,int>(n,k)] = pair<int64,entry>(time,vEntry);
+                            posts[pair<std::string,int>(n,k)] = pair<int64,entry>(time,vEntry);
+                        }
                     }
                 }
             }
@@ -3468,17 +3483,21 @@ Value search(const Array& params, bool fHelp)
                             string str_p = key_p->string();
                             lazy_entry const* p = searcher.matchRawMessage(str_p, v);
                             if( p ) {
-                                string n = p->dict_find_string_value("n");
-                                int k = p->dict_find_int_value("k");
-                                pair<std::string,int> post_id(n,k);
-                                if( posts.count(post_id) == 0 ) {
-                                    int64 time = p->dict_find_int_value("time",-1);
+                                const lazy_entry *up = p->dict_find_dict("userpost");
+                                if (up)
+                                {
+                                    string n = up->dict_find_string_value("n");
+                                    int k = up->dict_find_int_value("k");
+                                    pair<std::string,int> post_id(n,k);
+                                    if( posts.count(post_id) == 0 ) {
+                                        int64 time = up->dict_find_int_value("time",-1);
 
-                                    entry vEntry;
-                                    vEntry = *p;
-                                    hexcapePost(vEntry);
+                                        entry vEntry;
+                                        vEntry = *p;
+                                        hexcapePost(vEntry);
 
-                                    posts[post_id] = pair<int64,entry>(time,vEntry);
+                                        posts[post_id] = pair<int64,entry>(time,vEntry);
+                                    }
                                 }
                             }
                         }
@@ -3638,7 +3657,59 @@ Value search(const Array& params, bool fHelp)
             ret.push_back( entryToJson(it->second) );
         }
 
-    } else {
+    }
+    else if (scope == "favorites")
+    {
+        std::multimap<int64_t,Value> postsByTime;
+
+        TextSearch searcher(keyword, options);
+
+        set<string> users;
+        if (username.size())
+            users.insert(username);
+        else
+        {
+            for (map<string,torrent_handle>::const_iterator it = m_userTorrent.begin(); it != m_userTorrent.end(); ++it)
+                users.insert(it->first);
+        }
+
+        BOOST_FOREACH(string user, users)
+        {
+            Array params;
+            params.push_back(user);
+            params.push_back(INT_MAX);
+            Array favs = getfavs(params, false).get_array();
+            for (int i = 0; i < favs.size(); i++)
+            {
+                entry favp = jsonToEntry(favs[i]);
+                entry *favu = favp.find_key("userpost");
+                if (favu && favu->type() == entry::dictionary_t)
+                {
+                    entry* commEnt = favu->find_key("msg");
+                    string comnt;
+                    if (commEnt && commEnt->type() == entry::string_t)
+                        comnt = commEnt->string();
+
+                    entry *favEnt = favu->find_key("fav");
+                    string msg;
+                    if (favEnt)
+                        msg = favEnt->find_key("msg")->string();
+
+                    if( searcher.matchText(msg) || searcher.matchText(comnt) )
+                    {
+                        int64_t ft = favu->find_key("time")->integer();
+                        if(searcher.matchTime(ft))
+                            postsByTime.insert(pair<int64_t,Value>(ft, favs[i]));
+                    }
+                }
+            }
+        }
+
+        std::multimap<int64_t,Value>::reverse_iterator rit;
+        for (rit = postsByTime.rbegin(); rit != postsByTime.rend() && ret.size() < count; ++rit)
+           ret.push_back(rit->second);
+    }
+    else {
         throw runtime_error("Unknown <scope> value");
     }
 
