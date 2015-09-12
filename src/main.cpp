@@ -71,7 +71,8 @@ int64 nHPSTimerStart = 0;
 // Settings
 int64 nTransactionFee = 0;
 
-string strSpamMessage = "Promoted posts are needed to run the network infrastructure. If you want to help, start generating blocks and advertise. [en]";
+CCriticalSection cs_spamMessages;
+list<string> spamMessages;
 string strSpamUser = "nobody";
 
 
@@ -3681,7 +3682,13 @@ public:
 
 static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &salt)
 {
-    txNew.message = CScript() << strSpamMessage;
+    if (spamMessages.size())
+    {
+        LOCK(cs_spamMessages);
+        txNew.message = CScript() << spamMessages.front();
+    }
+    else
+        txNew.message = CScript() << strSpamMessage;
     std::string strUsername = strSpamUser;
 
     CKeyID keyID;
@@ -3941,6 +3948,13 @@ bool CheckWork(CBlock* pblock, CWallet& wallet)
         CValidationState state;
         if (!ProcessBlock(state, NULL, pblock))
             return error("BitcoinMiner : ProcessBlock, block not accepted");
+        else
+        {
+            //after finding a block, change spam messages order..
+            LOCK(cs_spamMessages);
+            spamMessages.push_back(spamMessages.front());
+            spamMessages.pop_front();
+        }
     }
 
     return true;
