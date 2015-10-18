@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2008-2012, Arvid Norberg
+Copyright (c) 2008, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/version.hpp>
 #include "libtorrent/config.hpp"
 
-#if defined TORRENT_WINDOWS
+#if defined TORRENT_WINDOWS || defined TORRENT_CYGWIN
 // asio assumes that the windows error codes are defined already
 #include <winsock2.h>
 #endif
@@ -49,6 +49,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/string_util.hpp" // for allocate_string_copy
 #include <stdlib.h> // free
+
+#ifndef BOOST_SYSTEM_NOEXCEPT
+#define BOOST_SYSTEM_NOEXCEPT throw()
+#endif
 
 namespace libtorrent
 {
@@ -265,6 +269,7 @@ namespace libtorrent
 			expected_value,
 			depth_exceeded,
 			limit_exceeded,
+			overflow,
 
 			error_code_max
 		};
@@ -310,20 +315,16 @@ namespace libtorrent
 
 #if BOOST_VERSION < 103500
 	typedef asio::error_code error_code;
-	// hidden
 	inline asio::error::error_category get_posix_category() { return asio::error::system_category; }
-	// hidden
 	inline asio::error::error_category get_system_category() { return asio::error::system_category; }
 
-	// hidden
-	boost::system::error_category const& get_libtorrent_category()
+	inline boost::system::error_category const& get_libtorrent_category()
 	{
 		static ::asio::error::error_category libtorrent_category(20);
 		return libtorrent_category;
 	}
 
-	// hidden
-	boost::system::error_category const& get_http_category()
+	inline boost::system::error_category const& get_http_category()
 	{
 		static ::asio::error::error_category http_category(21);
 		return http_category;
@@ -333,26 +334,26 @@ namespace libtorrent
 
 	struct TORRENT_EXPORT libtorrent_error_category : boost::system::error_category
 	{
-		virtual const char* name() const throw();
-		virtual std::string message(int ev) const throw();
-		virtual boost::system::error_condition default_error_condition(int ev) const throw()
-		{ return boost::system::error_condition(ev, *this); }
-	};
-
-	struct TORRENT_EXPORT http_error_category : boost::system::error_category
-	{
-		virtual const char* name() const throw();
-		virtual std::string message(int ev) const throw();
-		virtual boost::system::error_condition default_error_condition(int ev) const throw()
+		virtual const char* name() const BOOST_SYSTEM_NOEXCEPT;
+		virtual std::string message(int ev) const BOOST_SYSTEM_NOEXCEPT;
+		virtual boost::system::error_condition default_error_condition(int ev) const BOOST_SYSTEM_NOEXCEPT
 		{ return boost::system::error_condition(ev, *this); }
 	};
 
 	TORRENT_EXPORT boost::system::error_category& get_libtorrent_category();
+
+	struct TORRENT_EXPORT http_error_category : boost::system::error_category
+	{
+		virtual const char* name() const BOOST_SYSTEM_NOEXCEPT;
+		virtual std::string message(int ev) const BOOST_SYSTEM_NOEXCEPT;
+		virtual boost::system::error_condition default_error_condition(int ev) const BOOST_SYSTEM_NOEXCEPT
+		{ return boost::system::error_condition(ev, *this); }
+	};
+
 	TORRENT_EXPORT boost::system::error_category& get_http_category();
 
 	namespace errors
 	{
-		// hidden
 		inline boost::system::error_code make_error_code(error_code_enum e)
 		{
 			return boost::system::error_code(e, get_libtorrent_category());
@@ -361,15 +362,14 @@ namespace libtorrent
 
 	using boost::system::error_code;
 
-	// hidden
-	inline boost::system::error_category const& get_system_category()
 #if BOOST_VERSION < 104400
+	inline boost::system::error_category const& get_system_category()
 	{ return boost::system::get_system_category(); }
 #else
+	inline boost::system::error_category const& get_system_category()
 	{ return boost::system::system_category(); }
 #endif
 
-	// hidden
 	inline boost::system::error_category const& get_posix_category()
 #if BOOST_VERSION < 103600
 	{ return boost::system::get_posix_category(); }

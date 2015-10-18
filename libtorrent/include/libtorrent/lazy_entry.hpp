@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2003-2012, Arvid Norberg
+Copyright (c) 2003, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <string>
 #include <cstring>
+#include <algorithm>
 #include "libtorrent/config.hpp"
 #include "libtorrent/assert.hpp"
 #include "libtorrent/size_type.hpp"
@@ -49,6 +50,9 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace libtorrent
 {
 	struct lazy_entry;
+
+	TORRENT_EXPORT char const* parse_int(char const* start, char const* end
+		, char delimiter, boost::int64_t& val);
 
 	// return 0 = success
 	TORRENT_EXPORT int lazy_bdecode(char const* start, char const* end
@@ -63,7 +67,7 @@ namespace libtorrent
 		, lazy_entry& ret, int depth_limit = 1000, int item_limit = 1000000) TORRENT_DEPRECATED;
 #endif
 
-	struct TORRENT_EXPORT pascal_string
+	struct pascal_string
 	{
 		pascal_string(char const* p, int l): len(l), ptr(p) {}
 		int len;
@@ -156,11 +160,15 @@ namespace libtorrent
 		lazy_entry* dict_find(char const* name);
 		lazy_entry const* dict_find(char const* name) const
 		{ return const_cast<lazy_entry*>(this)->dict_find(name); }
+		lazy_entry* dict_find(std::string const& name);
+		lazy_entry const* dict_find(std::string const& name) const
+		{ return const_cast<lazy_entry*>(this)->dict_find(name); }
 
 		std::string dict_find_string_value(char const* name) const;
 		pascal_string dict_find_pstr(char const* name) const;
 		size_type dict_find_int_value(char const* name, size_type default_val = 0) const;
 		lazy_entry const* dict_find_dict(char const* name) const;
+		lazy_entry const* dict_find_dict(std::string const& name) const;
 		lazy_entry const* dict_find_list(char const* name) const;
 		lazy_entry const* dict_find_string(char const* name) const;
 		lazy_entry const* dict_find_int(char const* name) const;
@@ -279,8 +287,12 @@ namespace libtorrent
 		lazy_entry val;
 	};
 
-	TORRENT_EXTRA_EXPORT std::string print_entry(lazy_entry const& e
+	TORRENT_EXPORT std::string print_entry(lazy_entry const& e
 		, bool single_line = false, int indent = 0);
+#if TORRENT_USE_IOSTREAM
+	TORRENT_EXPORT std::ostream& operator<<(std::ostream& os, lazy_entry const& e);
+#endif
+
 }
 
 

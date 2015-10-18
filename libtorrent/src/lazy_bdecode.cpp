@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2008-2012, Arvid Norberg
+Copyright (c) 2008, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#include "libtorrent/config.hpp"
 #include "libtorrent/lazy_entry.hpp"
 #include "libtorrent/escape_string.hpp"
 #include <cstring>
@@ -63,15 +64,33 @@ namespace libtorrent
 	// first occurance of the delimiter is interpreted as an int.
 	// return the pointer to the delimiter, or 0 if there is a
 	// parse error. val should be initialized to zero
-	char const* parse_int(char const* start, char const* end, char delimiter, boost::int64_t& val)
+	char const* parse_int(char const* start, char const* end, char delimiter
+		, boost::int64_t& val, error_code& ec)
 	{
 		while (start < end && *start != delimiter)
 		{
-			if (!is_digit(*start)) { return 0; }
+			if (!is_digit(*start))
+			{
+				ec = errors::expected_string;
+				return start;
+			}
+			if (val > INT64_MAX / 10)
+			{
+				ec = errors::overflow;
+				return start;
+			}
 			val *= 10;
-			val += *start - '0';
+			int digit = *start - '0';
+			if (val > INT64_MAX - digit)
+			{
+				ec = errors::overflow;
+				return start;
+			}
+			val += digit;
 			++start;
 		}
+		if (*start != delimiter)
+			ec = errors::expected_colon;
 		return start;
 	}
 
@@ -126,9 +145,17 @@ namespace libtorrent
 					}
 					if (!is_digit(t)) TORRENT_FAIL_BDECODE(errors::expected_string);
 					boost::int64_t len = t - '0';
-					start = parse_int(start, end, ':', len);
-					if (start == 0 || start + len + 3 > end || *start != ':')
-						TORRENT_FAIL_BDECODE(errors::expected_colon);
+					error_code e;
+					start = parse_int(start, end, ':', len, e);
+					if (e)
+						TORRENT_FAIL_BDECODE(e);
+
+					if (start + len + 1 > end)
+						TORRENT_FAIL_BDECODE(errors::unexpected_eof);
+
+					if (len < 0)
+						TORRENT_FAIL_BDECODE(errors::overflow);
+
 					++start;
 					if (start == end) TORRENT_FAIL_BDECODE(errors::unexpected_eof);
 					lazy_entry* ent = top->dict_append(start);
@@ -185,9 +212,15 @@ namespace libtorrent
 						TORRENT_FAIL_BDECODE(errors::expected_value);
 
 					boost::int64_t len = t - '0';
-					start = parse_int(start, end, ':', len);
-					if (start == 0 || start + len + 1 > end || *start != ':')
-						TORRENT_FAIL_BDECODE(errors::expected_colon);
+					error_code e;
+					start = parse_int(start, end, ':', len, e);
+					if (e)
+						TORRENT_FAIL_BDECODE(e);
+					if (start + len + 1 > end)
+						TORRENT_FAIL_BDECODE(errors::unexpected_eof);
+					if (len < 0)
+						TORRENT_FAIL_BDECODE(errors::overflow);
+
 					++start;
 					top->construct_string(start, int(len));
 					stack.pop_back();
@@ -206,7 +239,10 @@ namespace libtorrent
 		boost::int64_t val = 0;
 		bool negative = false;
 		if (*m_data.start == '-') negative = true;
-		parse_int(negative?m_data.start+1:m_data.start, m_data.start + m_size, 'e', val);
+		error_code ec;
+		parse_int(m_data.start + negative
+			, m_data.start + m_size, 'e', val, ec);
+		if (ec) return 0;
 		if (negative) val = -val;
 		return val;
 	}
@@ -339,6 +375,13 @@ namespace libtorrent
 		return e;
 	}
 
+	lazy_entry const* lazy_entry::dict_find_dict(std::string const& name) const
+	{
+		lazy_entry const* e = dict_find(name);
+		if (e == 0 || e->type() != lazy_entry::dict_t) return 0;
+		return e;
+	}
+
 	lazy_entry const* lazy_entry::dict_find_list(char const* name) const
 	{
 		lazy_entry const* e = dict_find(name);
@@ -357,6 +400,20 @@ namespace libtorrent
 		}
 		return 0;
 	}
+
+	lazy_entry* lazy_entry::dict_find(std::string const& name)
+	{
+		TORRENT_ASSERT(m_type == dict_t);
+		for (int i = 0; i < int(m_size); ++i)
+		{
+			lazy_dict_entry& e = m_data.dict[i];
+			if (name.size() != e.val.m_begin - e.name) continue;
+			if (std::equal(name.begin(), name.end(), e.name))
+				return &e.val;
+		}
+		return 0;
+	}
+
 
 	lazy_entry* lazy_entry::list_append()
 	{
@@ -426,6 +483,13 @@ namespace libtorrent
 		return return_t(m_begin, m_len);
 	}
 
+#if TORRENT_USE_IOSTREAM
+	std::ostream& operator<<(std::ostream& os, lazy_entry const& e)
+	{
+		return os << print_entry(e);
+	}
+#endif // TORRENT_USE_IOSTREAM
+
 	int line_longer_than(lazy_entry const& e, int limit)
 	{
 		int line_len = 0;
@@ -491,7 +555,7 @@ namespace libtorrent
 			case lazy_entry::int_t:
 			{
 				char str[100];
-				snprintf(str, sizeof(str), "%"PRId64, e.int_value());
+				snprintf(str, sizeof(str), "%" PRId64, e.int_value());
 				return str;
 			}
 			case lazy_entry::string_t:
