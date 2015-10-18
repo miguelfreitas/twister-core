@@ -116,12 +116,16 @@ namespace libtorrent
 	{
 		char const* const orig_start = start;
 		ret.clear();
-		if (start == end) return 0;
 
 		std::vector<lazy_entry*> stack;
 
+		if (start == end) {
+			ec = errors::unexpected_eof;
+			return -1;
+		}
+
 		stack.push_back(&ret);
-		while (start < end)
+		while (start <= end)
 		{
 			if (stack.empty()) break; // done!
 
@@ -145,12 +149,14 @@ namespace libtorrent
 					}
 					if (!is_digit(t)) TORRENT_FAIL_BDECODE(errors::expected_string);
 					boost::int64_t len = t - '0';
-					error_code e;
+					error_code e = errors::no_error;
 					start = parse_int(start, end, ':', len, e);
 					if (e)
 						TORRENT_FAIL_BDECODE(e);
 
-					if (start + len + 1 > end)
+					// remaining buffer size excluding ':'
+					const ptrdiff_t buff_size = end - start - 1;
+					if (len > buff_size)
 						TORRENT_FAIL_BDECODE(errors::unexpected_eof);
 
 					if (len < 0)
@@ -180,7 +186,10 @@ namespace libtorrent
 					stack.push_back(ent);
 					break;
 				}
-				default: break;
+				case lazy_entry::int_t:
+				case lazy_entry::string_t:
+				case lazy_entry::none_t:
+					break;
 			}
 
 			--item_limit;
@@ -191,10 +200,10 @@ namespace libtorrent
 			{
 				case 'd':
 					top->construct_dict(start - 1);
-					continue;
+					break;
 				case 'l':
 					top->construct_list(start - 1);
-					continue;
+					break;
 				case 'i':
 				{
 					char const* int_start = start;
@@ -204,7 +213,7 @@ namespace libtorrent
 					TORRENT_ASSERT(*start == 'e');
 					++start;
 					stack.pop_back();
-					continue;
+					break;
 				}
 				default:
 				{
@@ -212,23 +221,26 @@ namespace libtorrent
 						TORRENT_FAIL_BDECODE(errors::expected_value);
 
 					boost::int64_t len = t - '0';
-					error_code e;
+					error_code e = errors::no_error;
 					start = parse_int(start, end, ':', len, e);
 					if (e)
 						TORRENT_FAIL_BDECODE(e);
-					if (start + len + 1 > end)
+
+					// remaining buffer size excluding ':'
+					const ptrdiff_t buff_size = end - start - 1;
+					if (len > buff_size)
 						TORRENT_FAIL_BDECODE(errors::unexpected_eof);
 					if (len < 0)
 						TORRENT_FAIL_BDECODE(errors::overflow);
 
 					++start;
+					if (start == end) TORRENT_FAIL_BDECODE(errors::unexpected_eof);
 					top->construct_string(start, int(len));
-					stack.pop_back();
 					start += len;
-					continue;
+					stack.pop_back();
+					break;
 				}
 			}
-			return 0;
 		}
 		return 0;
 	}
