@@ -1,6 +1,6 @@
-Mac OS X Build Instructions and Notes
+OS X Build Instructions and Notes
 ====================================
-This guide will show you how to build twisterd for OSX.
+This guide will show you how to build twisterd for OS X.
 
 Notes
 -----
