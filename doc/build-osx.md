@@ -27,7 +27,7 @@ it's the path of least resistance to install
 [Git for OS X](https://code.google.com/p/git-osx-installer/). It is also
 available via Homebrew or MacPorts.
 
-You will also need to install [Homebrew](http://mxcl.github.io/homebrew/)
+You will also need to install [Homebrew](http://brew.sh/)
 or [MacPorts](https://www.macports.org/) in order to install library
 dependencies. It's largely a religious decision which to choose, but I tested only with
 Homebrew.
@@ -36,7 +36,7 @@ The installation of the actual dependencies is covered in the Instructions
 sections below.
 
 
-Instructions: HomeBrew
+Instructions: Homebrew
 ----------------------
 
 #### Install dependencies using Homebrew
@@ -56,7 +56,7 @@ Instructions: HomeBrew
         ./autotool.sh
         ./configure --enable-logging --with-openssl=/usr/local/opt/openssl --with-libdb=/usr/local/opt/berkeley-db4
         make
-(If you have multi core CPU, use "make -j N" where N = number of your cores)
+(If you have multi core CPU, use "make -j N" where N = the number of your cores)
 
 3. If things go south, before trying again, make sure you clean it up:
 
