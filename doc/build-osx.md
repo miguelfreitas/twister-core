@@ -21,9 +21,9 @@ Xcode 4.3 or later, you'll need to install its command line tools. This can
 be done in `Xcode > Preferences > Downloads > Components` and generally must
 be re-done or updated every time Xcode is updated.
 
-There's an assumption that you already have `git` installed, as well. If
-not, it's the path of least resistance to install [Github for Mac](https://mac.github.com/)
-(OS X 10.7+) or
+There's an assumption that you already have `git` installed, as well. If not,
+it's the path of least resistance to install
+[GitHub Desktop](https://desktop.github.com/) or
 [Git for OS X](https://code.google.com/p/git-osx-installer/). It is also
 available via Homebrew or MacPorts.
 
