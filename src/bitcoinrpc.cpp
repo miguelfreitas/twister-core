@@ -1055,7 +1055,13 @@ void ServiceConnection(AcceptedConnection *conn)
                 conn->stream() << HTTPReply(HTTP_OK, str, false, contentType) << std::flush;
             } else {
                 printf("ServiceConnection: file %s not found\n", fname.c_str());
-                conn->stream() << HTTPReply(HTTP_NOT_FOUND, "", false) << std::flush;
+
+                ostringstream s;
+                s << "<html><body>\r\n"
+                  << "<b>ERROR 404</b><br/>"
+                  << "ServiceConnection: file '<b>" << fname << "</b>' not found\r\n"
+                  << "</body></html>\r\n";
+                conn->stream() << HTTPReply(HTTP_NOT_FOUND, s.str(), false, "text/html; charset=utf-8") << std::flush;
             }
             continue;
         }
