@@ -21,5 +21,5 @@ ENV HOME /root
 VOLUME /root/.twister
 
 # Run twisterd by default
-ENTRYPOINT ["/twister-core/twisterd", "-rpcuser=user", "-rpcpassword=pwd", "-rpcallowip=172.17.42.1", "-htmldir=/twister-html", "-printtoconsole", "-port=28333"]
+ENTRYPOINT ["/twister-core/docker-entrypoint"]
 EXPOSE 28332
