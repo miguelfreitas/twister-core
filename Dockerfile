@@ -21,5 +21,5 @@ ENV HOME /root
 VOLUME /root/.twister
 
 # Run twisterd by default
-ENTRYPOINT ["/twister-core/docker-entrypoint"]
+ENTRYPOINT ["/twister-core/docker-entrypoint.sh"]
 EXPOSE 28332
