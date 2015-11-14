@@ -3393,7 +3393,7 @@ Value search(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "search <scope> <text> <count> ['{\"username\":username,\"mode\":\"exact\"|\"all\"|\"any\",\"case\":\"sensitive\"|\"insensitive\",\"agemin\":agemin,\"agemax\":agemin}']\n"
+            "search <scope> <text> <count> ['{\"username\":username,\"mode\":\"exact\"|\"all\"|\"any\",\"case\":\"sensitive\"|\"insensitive\",\"agemin\":agemin,\"agemax\":agemax}']\n"
             "search text in available data\n"
             "<scope> is data area: messages, directmsgs, profiles, users, hashtags, favorites\n"
             "<text> is a phrase to search\n"
@@ -4004,7 +4004,7 @@ Value getpieceavailability(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 2 )
         throw runtime_error(
-            "getpieceavailability <username> <k>'\n"
+            "getpieceavailability <username> <k>\n"
             "Get piece availability (peer count for this piece)");
 
     EnsureWalletIsUnlocked();
@@ -4023,7 +4023,7 @@ Value getpiecemaxseen(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 2 )
         throw runtime_error(
-            "getpiecemaxseen <username> <k>'\n"
+            "getpiecemaxseen <username> <k>\n"
             "Get piece max seen availability (max peer count for this piece)");
 
     EnsureWalletIsUnlocked();
