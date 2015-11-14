@@ -214,7 +214,7 @@ Value getlastsoftcheckpoint(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "getlastsoftcheckpoint"
+            "getlastsoftcheckpoint\n"
             "Returns votes of last soft checkpoint.");
 
     Object result;
