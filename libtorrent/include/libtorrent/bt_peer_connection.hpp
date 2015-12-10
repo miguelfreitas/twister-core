@@ -132,6 +132,9 @@ namespace libtorrent
 			msg_cancel,
 			// DHT extension
 			msg_dht_port,
+			// hashcash PEEK extension
+			msg_hashcash_nbits,
+			msg_hashcash_nonce,
 			// FAST extension
 			msg_suggest_piece = 0xd,
 			msg_have_all,
@@ -198,6 +201,10 @@ namespace libtorrent
 		// DHT extension
 		void on_dht_port(int received);
 
+		// PEEK extension
+		void on_hashcash_nbits(int received);
+		void on_hashcash_nonce(int received);
+
 		// FAST extension
 		void on_suggest_piece(int received);
 		void on_have_all(int received);
@@ -238,6 +245,10 @@ namespace libtorrent
 
 		// DHT extension
 		void write_dht_port(int listen_port);
+
+		// PEEK extension
+		void write_hashcash_nbits(int nbits);
+		void write_hashcash_nonce(const char *nonce, int size);
 
 		// FAST extension
 		void write_have_all();
@@ -399,6 +410,7 @@ private:
 		bool m_supports_extensions:1;
 		bool m_supports_dht_port:1;
 		bool m_supports_fast:1;
+		bool m_supports_peek:1;
 
 #ifndef TORRENT_DISABLE_ENCRYPTION
 		// this is set to true after the encryption method has been
@@ -437,6 +449,7 @@ private:
 		// this is set to true when the client's
 		// bitfield is sent to this peer
 		bool m_sent_bitfield;
+		bool m_sent_hashcash_nonce;
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 
 		bool m_in_constructor;

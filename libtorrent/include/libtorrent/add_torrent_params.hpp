@@ -94,6 +94,7 @@ namespace libtorrent
 			, max_connections(-1)
 			, upload_limit(-1)
 			, download_limit(-1)
+			, peek_single_piece(-1)
 		{
 		}
 
@@ -321,6 +322,9 @@ namespace libtorrent
 		int max_connections;
 		int upload_limit;
 		int download_limit;
+
+		// PEEK single piece with hashcash
+		int peek_single_piece;
 	};
 }
 

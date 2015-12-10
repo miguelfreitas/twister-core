@@ -36,6 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/limits.hpp>
 #include <boost/bind.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/lexical_cast.hpp>
 #include <stdarg.h> // for va_start, va_end
 
 #include "libtorrent/peer_connection.hpp"
@@ -166,6 +167,8 @@ namespace libtorrent
 		, m_rtt(0)
 		, m_prefer_whole_pieces(0)
 		, m_desired_queue_size(8)
+		, m_hashcash_nbits(0)
+		, m_sent_hashcash_nbits(HASHCASH_MAX_NBITS)
 		, m_fast_reconnect(false)
 		, m_outgoing(outgoing)
 		, m_received_listen_port(false)
@@ -504,6 +507,10 @@ namespace libtorrent
 		if (!t->ready_for_connections()) return;
 
 		bool interested = false;
+		if (t->m_peek_single_piece >= 0) {
+			interested = t->m_peek_single_piece < m_have_piece.size() &&
+			             m_have_piece[t->m_peek_single_piece];
+		} else
 		if (!t->is_upload_only())
 		{
 			piece_picker const& p = t->picker();
@@ -1400,6 +1407,20 @@ namespace libtorrent
 		}
 	}
 
+	void peer_connection::recheck_request_blocks()
+	{
+		INVARIANT_CHECK;
+
+		boost::shared_ptr<torrent> t = m_torrent.lock();
+		TORRENT_ASSERT(t);
+
+		if (is_disconnecting()) return;
+
+		request_a_block(*t, *this);
+		send_block_requests();
+	}
+
+
 	// -----------------------------
 	// -------- INTERESTED ---------
 	// -----------------------------
@@ -2031,10 +2052,40 @@ namespace libtorrent
 			&& m_peer_interested
 			&& r.length <= t->block_size())
 		{
+			bool hashcash_valid = false;
+
+			if (m_choked && m_hashcash_nonce.size() ) {
+				hasher h;
+				sha1_hash const& info_hash = t->info_hash();
+				sha1_hash max_hash = sha1_hash::max();
+				max_hash >>= m_sent_hashcash_nbits;
+				char tmp[4];
+
+				h.reset();
+				h.update((const char*)info_hash.begin(), 20);
+				char* ptr = tmp;
+				detail::write_int32(r.piece, ptr);
+				h.update(tmp, sizeof(tmp));
+				h.update(m_hashcash_nonce.data(), (int)m_hashcash_nonce.size());
+
+				sha1_hash finalhash = h.final();
+				if (finalhash < max_hash) {
+					hashcash_valid = true;
+					m_ses.m_hashcash_reqs++;
+#ifdef TORRENT_VERBOSE_LOGGING
+					peer_log("+++ hashcash authorized");
+#endif
+				} else {
+#ifdef TORRENT_VERBOSE_LOGGING
+					peer_log("+++ hashcash failed");
+#endif
+				}
+			}
+
 			// if we have choked the client
 			// ignore the request
 			if (m_choked && std::find(m_accept_fast.begin(), m_accept_fast.end()
-				, r.piece) == m_accept_fast.end())
+				, r.piece) == m_accept_fast.end() && !hashcash_valid)
 			{
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_ERROR_LOGGING
 				peer_log("*** REJECTING REQUEST [ peer choked and piece not in allowed fast set ]");
@@ -2320,6 +2371,49 @@ namespace libtorrent
 			}
 			// This is used as a reject-request by bitcomet
 			incoming_reject_request(p);
+			return;
+		}
+
+		if (t->m_peek_single_piece >= 0) {
+			std::string errmsg;
+			int hash_ok;
+			hash_ok = acceptSignedPost((char const*)data.get(), p.length,
+										t->torrent_file().name(), p.piece, errmsg, NULL);
+
+			if( hash_ok && p.piece == t->m_peek_single_piece ) {
+				lazy_entry v;
+				int pos;
+				libtorrent::error_code ec;
+				if (lazy_bdecode(data.get(), data.get() + p.length,
+				                 v, ec, &pos) == 0
+				    && v.type() == lazy_entry::dict_t ) {
+
+					// fake a dht encapsulation to reuse dht_reply_data_alert mechanism
+					entry target;
+					target["n"] = t->torrent_file().name();
+					target["r"] = "post" + boost::lexical_cast<std::string>(p.piece);
+					target["t"] = "s";
+					entry p;
+					p["target"] = target;
+					p["v"] = v;
+					entry e;
+					e["p"] = p;
+					e["sig_p"] = "peek";
+
+					entry::list_type lst;
+					lst.push_back(e);
+					if( t->alerts().should_post<dht_reply_data_alert>() ) {
+#ifdef TORRENT_VERBOSE_LOGGING
+						peer_log("*** post alert of fake dhtget reply (%s,%s,%s)"
+								, target["n"].string().c_str()
+								, target["r"].string().c_str()
+								, target["t"].string().c_str() );
+#endif
+						t->alerts().post_alert(dht_reply_data_alert(lst));
+					}
+				}
+			}
+			disconnect(errors::no_error);
 			return;
 		}
 
@@ -2665,6 +2759,36 @@ namespace libtorrent
 #endif
 	}
 
+
+	void peer_connection::incoming_hashcash_nbits(int nbits)
+	{
+		INVARIANT_CHECK;
+
+#ifdef TORRENT_VERBOSE_LOGGING
+		peer_log("<== HASHCASH BITS [ %d ]", nbits);
+#endif
+		m_hashcash_nbits = nbits;
+	}
+
+	void peer_connection::incoming_hashcash_nonce(const char *ptr, int size)
+	{
+		INVARIANT_CHECK;
+
+#ifdef TORRENT_VERBOSE_LOGGING
+		peer_log("<== HASHCASH NONCE [ size: %d ]", size);
+#endif
+		if( m_hashcash_nonce.size() ) {
+			// just one hashcash nonce per connection allowed
+			disconnect(errors::invalid_message);
+			return;
+		}
+
+		m_hashcash_nonce.clear();
+		while(size--) {
+			m_hashcash_nonce.push_back(*ptr++);
+		}
+	}
+
 	// -----------------------------
 	// --------- HAVE ALL ----------
 	// -----------------------------
@@ -2826,6 +2950,11 @@ namespace libtorrent
 			if (t->have_piece(index))
 				return;
 		}
+
+		// if peek mode and fast piece is not what we want, return
+		if (t->m_peek_single_piece >=0
+			&& index != t->m_peek_single_piece)
+			return;
 
 		// if we don't have the metadata, we'll verify
 		// this piece index later

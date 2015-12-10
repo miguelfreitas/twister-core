@@ -283,6 +283,14 @@ namespace libtorrent
 		bitfield const* bits = &c.get_bitfield();
 		bitfield fast_mask;
 		
+		if (t.m_peek_single_piece >= 0) {
+			// build a bitmask containing just the peek piece
+			fast_mask.resize(c.get_bitfield().size(), false);
+			if (t.m_peek_single_piece < c.get_bitfield().size()
+			    && (*bits)[t.m_peek_single_piece])
+				fast_mask.set_bit(t.m_peek_single_piece);
+			bits = &fast_mask;
+		} else
 		if (c.has_peer_choked())
 		{
 			// if we are choked we can only pick pieces from the

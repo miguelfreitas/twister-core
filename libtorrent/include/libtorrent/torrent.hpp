@@ -1406,6 +1406,9 @@ namespace libtorrent
 		// set to false until we've loaded resume data
 		bool m_resume_data_loaded;
 #endif
+	public:
+		// PEEK extension with hashcash
+		int m_peek_single_piece;
 	};
 }
 

@@ -105,6 +105,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <mach/mach_host.h>
 #endif
 
+#define HASHCASH_MIN_NBITS 16  // 16 bits ~ 10 ms @ i7 3.50GHz
+#define HASHCASH_MAX_NBITS 31
+
 namespace libtorrent
 {
 
@@ -1143,6 +1146,10 @@ namespace libtorrent
 			// the number of torrents that have apply_ip_filter
 			// set to false. This is typically 0
 			int m_non_filtered_torrents;
+			
+			// hashcash PEEK
+			int m_hashcash_nbits;
+			int m_hashcash_reqs;
 
 #if defined TORRENT_VERBOSE_LOGGING || defined TORRENT_LOGGING || defined TORRENT_ERROR_LOGGING
 			boost::shared_ptr<logger> create_log(std::string const& name

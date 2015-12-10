@@ -487,12 +487,17 @@ namespace libtorrent
 		void incoming_cancel(peer_request const& r);
 
 		void incoming_dht_port(int listen_port);
-		
+
+		void incoming_hashcash_nbits(int nbits);
+		void incoming_hashcash_nonce(const char *ptr, int size);
+
 		void incoming_reject_request(peer_request const& r);
 		void incoming_have_all();
 		void incoming_have_none();
 		void incoming_allowed_fast(int index);
 		void incoming_suggest(int index);
+
+		void recheck_request_blocks();
 
 		void set_has_metadata(bool m) { m_has_metadata = m; }
 		bool has_metadata() const { return m_has_metadata; }
@@ -504,8 +509,11 @@ namespace libtorrent
 		void send_interested();
 		void send_not_interested();
 		void send_suggest(int piece);
+		void send_hashcash_nonce(int piece);
 
 		void snub_peer();
+
+		void sent_hashcash_nbits(int nbits) { m_sent_hashcash_nbits = nbits; }
 
 		bool can_request_time_critical() const;
 
@@ -1069,6 +1077,17 @@ namespace libtorrent
 		// at the remote end.
 		boost::uint8_t m_desired_queue_size;
 
+		// the number of bits the remote end requires
+		// for PEEK hashcash
+		int m_hashcash_nbits;
+
+		// the number of bits we've sent to remote
+		int m_sent_hashcash_nbits;
+
+		// the nonce received from the remote end
+		// for PEEK hashcash
+		std::vector<char> m_hashcash_nonce;
+
 		// if this is true, the disconnection
 		// timestamp is not updated when the connection
 		// is closed. This means the time until we can
@@ -1174,6 +1193,9 @@ namespace libtorrent
 
 		// set to true when we've sent the first round of suggests
 		bool m_sent_suggests:1;
+
+		// set to true when we've sent the hashcash nonce for peek piece
+		bool m_sent_hashcash_nonce:1;
 
 		// set to true while we're trying to holepunch
 		bool m_holepunch_mode:1;

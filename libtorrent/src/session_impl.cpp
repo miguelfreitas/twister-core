@@ -681,6 +681,8 @@ namespace aux {
 		, m_need_auto_manage(false)
 #if (defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS) && defined BOOST_HAS_PTHREADS
 		, m_network_thread(0)
+		, m_hashcash_nbits(HASHCASH_MIN_NBITS)
+		, m_hashcash_reqs(0)
 #endif
 	{
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
@@ -3562,6 +3564,17 @@ retry:
 				}
 			}
 		}
+
+		// --------------------------------------------------------------
+		// adjust hashcash: too much reqs last second => increase difficulty
+		// --------------------------------------------------------------
+		if (m_hashcash_reqs > 50) {
+			m_hashcash_nbits = std::min(m_hashcash_nbits+1, HASHCASH_MAX_NBITS);
+		}
+		if (!m_hashcash_reqs && (random() % 100) == 0 ) {
+			m_hashcash_nbits = std::max(m_hashcash_nbits-1, HASHCASH_MIN_NBITS);
+		}
+		m_hashcash_reqs = 0;
 
 		while (m_tick_residual >= 1000) m_tick_residual -= 1000;
 //		m_peer_pool.release_memory();

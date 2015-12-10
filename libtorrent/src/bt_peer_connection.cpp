@@ -82,7 +82,9 @@ namespace libtorrent
 		&bt_peer_connection::on_piece,
 		&bt_peer_connection::on_cancel,
 		&bt_peer_connection::on_dht_port,
-		0, 0, 0,
+		&bt_peer_connection::on_hashcash_nbits,
+		&bt_peer_connection::on_hashcash_nonce,
+		0,
 		// FAST extension messages
 		&bt_peer_connection::on_suggest_piece,
 		&bt_peer_connection::on_have_all,
@@ -113,12 +115,14 @@ namespace libtorrent
 #endif
 		, m_supports_dht_port(false)
 		, m_supports_fast(false)
+		, m_supports_peek(false)
 #ifndef TORRENT_DISABLE_ENCRYPTION
 		, m_encrypted(false)
 		, m_rc4_encrypted(false)
 		, m_sync_bytes_read(0)
 #endif
 		, m_sent_bitfield(false)
+		, m_sent_hashcash_nonce(false)
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
 		, m_in_constructor(true)
 		, m_sent_handshake(false)
@@ -233,6 +237,9 @@ namespace libtorrent
 		if (m_supports_dht_port && m_ses.m_dht)
 			write_dht_port(m_ses.m_external_udp_port);
 #endif
+		if (m_supports_peek) {
+			write_hashcash_nbits(m_ses.m_hashcash_nbits);
+		}
 	}
 
 	void bt_peer_connection::write_dht_port(int listen_port)
@@ -249,6 +256,45 @@ namespace libtorrent
 		detail::write_uint16(listen_port, ptr);
 		send_buffer(msg, sizeof(msg));
 	}
+
+	void bt_peer_connection::write_hashcash_nbits(int nbits)
+	{
+		INVARIANT_CHECK;
+
+		TORRENT_ASSERT(m_sent_handshake && m_sent_bitfield);
+
+#ifdef TORRENT_VERBOSE_LOGGING
+		peer_log("==> HASHCASH_NBITS [ %d ]", nbits);
+#endif
+		char msg[] = {0,0,0,3, msg_hashcash_nbits, 0, 0};
+		char* ptr = msg + 5;
+		detail::write_uint16(nbits, ptr);
+		send_buffer(msg, sizeof(msg));
+		sent_hashcash_nbits(nbits);
+	}
+
+	void bt_peer_connection::write_hashcash_nonce(const char *nonce, int size)
+	{
+		INVARIANT_CHECK;
+
+		TORRENT_ASSERT(m_sent_handshake && m_sent_bitfield);
+
+#ifdef TORRENT_VERBOSE_LOGGING
+		peer_log("==> HASHCASH_NONCE [ size: %d ]", size);
+#endif
+		const int packet_size = size + 5;
+
+		char* msg = TORRENT_ALLOCA(char, packet_size);
+		if (msg == 0) return; // out of memory
+		unsigned char* ptr = (unsigned char*)msg;
+
+		detail::write_int32(packet_size - 4, ptr);
+		detail::write_uint8(msg_hashcash_nonce, ptr);
+		memcpy(ptr, nonce, size);
+
+		send_buffer(msg, packet_size);
+	}
+
 
 	void bt_peer_connection::write_have_all()
 	{
@@ -729,6 +775,9 @@ namespace libtorrent
 
 		// we support FAST extension
 		*(ptr + 7) |= 0x04;
+
+		// we support PEEK/hashcash extension
+		*(ptr + 7) |= 0x10;
 
 #ifdef TORRENT_VERBOSE_LOGGING	
 		std::string bitmask;
@@ -1271,6 +1320,96 @@ namespace libtorrent
 #endif
 		}
 	}
+
+	void bt_peer_connection::on_hashcash_nbits(int received)
+	{
+		INVARIANT_CHECK;
+
+		TORRENT_ASSERT(received > 0);
+		m_statistics.received_bytes(0, received);
+		if (packet_size() != 3)
+		{
+			disconnect(errors::invalid_message, 2);
+			return;
+		}
+		if (!packet_finished()) return;
+
+		buffer::const_interval recv_buffer = receive_buffer();
+
+		const char* ptr = recv_buffer.begin + 1;
+		int nbits = detail::read_uint16(ptr);
+		incoming_hashcash_nbits(nbits);
+		
+		if (!m_sent_hashcash_nonce) {
+			boost::shared_ptr<torrent> t = associated_torrent().lock();
+			if (!t) return;
+			if (t->m_peek_single_piece >= 0) {
+#ifdef TORRENT_VERBOSE_LOGGING
+				peer_log("+++ computing hashcash nonce");
+#endif
+				hasher h;
+				sha1_hash const& info_hash = t->info_hash();
+				sha1_hash max_hash = sha1_hash::max();
+				max_hash >>= nbits;
+				char tmp[8];
+				const ptime start_hashcase = time_now_hires();
+
+				// TODO: move to another thread (this is not the
+				//       proper place for cpu-burning code)
+				// TODO2: support longer nonces (>32 bits).
+				for(int nonce = 0; nonce < 0x7fff0000l; nonce++) {
+					h.reset();
+					h.update((const char*)info_hash.begin(), 20);
+					char* ptr = tmp;
+					detail::write_int32(t->m_peek_single_piece, ptr);
+					detail::write_int32(nonce, ptr);
+					h.update(tmp, sizeof(tmp));
+
+					sha1_hash finalhash = h.final();
+					if (finalhash < max_hash) {
+						write_hashcash_nonce(tmp+4,sizeof(tmp)-4);
+						m_sent_hashcash_nonce = true;
+						recheck_request_blocks();
+						break;
+					}
+					if( (nonce % 10000) == 0 &&
+						total_milliseconds(time_now_hires() - start_hashcase) > 1000) {
+#ifdef TORRENT_VERBOSE_LOGGING
+						peer_log("+++ hashcash timeout!");
+#endif
+						break;
+					}
+				}
+#ifdef TORRENT_VERBOSE_LOGGING
+				peer_log("+++ computing hashcash done");
+#endif
+			}
+		}
+	}
+
+	void bt_peer_connection::on_hashcash_nonce(int received)
+	{
+		INVARIANT_CHECK;
+
+		TORRENT_ASSERT(received > 0);
+		m_statistics.received_bytes(0, received);
+
+		if (packet_size() > 10)
+		{
+			disconnect(errors::invalid_message, 2);
+			return;
+		}
+
+		if (!packet_finished()) return;
+
+		buffer::const_interval recv_buffer = receive_buffer();
+
+		const char* ptr = recv_buffer.begin + 1;
+		int size = packet_size()-1;
+		incoming_hashcash_nonce(ptr, size);
+	}
+
+
 
 	void bt_peer_connection::on_suggest_piece(int received)
 	{
@@ -2981,6 +3120,7 @@ namespace libtorrent
 				, extensions.c_str()
 				, (recv_buffer[7] & 0x01) ? "DHT " : ""
 				, (recv_buffer[7] & 0x04) ? "FAST " : ""
+				, (recv_buffer[7] & 0x10) ? "PEEK " : ""
 				, (recv_buffer[5] & 0x10) ? "extension " : "");
 #endif
 
@@ -2994,6 +3134,9 @@ namespace libtorrent
 
 			if (recv_buffer[7] & 0x04)
 				m_supports_fast = true;
+
+			if (recv_buffer[7] & 0x10)
+				m_supports_peek = true;
 
 			// ok, now we have got enough of the handshake. Is this connection
 			// attached to a torrent?
@@ -3183,6 +3326,9 @@ namespace libtorrent
 				if (m_supports_dht_port && m_ses.m_dht)
 					write_dht_port(m_ses.m_external_udp_port);
 #endif
+				if (m_supports_peek) {
+					write_hashcash_nbits(m_ses.m_hashcash_nbits);
+				}
 			}
 
 			TORRENT_ASSERT(!packet_finished());

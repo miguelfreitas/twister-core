@@ -432,6 +432,7 @@ namespace libtorrent
 		, m_in_state_updates(false)
 		, m_is_active_download(false)
 		, m_is_active_finished(false)
+		, m_peek_single_piece(-1)
 	{
         if (!p.name.empty()) m_name.reset(new std::string(p.name));
 
@@ -508,6 +509,7 @@ namespace libtorrent
 		set_max_connections(p.max_connections, false);
 		set_upload_limit(p.upload_limit, false);
 		set_download_limit(p.download_limit, false);
+		m_peek_single_piece = p.peek_single_piece;
 
 		if (!m_name && !m_url.empty()) m_name.reset(new std::string(m_url));
 
