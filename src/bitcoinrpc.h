@@ -49,6 +49,7 @@ enum RPCErrorCode
     RPC_DATABASE_ERROR              = -20, // Database error
     RPC_DESERIALIZATION_ERROR       = -22, // Error parsing or validating structure in raw format
     RPC_FORBIDDEN_ON_PUBLIC_SERVER  = -23, // public server mode is activated, this method is not allowed
+    RPC_TIMEOUT                     = -24, // timeout on resource retrieval
 
     // P2P client errors
     RPC_CLIENT_NOT_CONNECTED        = -9,  // Bitcoin is not connected
@@ -234,5 +235,6 @@ extern json_spirit::Value newgroupdescription(const json_spirit::Array& params, 
 extern json_spirit::Value leavegroup(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpieceavailability(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpiecemaxseen(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value peekpost(const json_spirit::Array& params, bool fHelp);
 
 #endif
