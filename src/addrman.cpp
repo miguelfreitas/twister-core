@@ -319,26 +319,6 @@ bool CAddrMan::Add_(const CAddress &addr, const CNetAddr& source, int64 nTimePen
     int nId;
     CAddrInfo *pinfo = Find(addr, &nId);
 
-    // port changed to random with twisterd >= 0.9.30
-    // we must replace old port info with the newer one
-    if( pinfo && pinfo->GetPort() != addr.GetPort() && 
-        pinfo->GetPort() == Params().GetDefaultPort() ) {
-        // remove the entry from all new buckets
-        for (std::vector<std::set<int> >::iterator it = vvNew.begin(); it != vvNew.end(); it++)
-        {
-            if ((*it).erase(nId))
-                pinfo->nRefCount--;
-        }
-        if (pinfo->nRefCount == 0)
-        {
-            SwapRandom(pinfo->nRandomPos, vRandom.size()-1);
-            vRandom.pop_back();
-            mapAddr.erase(*pinfo);
-            mapInfo.erase(nId);
-            pinfo = NULL;
-        }
-    }
-
     if (pinfo)
     {
         // periodically update nTime
@@ -349,6 +329,13 @@ bool CAddrMan::Add_(const CAddress &addr, const CNetAddr& source, int64 nTimePen
 
         // add services
         pinfo->nServices |= addr.nServices;
+
+        // port changed to random with twisterd >= 0.9.30
+        // we must replace old port info with the newer one
+        if( pinfo->GetPort() != addr.GetPort() && 
+            pinfo->GetPort() == Params().GetDefaultPort() ) {
+            pinfo->SetPort( addr.GetPort() );
+        }
 
         // do not update if no new information is present
         if (!addr.nTime || (pinfo->nTime && addr.nTime <= pinfo->nTime))
