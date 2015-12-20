@@ -1244,6 +1244,7 @@ void _ThreadDNSAddressSeed(const char *strDNS)
                                 int port = (ipPort.GetByte(1) << 8) + ipPort.GetByte(0);
                                 int nOneDay = 24*3600;
                                 CAddress addr = CAddress(CService(ip, port));
+                                //printf("DNS seed nonstd: %s:%d\n", ip.ToStringIP().c_str(), port);
                                 addr.nTime = GetTime() - 3*nOneDay - GetRand(4*nOneDay); // use a random age between 3 and 7 days old
                                 vAdd.push_back(addr);
                                 found++;
@@ -1398,10 +1399,6 @@ void ThreadOpenConnections()
 
             // only consider very recently tried nodes after 30 failed attempts
             if (nANow - addr.nLastTry < 600 && nTries < 30)
-                continue;
-
-            // do not allow non-default ports, unless after 50 invalid addresses selected already
-            if (addr.GetPort() != Params().GetDefaultPort() && nTries < 50)
                 continue;
 
             addrConnect = addr;
