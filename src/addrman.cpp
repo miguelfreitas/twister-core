@@ -405,7 +405,8 @@ CAddress CAddrMan::Select_(int nUnkBias)
     {
         // use a tried node
         double fChanceFactor = 1.0;
-        while(1)
+        int retries = 10000;
+        while(retries--)
         {
             int nKBucket = GetRandInt(vvTried.size());
             std::vector<int> &vTried = vvTried[nKBucket];
@@ -417,10 +418,19 @@ CAddress CAddrMan::Select_(int nUnkBias)
                 return info;
             fChanceFactor *= 1.2;
         }
+        
+        // inconsistency?? try recounting nTried to fix it
+        printf("CAddrMan::Select_ nTried inconsistency - fixing\n");
+        nTried = 0;
+        for (int n=0; n<vvTried.size(); n++) {
+            nTried += vvTried[n].size();
+        }
+        return CAddress();
     } else {
         // use a new node
         double fChanceFactor = 1.0;
-        while(1)
+        int retries = 10000;
+        while(retries--)
         {
             int nUBucket = GetRandInt(vvNew.size());
             std::set<int> &vNew = vvNew[nUBucket];
@@ -435,6 +445,14 @@ CAddress CAddrMan::Select_(int nUnkBias)
                 return info;
             fChanceFactor *= 1.2;
         }
+
+        // inconsistency?? try recounting nNew to fix it
+        printf("CAddrMan::Select_ nNew inconsistency - fixing\n");
+        nNew = 0;
+        for (int n=0; n<vvNew.size(); n++) {
+            nNew += vvNew[n].size();
+        }
+        return CAddress();
     }
 }
 
