@@ -425,7 +425,7 @@ namespace libtorrent
 				, piece_priority(1)
 				, index(index_)
 			{
-				TORRENT_ASSERT(peer_count_ >= 0);
+				//TORRENT_ASSERT(peer_count_ >= 0);
 				TORRENT_ASSERT(index_ >= 0);
 			}
 
