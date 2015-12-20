@@ -50,6 +50,7 @@ enum RPCErrorCode
     RPC_DESERIALIZATION_ERROR       = -22, // Error parsing or validating structure in raw format
     RPC_FORBIDDEN_ON_PUBLIC_SERVER  = -23, // public server mode is activated, this method is not allowed
     RPC_TIMEOUT                     = -24, // timeout on resource retrieval
+    RPC_RESOURCE_BUSY_TRY_AGAIN     = -25, // Resource is currently busy, try again later
 
     // P2P client errors
     RPC_CLIENT_NOT_CONNECTED        = -9,  // Bitcoin is not connected

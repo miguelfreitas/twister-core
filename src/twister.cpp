@@ -57,6 +57,7 @@ static map<std::string, bool> m_specialResources;
 enum ExpireResType { SimpleNoExpire, NumberedNoExpire, PostNoExpireRecent };
 static map<std::string, ExpireResType> m_noExpireResources;
 static map<std::string, torrent_handle> m_userTorrent;
+static map<std::string, torrent_handle> m_peekTorrent;
 static boost::scoped_ptr<CLevelDB> m_swarmDb;
 static int m_threadsToJoin;
 
@@ -147,6 +148,14 @@ torrent_handle startTorrentUser(std::string const &username, bool following, int
     torrent_handle h;
 
     LOCK(cs_twister);
+    if( m_peekTorrent.count(username) ) {
+        /* multiple paralel peek piece operations per torrent not 
+         * currently supported. return invalid handle for subsequent
+         * requests, until current operation completes and torrent
+         * is freed. */
+         return torrent_handle();
+    }
+
     if( !m_userTorrent.count(username) || peek_single_piece >= 0 ) {
         sha1_hash ih = dhtTargetHash(username, "tracker", "m");
 
@@ -166,8 +175,10 @@ torrent_handle startTorrentUser(std::string const &username, bool following, int
         load_file(filename.c_str(), tparams.resume_data);
 
         h = ses->add_torrent(tparams);
-        if( peek_single_piece == -1 ) {
+        if( peek_single_piece < 0 ) {
             m_userTorrent[username] = h;
+        } else {
+            m_peekTorrent[username] = h;
         }
         if( !following ) {
             h.auto_managed(true);
@@ -898,19 +909,26 @@ void ThreadSessionAlerts()
 
                 save_resume_data_alert const* rda = alert_cast<save_resume_data_alert>(*i);
                 if (rda) {
-                    num_outstanding_resume_data--;
-                    if (!rda->resume_data) continue;
-
-                    torrent_handle h = rda->handle;
-                    torrent_status st = h.status(torrent_handle::query_save_path);
-                    std::vector<char> out;
-                    bencode(std::back_inserter(out), *rda->resume_data);
-                    save_file(combine_path(st.save_path, to_hex(st.info_hash.to_string()) + ".resume"), out);
+                    if (rda->resume_data) {
+                        torrent_handle h = rda->handle;
+                        torrent_status st = h.status(torrent_handle::query_save_path);
+                        std::vector<char> out;
+                        bencode(std::back_inserter(out), *rda->resume_data);
+                        save_file(combine_path(st.save_path, to_hex(st.info_hash.to_string()) + ".resume"), out);
+                    }
                 }
 
-                if (alert_cast<save_resume_data_failed_alert>(*i))
+                save_resume_data_failed_alert const *rdfa = alert_cast<save_resume_data_failed_alert>(*i);
+                if (rda || rdfa)
                 {
-                    --num_outstanding_resume_data;
+                    torrent_handle h = (rda) ? rda->handle : rdfa->handle;
+                    torrent_status st = h.status();
+                    LOCK(cs_twister);
+                    num_outstanding_resume_data--;
+                    if(m_peekTorrent.count(st.name) && st.paused) {
+                        m_peekTorrent.erase(st.name);
+                        ses->remove_torrent(h);
+                    }
                 }
 
                 external_ip_alert const* ei = alert_cast<external_ip_alert>(*i);
@@ -2350,7 +2368,9 @@ Value newdirectmsg(const Array& params, bool fHelp)
         }
 
         torrent_handle h = startTorrentUser(strFrom, true);
-        h.add_piece(k++,buf.data(),buf.size());
+        if( h.is_valid() ) {
+            h.add_piece(k++,buf.data(),buf.size());
+        }
 
         hexcapePost(v);
         ret = entryToJson(v);
@@ -3861,7 +3881,9 @@ static void signAndAddDM(const std::string &strFrom, int k, const entry *dm)
         throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
 
     torrent_handle h = startTorrentUser(strFrom, true);
-    h.add_piece(k++,buf.data(),buf.size());
+    if( h.is_valid() ) {
+        h.add_piece(k++,buf.data(),buf.size());
+    }
 }
 
 Value newgroupinvite(const Array& params, bool fHelp)
@@ -4102,7 +4124,7 @@ Value peekpost(const Array& params, bool fHelp)
         h = startTorrentUser(strUsername,true,k);
 
         // this loop receives alerts from both dht network and torrent peek extension
-        while( am.wait_for_alert(timeToWait) ) {
+        while( h.is_valid() && am.wait_for_alert(timeToWait) ) {
             std::auto_ptr<alert> a(am.get());
 
             dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
@@ -4126,8 +4148,12 @@ Value peekpost(const Array& params, bool fHelp)
             }
         }
 
-        if( h.is_valid() )
-            ses->remove_torrent(h);
+        if( h.is_valid() ) {
+            LOCK(cs_twister);
+            h.pause();
+            h.save_resume_data();
+            num_outstanding_resume_data++;
+        }
 
         if( !DhtProxy::fEnabled ) {
             dhtgetMapRemove(ih,&am);
@@ -4152,7 +4178,11 @@ Value peekpost(const Array& params, bool fHelp)
             }
         }
     } else {
-        throw JSONRPCError(RPC_TIMEOUT, "timeout or post not found");
+        if(h.is_valid()) {
+            throw JSONRPCError(RPC_TIMEOUT, "timeout or post not found");
+        } else {
+            throw JSONRPCError(RPC_RESOURCE_BUSY_TRY_AGAIN, "resource busy, try again");
+        }
     }
 
     return ret;
