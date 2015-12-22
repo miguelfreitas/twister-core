@@ -4040,7 +4040,7 @@ void static BitcoinMiner(CWallet *pwallet)
 {
     printf("BitcoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("bitcoin-miner");
+    RenameThread("twister-miner");
 
     // Each thread has its own salt and counter
     std::vector<unsigned char> salt(4);

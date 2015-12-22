@@ -116,7 +116,7 @@ void Shutdown()
     TRY_LOCK(cs_Shutdown, lockShutdown);
     if (!lockShutdown) return;
 
-    RenameThread("bitcoin-shutoff");
+    RenameThread("twister-shutoff");
     nTransactionsUpdated++;
     stopSessionTorrent();
     StopRPCThreads();
@@ -282,7 +282,7 @@ struct CImportingNow
 
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 {
-    RenameThread("bitcoin-loadblk");
+    RenameThread("twister-loadblk");
 
     // -reindex
     if (fReindex) {
