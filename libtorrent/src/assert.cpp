@@ -227,7 +227,7 @@ TORRENT_EXPORT void assert_fail(char const* expr, int line, char const* file
 	print_backtrace(stack, sizeof(stack), 0);
 
 	fprintf(out, "assertion failed. Please file a bugreport at "
-		"http://code.google.com/p/libtorrent/issues\n"
+		"https://github.com/miguelfreitas/twister-core/issues\n"
 		"Please include the following information:\n\n"
 		"version: " LIBTORRENT_VERSION "\n"
 		"%s\n"
