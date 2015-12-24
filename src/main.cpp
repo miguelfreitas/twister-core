@@ -406,6 +406,77 @@ bool CheckUsername(const std::string &userName, CValidationState &state)
     return true;
 }
 
+
+bool TxNumToUsername(unsigned int txNum, string &username)
+{
+    username = "";
+
+    if( txNum >= pindexBest->nChainTx )
+        return error("TxNumToUsername : txNum out of range");
+
+    int begin=0; 
+    int end=nBestHeight;
+    CBlockIndex *pindex;
+    do {
+        pindex = FindBlockByHeight((begin+end)/2);
+        if( txNum < pindex->nChainTx - pindex->nTx ) {
+            end = pindex->nHeight;
+        } else if ( txNum < pindex->nChainTx ) {
+            break;
+        } else {
+            begin = pindex->nHeight;
+        }
+    } while( 1 );
+
+    unsigned int txIdx = txNum - (pindex->nChainTx - pindex->nTx);
+
+    CBlock block;
+    if (!ReadBlockFromDisk(block, pindex))
+        return false;
+
+    CTransaction &tx = block.vtx[txIdx];
+    username = tx.GetUsername();
+    return true;
+}
+
+bool UsernameToTxNum(const string &username, int *txNum, bool last)
+{
+    CTransaction tx;
+    uint256 hashBlock;
+    if( !last ) {
+        return error("UsernameToTxNum : first not implemented");
+    } else {
+        int maxHeight = -1;
+        if( !GetTransaction( username, tx, hashBlock, maxHeight) ) {
+            return false;
+        }
+    }
+
+    if (!mapBlockIndex.count(hashBlock))
+        return error("UsernameToTxNum : mapBlockIndex error");
+
+    CBlockIndex* pindex = mapBlockIndex[hashBlock];
+    CBlock block;
+    if (!ReadBlockFromDisk(block, pindex))
+        return false;
+
+    unsigned int txIdx = 0;
+    while( txIdx < block.vtx.size() &&
+           block.vtx[txIdx].GetUsername() != username ) {
+           txIdx++;
+    }
+
+    if( txIdx >= block.vtx.size() )
+        return error("UsernameToTxNum : username not found in block.vtx");
+
+    //printf("username: %s block: %d txIdx:%d nTx: %d chainTx:%d\n", 
+    //        username.c_str(), pindex->nHeight, txIdx, pindex->nTx, pindex->nChainTx);
+
+    *txNum = (pindex->nChainTx - pindex->nTx) + txIdx;
+    return true;
+}
+
+
 bool DoTxProofOfWork(CTransaction& tx)
 {
   CBigNum bnTarget;

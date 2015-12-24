@@ -269,6 +269,10 @@ inline bool AllowFree(double dPriority)
 
 bool CheckUsername(const std::string &userName, CValidationState &state);
 
+bool TxNumToUsername(unsigned int txNum, string &username);
+
+bool UsernameToTxNum(const string &username, int *txNum, bool last = true);
+
 bool DoTxProofOfWork(CTransaction& tx);
 
 // Context-independent validity checks

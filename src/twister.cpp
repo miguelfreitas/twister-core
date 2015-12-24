@@ -4188,3 +4188,35 @@ Value peekpost(const Array& params, bool fHelp)
     return ret;
 }
 
+Value uidtousername(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 1 )
+        throw runtime_error(
+            "uidtousername <uid>\n"
+            "convert uid to username");
+
+    int uid               = params[0].get_int();
+
+    string strUsername;
+    if( !TxNumToUsername(uid, strUsername) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "TxNumToUsername failed");
+
+    return Value(strUsername);
+}
+
+Value usernametouid(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2 )
+        throw runtime_error(
+            "uidtousername <username> [last=true]\n"
+            "convert username to uid");
+
+    string strUsername    = params[0].get_str();
+    bool last             = (params.size() > 1) ? params[1].get_bool() : true;
+
+    int uid;
+    if( !UsernameToTxNum(strUsername, &uid, last) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "UsernameToTxNum failed");
+
+    return Value(uid);
+}

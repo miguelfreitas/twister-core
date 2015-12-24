@@ -285,6 +285,8 @@ static const CRPCCommand vRPCCommands[] =
     { "getpieceavailability",   &getpieceavailability,   false,     true,       true },
     { "getpiecemaxseen",        &getpiecemaxseen,        false,     true,       true },
     { "peekpost",               &peekpost,               false,     true,       true },
+    { "usernametouid",          &usernametouid,          false,     true,       true },
+    { "uidtousername",          &uidtousername,          false,     true,       true },
 };
 
 CRPCTable::CRPCTable()
@@ -1365,6 +1367,8 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getpiecemaxseen"        && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "peekpost"               && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "peekpost"               && n > 3) ConvertTo<boost::int64_t>(params[3]);
+    if (strMethod == "uidtousername"          && n > 0) ConvertTo<boost::int64_t>(params[0]);
+    if (strMethod == "usernametouid"          && n > 1) ConvertTo<bool>(params[1]);;
 
     return params;
 }

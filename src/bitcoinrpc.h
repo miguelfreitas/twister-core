@@ -237,5 +237,7 @@ extern json_spirit::Value leavegroup(const json_spirit::Array& params, bool fHel
 extern json_spirit::Value getpieceavailability(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpiecemaxseen(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value peekpost(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value uidtousername(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value usernametouid(const json_spirit::Array& params, bool fHelp);
 
 #endif
