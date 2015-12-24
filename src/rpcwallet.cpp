@@ -69,7 +69,7 @@ Value getinfo(const Array& params, bool fHelp)
             "Returns an object containing various state info.");
 
     proxyType proxy;
-    GetProxy(NET_IPV4, proxy);
+    bool usingProxy = GetProxy(NET_IPV4, proxy);
 
     Object obj;
     obj.push_back(Pair("version",       (int)CLIENT_VERSION));
@@ -87,6 +87,10 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("dht_nodes",     getDhtNodes(&dht_global_nodes)));
     obj.push_back(Pair("dht_global_nodes", dht_global_nodes));
     obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
+    if( !usingProxy ) {
+        obj.push_back(Pair("ext_port1", GetListenPort()));
+        obj.push_back(Pair("ext_port2", GetListenPort()+LIBTORRENT_PORT_OFFSET));
+    }
     {
         LOCK(cs_main);
         obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
