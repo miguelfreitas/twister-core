@@ -4208,7 +4208,7 @@ Value usernametouid(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2 )
         throw runtime_error(
-            "uidtousername <username> [last=true]\n"
+            "usernametouid <username> [last=true]\n"
             "convert username to uid");
 
     string strUsername    = params[0].get_str();
