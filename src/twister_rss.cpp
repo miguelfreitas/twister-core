@@ -68,7 +68,8 @@ int generateRSS(string uri, string *output)
     Array followingArray = getfollowing(params1,false).get_array();
     Array postSources;
 
-    if(author=="") {
+    if(author=="")
+      {
       // default fetch posts from all followed authors
       for(int i=0;i<followingArray.size();i++)
 	{
@@ -76,7 +77,9 @@ int generateRSS(string uri, string *output)
 	  item.push_back(Pair("username",followingArray[i]));
 	  postSources.push_back(item);
 	}
-    } else {
+    }
+    else
+    {
       // a single author has been specified to fetch posts from
       Object item;
       item.push_back(Pair("username",author));
