@@ -24,6 +24,7 @@ int generateRSS(string uri, string *output)
     int max = 20; //default value
     string account = parameterMap["account"];
     string strMax = parameterMap["max"];
+    string author = parameterMap["author"];
     if(strMax!="")
     {
         try
@@ -66,11 +67,23 @@ int generateRSS(string uri, string *output)
     params1.push_back(account);
     Array followingArray = getfollowing(params1,false).get_array();
     Array postSources;
-    for(int i=0;i<followingArray.size();i++)
+
+    if(author=="")
+      {
+      // default fetch posts from all followed authors
+      for(int i=0;i<followingArray.size();i++)
+	{
+	  Object item;
+	  item.push_back(Pair("username",followingArray[i]));
+	  postSources.push_back(item);
+	}
+    }
+    else
     {
-        Object item;
-        item.push_back(Pair("username",followingArray[i]));
-        postSources.push_back(item);
+      // a single author has been specified to fetch posts from
+      Object item;
+      item.push_back(Pair("username",author));
+      postSources.push_back(item);
     }
 
     Array params2;
