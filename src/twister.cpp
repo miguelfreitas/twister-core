@@ -1697,10 +1697,7 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
         userpost["pfav"] = *ent;
         break;
     default:
-        if ( !msg.size() ) {
-            printf("createSignedUserpost: unknown type\n");
-            return false;
-        }
+        break;
     }
 
     if( reply_n.size() ) {
@@ -2256,6 +2253,72 @@ Value newpostmsg(const Array& params, bool fHelp)
 
     //look for mentions and hashtags in msg
     dispatchHM(strMsg, strUsername, v);
+
+    hexcapePost(v);
+    return entryToJson(v);
+}
+
+Value newpostcustom(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            "newpostcustom <username> <k> '{\"field1\":value,\"field2\":value,...}'\n"
+            "Create a post with custom fields and add it to swarm");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    int k              = params[1].get_int();
+    string strK        = boost::lexical_cast<std::string>(k);
+    Object fields      = params[2].get_obj();
+
+    entry v;
+    entry &userpost = v["userpost"];
+    // [MF] Warning: findLastPublicPostLocalUser requires that we follow ourselves
+    int lastk = findLastPublicPostLocalUser(strUsername);
+    if( lastk >= 0 )
+        userpost["lastk"] = lastk;
+
+    for (Object::const_iterator i = fields.begin(); i != fields.end(); ++i) {
+        if( i->value_.type() == str_type ) {
+            userpost[i->name_] = i->value_.get_str();
+        } else if ( i->value_.type() == int_type ) {
+            userpost[i->name_] = i->value_.get_int();
+        } else {
+            JSONRPCError(RPC_INVALID_PARAMS,string("unknown type for parameter: ") + i->name_);
+        }
+    }
+
+    if( !createSignedUserpost(v, strUsername, k, 0,
+                              "", NULL, NULL) )
+        throw JSONRPCError(RPC_INTERNAL_ERROR,"error signing post with private key of user");
+
+    vector<char> buf;
+    bencode(std::back_inserter(buf), v);
+
+    std::string errmsg;
+    if( !acceptSignedPost(buf.data(),buf.size(),strUsername,k,errmsg,NULL) )
+        throw JSONRPCError(RPC_INVALID_PARAMS,errmsg);
+
+    torrent_handle h = startTorrentUser(strUsername, true);
+    if( h.is_valid() ) {
+        // if member of torrent post it directly
+        h.add_piece(k,buf.data(),buf.size());
+    } else {
+        // TODO: swarm resource forwarding not implemented
+        dhtPutData(strUsername, "swarm", false,
+                         v, strUsername, GetAdjustedTime(), 1);
+    }
+
+    // post to dht as well
+    dhtPutData(strUsername, string("post")+strK, false,
+                     v, strUsername, GetAdjustedTime(), 1);
+    if( userpost.find_key("msg") ) {
+        dhtPutData(strUsername, string("status"), false,
+                         v, strUsername, GetAdjustedTime(), k);
+        //look for mentions and hashtags in msg
+        dispatchHM(userpost["msg"].string(), strUsername, v);
+    }
 
     hexcapePost(v);
     return entryToJson(v);
