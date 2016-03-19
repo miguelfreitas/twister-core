@@ -240,5 +240,7 @@ extern json_spirit::Value getpiecemaxseen(const json_spirit::Array& params, bool
 extern json_spirit::Value peekpost(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value uidtousername(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value usernametouid(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value newshorturl(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value decodeshorturl(const json_spirit::Array& params, bool fHelp);
 
 #endif

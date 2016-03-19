@@ -4283,3 +4283,92 @@ Value usernametouid(const Array& params, bool fHelp)
 
     return Value(uid);
 }
+
+Value newshorturl(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 3)
+        throw runtime_error(
+            "newshorturl <username> <k> <url>\n"
+            "Shorten URL, create a post containing it add to swarm.\n"
+            "Returns the shortened twister URI (multiple options may be returned)");
+
+    EnsureWalletIsUnlocked();
+
+    string strUsername = params[0].get_str();
+    int k              = params[1].get_int();
+    string strUrl      = params[2].get_str();
+
+    Array paramsSub;
+    Value res;
+
+    paramsSub.clear();
+    paramsSub.push_back(strUsername);
+    paramsSub.push_back(k);
+    Object fields;
+    fields.push_back(Pair("url",strUrl));
+    paramsSub.push_back(fields);
+    res = newpostcustom(paramsSub,false);
+
+    paramsSub.clear();
+    paramsSub.push_back(strUsername);
+    res = usernametouid(paramsSub, false);
+
+    vector<unsigned char> vch;
+    vch.resize(8);
+    le32enc(&vch[0], res.get_int());
+    le32enc(&vch[4], k);
+    
+    string uid_k_64 = EncodeBase64(&vch[0], vch.size());
+    
+    Array uriOptions;
+    uriOptions.push_back(string("twist:")+uid_k_64);
+    
+    return uriOptions;
+}
+
+Value decodeshorturl(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2 )
+        throw runtime_error(
+            "decodeshorturl <twist:xxx> [timeout_sec=90]\n"
+            "Decodes a shortened URL by twister. May take some time to complete, like dhtget etc.\n"
+            "Returns the original URL or error if not found, timeout");
+
+    string strTwistURI = params[0].get_str();
+    int timeout = 0;
+    if( params.size() > 1 )
+        timeout = params[1].get_int();
+
+    string protocol("twist:");
+    if (strTwistURI.find(protocol) != 0) {
+        throw JSONRPCError(RPC_PARSE_ERROR, "protocol prefix error");
+    }
+    string uid_k_64 = strTwistURI.substr(protocol.size());
+    if (uid_k_64.length() < 12) {
+        throw JSONRPCError(RPC_PARSE_ERROR, "base64 string too small");
+    }
+    
+    string vch = DecodeBase64(uid_k_64);
+    int uid = le32dec(&vch[0]);
+    int k = le32dec(&vch[4]);
+
+    Array paramsSub;
+    Value res;
+
+    paramsSub.clear();
+    paramsSub.push_back(uid);
+    res = uidtousername(paramsSub, false);
+    
+    string strUsername = res.get_str();
+    
+    paramsSub.clear();
+    paramsSub.push_back(strUsername);
+    paramsSub.push_back(k);
+    paramsSub.push_back("url");
+    if(timeout) {
+        paramsSub.push_back(timeout);
+    }
+    return peekpost(paramsSub,false);
+}
+
+
