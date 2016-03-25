@@ -1660,8 +1660,30 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
     userpost["time"] = GetAdjustedTime();
     userpost["height"] = getBestHeight() - 1; // be conservative
 
-    if( msg.size() ) {
+    int msgUtf8Chars = utf8::num_characters(msg.begin(), msg.end());
+    if(msgUtf8Chars < 0) {
+        return false; // invalid utf8
+    } else if (msgUtf8Chars && msgUtf8Chars <= 140) {
         userpost["msg"] = msg;
+    } else {
+        // break into msg and msg2 fields to overcome 140ch checks
+        string::const_iterator it = msg.begin();
+        string::const_iterator end = msg.end();
+        string msgOut, msg2Out;
+        int count = 0;
+        while (it!= end) {
+            string::const_iterator itPrev = it;
+            utf8::internal::utf_error err_code = utf8::internal::validate_next(it, end);
+            assert(err_code == utf8::internal::UTF8_OK); // string must have been validated already
+            count++;
+            if( count <= 140 ) {
+                msgOut.append(itPrev,it);
+            } else {
+                msg2Out.append(itPrev,it);
+            }
+        }
+        userpost["msg"] = msgOut;
+        userpost["msg2"] = msg2Out;
     }
 
     switch(flag)
