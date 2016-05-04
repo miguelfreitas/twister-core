@@ -4155,8 +4155,8 @@ Value peekpost(const Array& params, bool fHelp)
             "peekpost <username> <k> [field='*'] [timeout_sec=90]\n"
             "Peek post from best/faster available source, either\n"
             "local torrent, DHT or remote torrent (peek extension).\n"
-            "field is a convenience to return specific post field\n"
-            "instead of the whole post (eg. 'url')");
+            "field is a convenience to return specific post field(s)\n"
+            "instead of the whole post (eg. 'url' or 'url,mimetype')");
 
     boost::shared_ptr<session> ses(m_ses);
     if( !ses )
@@ -4256,9 +4256,25 @@ Value peekpost(const Array& params, bool fHelp)
         } else {
             entry const *userpost = vEntry.find_key("userpost");
             if( userpost && userpost->type() == entry::dictionary_t ) {
-                entry const *f = userpost->find_key(strField);
-                if( f && f->type() == entry::string_t ) {
-                    ret = f->string();
+                if( strField.find(',') == string::npos ) {
+                    entry const *f = userpost->find_key(strField);
+                    if( f && f->type() == entry::string_t ) {
+                        ret = f->string();
+                    }
+                } else {
+                    vector<string> fieldList;
+                    Array retList;
+                    boost::algorithm::split(fieldList,strField,std::bind1st(std::equal_to<char>(),','),
+                                            boost::algorithm::token_compress_on);
+                    BOOST_FOREACH(string const& field, fieldList) {
+                        entry const *f = userpost->find_key(field);
+                        if( f && f->type() == entry::string_t ) {
+                            retList.push_back(f->string());
+                        } else {
+                            retList.push_back("");
+                        }
+                    }
+                    ret = retList;
                 }
             }
         }
@@ -4308,9 +4324,9 @@ Value usernametouid(const Array& params, bool fHelp)
 
 Value newshorturl(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3)
+    if (fHelp || params.size() < 3 || params.size() > 4)
         throw runtime_error(
-            "newshorturl <username> <k> <url>\n"
+            "newshorturl <username> <k> <url> [mimetype]\n"
             "Shorten URL, create a post containing it add to swarm.\n"
             "Returns the shortened twister URI (multiple options may be returned)");
 
@@ -4319,6 +4335,9 @@ Value newshorturl(const Array& params, bool fHelp)
     string strUsername = params[0].get_str();
     int k              = params[1].get_int();
     string strUrl      = params[2].get_str();
+    string strMimeType;
+    if( params.size() > 3 )
+        strMimeType    = params[3].get_str();
 
     Array paramsSub;
     Value res;
@@ -4328,6 +4347,8 @@ Value newshorturl(const Array& params, bool fHelp)
     paramsSub.push_back(k);
     Object fields;
     fields.push_back(Pair("url",strUrl));
+    if( strMimeType.size() )
+        fields.push_back(Pair("mimetype",strMimeType));
     paramsSub.push_back(fields);
     res = newpostcustom(paramsSub,false);
 
@@ -4354,7 +4375,7 @@ Value decodeshorturl(const Array& params, bool fHelp)
         throw runtime_error(
             "decodeshorturl <twist:xxx> [timeout_sec=90]\n"
             "Decodes a shortened URL by twister. May take some time to complete, like dhtget etc.\n"
-            "Returns the original URL or error if not found, timeout");
+            "Returns the original [URL,mimetype] or error if not found, timeout");
 
     string strTwistURI = params[0].get_str();
     int timeout = 0;
@@ -4386,7 +4407,7 @@ Value decodeshorturl(const Array& params, bool fHelp)
     paramsSub.clear();
     paramsSub.push_back(strUsername);
     paramsSub.push_back(k);
-    paramsSub.push_back("url");
+    paramsSub.push_back("url,mimetype");
     if(timeout) {
         paramsSub.push_back(timeout);
     }
