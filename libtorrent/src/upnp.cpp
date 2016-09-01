@@ -1099,7 +1099,7 @@ namespace
 #if BOOST_VERSION >= 103500
 
 
-const char* upnp_error_category::name() const
+const char* upnp_error_category::name() const throw()
 {
 	return "UPnP error";
 }

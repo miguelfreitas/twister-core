@@ -45,7 +45,7 @@ namespace libtorrent
 
 	i2p_error_category i2p_category;
 
-	const char* i2p_error_category::name() const
+	const char* i2p_error_category::name() const throw()
 	{
 		return "i2p error";
 	}
