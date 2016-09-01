@@ -67,9 +67,9 @@ namespace libtorrent {
 
 struct TORRENT_EXPORT i2p_error_category : boost::system::error_category
 {
-	virtual const char* name() const;
+	virtual const char* name() const throw();
 	virtual std::string message(int ev) const;
-	virtual boost::system::error_condition default_error_condition(int ev) const
+	virtual boost::system::error_condition default_error_condition(int ev) const throw()
 	{ return boost::system::error_condition(ev, *this); }
 };
 
