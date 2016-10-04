@@ -3865,19 +3865,26 @@ Object getLibtorrentSessionStatus()
 
 Value creategroup(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "creategroup <description>\n"
-            "Create a new key pair for group chat and add it to wallet\n"
-            "Hint: use groupcreate to invite yourself\n"
+            "creategroup <description> [<groupprivkey>]\n"
+            "Create (if <groupprivkey> is omited) a new key pair for group chat and add it to wallet\n"
+            "Or import the given <groupprivkey> into wallet\n"
+            "Hint: use newgroupinvite to invite yourself\n"
             "Returns the group alias");
 
     string strDescription = params[0].get_str();
+    string privKey;
 
-    RandAddSeedPerfmon();
-    CKey secret;
-    secret.MakeNewKey(true);
-    string privKey = CBitcoinSecret(secret).ToString();
+    if (params.size() == 2)
+        privKey = params[1].get_str();
+    else
+    {
+        RandAddSeedPerfmon();
+        CKey secret;
+        secret.MakeNewKey(true);
+        privKey = CBitcoinSecret(secret).ToString();
+    }
 
     string noMember;
     registerNewGroup(privKey, strDescription, noMember, noMember, GetTime(), -1);
