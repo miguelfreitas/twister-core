@@ -1206,34 +1206,33 @@ string getGroupAliasByKey(const string &privKey)
 void registerNewGroup(const string &privKey, const string &desc, const string &member, const string &invitedBy, int64_t utcTime, int k)
 {
     string groupAlias = getGroupAliasByKey(privKey);
-    if( !groupAlias.length() ) {
-        CBitcoinSecret vchSecret;
-        bool fGood = vchSecret.SetString(privKey);
-        if (!fGood) {
-            printf("registerGroupMember: Invalid private key\n");
-            return;
-        }
-        CKey key = vchSecret.GetKey();
-        CPubKey pubkey = key.GetPubKey();
-        CKeyID vchAddress = pubkey.GetID();
-        {
-            LOCK(pwalletMain->cs_wallet);
-            if (pwalletMain->HaveKey(vchAddress)) {
-                // already exists? reuse same alias (trying to fix inconsistency wallet x groups)
-                groupAlias = pwalletMain->mapKeyMetadata[vchAddress].username;
-                if( !groupAlias.length() || groupAlias.at(0) != '*' ) {
-                    printf("registerGroupMember: Invalid group alias '%s' from wallet\n", groupAlias.c_str());
-                    return;
-                }
-            } else {
-                groupAlias = getRandomGroupAlias();
-            }
 
-            pwalletMain->mapKeyMetadata[vchAddress] = CKeyMetadata(GetTime(), groupAlias);
-            if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
-                printf("registerGroupMember: Error adding key to wallet\n");
+    CBitcoinSecret vchSecret;
+    bool fGood = vchSecret.SetString(privKey);
+    if (!fGood) {
+        printf("registerGroupMember: Invalid private key\n");
+        return;
+    }
+    CKey key = vchSecret.GetKey();
+    CPubKey pubkey = key.GetPubKey();
+    CKeyID vchAddress = pubkey.GetID();
+    {
+        LOCK(pwalletMain->cs_wallet);
+        if (pwalletMain->HaveKey(vchAddress)) {
+            // already exists? reuse same alias (trying to fix inconsistency wallet x groups)
+            groupAlias = pwalletMain->mapKeyMetadata[vchAddress].username;
+            if( !groupAlias.length() || groupAlias.at(0) != '*' ) {
+                printf("registerGroupMember: Invalid group alias '%s' from wallet\n", groupAlias.c_str());
                 return;
             }
+        } else if (!groupAlias.length()) {
+            groupAlias = getRandomGroupAlias();
+        }
+
+        pwalletMain->mapKeyMetadata[vchAddress] = CKeyMetadata(GetTime(), groupAlias);
+        if (!pwalletMain->AddKeyPubKey(key, pubkey)) {
+            printf("registerGroupMember: Error adding key to wallet\n");
+            return;
         }
     }
 
@@ -3866,19 +3865,26 @@ Object getLibtorrentSessionStatus()
 
 Value creategroup(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "creategroup <description>\n"
-            "Create a new key pair for group chat and add it to wallet\n"
-            "Hint: use groupcreate to invite yourself\n"
+            "creategroup <description> [<groupprivkey>]\n"
+            "Create (if <groupprivkey> is omited) a new key pair for group chat and add it to wallet\n"
+            "Or import the given <groupprivkey> into wallet\n"
+            "Hint: use newgroupinvite to invite yourself\n"
             "Returns the group alias");
 
     string strDescription = params[0].get_str();
+    string privKey;
 
-    RandAddSeedPerfmon();
-    CKey secret;
-    secret.MakeNewKey(true);
-    string privKey = CBitcoinSecret(secret).ToString();
+    if (params.size() == 2)
+        privKey = params[1].get_str();
+    else
+    {
+        RandAddSeedPerfmon();
+        CKey secret;
+        secret.MakeNewKey(true);
+        privKey = CBitcoinSecret(secret).ToString();
+    }
 
     string noMember;
     registerNewGroup(privKey, strDescription, noMember, noMember, GetTime(), -1);
