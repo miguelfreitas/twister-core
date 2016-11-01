@@ -384,7 +384,7 @@ static string HTTPReply(int nStatus, const string& strMsg, bool keepalive, const
             "HTTP/1.1 %d %s\r\n"
             "Date: %s\r\n"
             "Connection: %s\r\n"
-            "Content-Length: %"PRIszu"\r\n"
+            "Content-Length: %" PRIszu "\r\n"
             "Content-Type: %s\r\n"
             "Content-Security-Policy: script-src 'self' 'unsafe-eval'\r\n"
             "Server: bitcoin-json-rpc/%s\r\n"

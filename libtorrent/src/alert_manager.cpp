@@ -72,7 +72,7 @@ namespace libtorrent
 		return NULL;
 	}
 
-	void alert_manager::set_dispatch_function(boost::function<void(std::auto_ptr<alert>)> const& fun)
+	void alert_manager::set_dispatch_function(boost::function<void(std::unique_ptr<alert>)> const& fun)
 	{
 		mutex::scoped_lock lock(m_mutex);
 
@@ -85,7 +85,7 @@ namespace libtorrent
 		while (!alerts.empty())
 		{
 			TORRENT_TRY {
-				m_dispatch(std::auto_ptr<alert>(alerts.front()));
+				m_dispatch(std::unique_ptr<alert>(alerts.front()));
 			} TORRENT_CATCH(std::exception&) {}
 			alerts.pop_front();
 		}
@@ -94,13 +94,13 @@ namespace libtorrent
 	void dispatch_alert(boost::function<void(alert const&)> dispatcher
 		, alert* alert_)
 	{
-		std::auto_ptr<alert> holder(alert_);
+		std::unique_ptr<alert> holder(alert_);
 		dispatcher(*alert_);
 	}
 
 	void alert_manager::post_alert_ptr(alert* alert_)
 	{
-		std::auto_ptr<alert> a(alert_);
+		std::unique_ptr<alert> a(alert_);
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (ses_extension_list_t::iterator i = m_ses_extensions.begin()
@@ -118,7 +118,7 @@ namespace libtorrent
 
 	void alert_manager::post_alert(const alert& alert_)
 	{
-		std::auto_ptr<alert> a(alert_.clone());
+		std::unique_ptr<alert> a(alert_.clone());
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		for (ses_extension_list_t::iterator i = m_ses_extensions.begin()
@@ -134,13 +134,13 @@ namespace libtorrent
 		post_impl(a, lock);
 	}
 		
-	void alert_manager::post_impl(std::auto_ptr<alert>& alert_, mutex::scoped_lock& l)
+	void alert_manager::post_impl(std::unique_ptr<alert>& alert_, mutex::scoped_lock& l)
 	{
 		if (m_dispatch)
 		{
 			TORRENT_ASSERT(m_alerts.empty());
 			TORRENT_TRY {
-				m_dispatch(alert_);
+				m_dispatch(std::unique_ptr<alert>(alert_.get()));
 			} TORRENT_CATCH(std::exception&) {}
 		}
 		else if (m_alerts.size() < m_queue_size_limit || !alert_->discardable())
@@ -158,16 +158,16 @@ namespace libtorrent
 	}
 #endif
 
-	std::auto_ptr<alert> alert_manager::get()
+	std::unique_ptr<alert> alert_manager::get()
 	{
 		mutex::scoped_lock lock(m_mutex);
 		
 		if (m_alerts.empty())
-			return std::auto_ptr<alert>(0);
+			return 0;
 
 		alert* result = m_alerts.front();
 		m_alerts.pop_front();
-		return std::auto_ptr<alert>(result);
+		return std::unique_ptr<alert>(result);
 	}
 
 	void alert_manager::get_all(std::deque<alert*>* alerts)
