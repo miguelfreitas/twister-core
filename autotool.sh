@@ -138,6 +138,13 @@ AUTOHEADER=`echo $AUTOCONF | sed s/autoconf/autoheader/`
 version_check automake AUTOMAKE "automake automake-1.11 automake-1.10" $REQUIRED_AUTOMAKE_VERSION || exit 1
 ACLOCAL=`echo $AUTOMAKE | sed s/automake/aclocal/`
 
+if [ "$LIBTOOLIZE" = "" ]; then
+  if [ "`uname`" = "Darwin" ]; then
+    LIBTOOLIZE=glibtoolize
+  else
+    LIBTOOLIZE=libtoolize
+  fi
+fi
 version_check libtool LIBTOOLIZE "libtoolize glibtoolize" $REQUIRED_LIBTOOL_VERSION || exit 1
 
 ##########################################
