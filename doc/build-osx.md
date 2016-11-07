@@ -54,7 +54,7 @@ Instructions: Homebrew
 2. Build twister using autotool
 
         ./autotool.sh
-        ./configure --enable-logging --with-openssl=/usr/local/opt/openssl --with-libdb=/usr/local/opt/berkeley-db4
+        ./configure
         make
 (If you have multi core CPU, use "make -j N" where N = the number of your cores)
 
