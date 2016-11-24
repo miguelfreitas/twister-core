@@ -168,7 +168,7 @@ namespace libtorrent
 		// the dirent struct contains a zero-sized
 		// array at the end, it will end up referring
 		// to the m_name field
-		struct dirent m_dirent;
+		struct dirent *m_dirent;
 		char m_name[TORRENT_MAX_PATH + 1]; // +1 to make room for null
 #endif
 		bool m_done;

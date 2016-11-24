@@ -779,7 +779,7 @@ namespace libtorrent
 		}
 #else
 
-		memset(&m_dirent, 0, sizeof(dirent));
+		memset(m_dirent, 0, sizeof(dirent));
 		m_name[0] = 0;
 
 		// the path passed to opendir() may not
@@ -820,7 +820,7 @@ namespace libtorrent
 		return convert_from_native(m_fd.cFileName);
 #endif
 #else
-		return convert_from_native(m_dirent.d_name);
+		return convert_from_native(m_dirent->d_name);
 #endif
 	}
 
@@ -841,13 +841,11 @@ namespace libtorrent
 				ec.assign(err, boost::system::get_system_category());
 		}
 #else
-		dirent* dummy;
-		if (readdir_r(m_handle, &m_dirent, &dummy) != 0)
+		if ((m_dirent = readdir(m_handle)) == 0)
 		{
 			ec.assign(errno, boost::system::get_generic_category());
 			m_done = true;
 		}
-		if (dummy == 0) m_done = true;
 #endif
 	}
 
