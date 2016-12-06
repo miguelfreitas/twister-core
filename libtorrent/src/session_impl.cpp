@@ -6157,7 +6157,7 @@ retry:
 		}
 	}
 
-	void session_impl::set_alert_dispatch(boost::function<void(std::unique_ptr<alert>)> const& fun)
+	void session_impl::set_alert_dispatch(boost::function<void(std::unique_ptr<alert> const&)> const& fun)
 	{
 		m_alerts.set_dispatch_function(fun);
 	}

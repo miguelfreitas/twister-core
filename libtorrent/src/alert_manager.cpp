@@ -72,7 +72,7 @@ namespace libtorrent
 		return NULL;
 	}
 
-	void alert_manager::set_dispatch_function(boost::function<void(std::unique_ptr<alert>)> const& fun)
+	void alert_manager::set_dispatch_function(boost::function<void(std::unique_ptr<alert> const&)> const& fun)
 	{
 		mutex::scoped_lock lock(m_mutex);
 
@@ -140,7 +140,7 @@ namespace libtorrent
 		{
 			TORRENT_ASSERT(m_alerts.empty());
 			TORRENT_TRY {
-				m_dispatch(std::unique_ptr<alert>(alert_.get()));
+				m_dispatch(alert_);
 			} TORRENT_CATCH(std::exception&) {}
 		}
 		else if (m_alerts.size() < m_queue_size_limit || !alert_->discardable())

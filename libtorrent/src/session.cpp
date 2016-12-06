@@ -1096,7 +1096,7 @@ namespace libtorrent
 	}
 #endif // TORRENT_NO_DEPRECATE
 
-	void session::set_alert_dispatch(boost::function<void(std::unique_ptr<alert>)> const& fun)
+	void session::set_alert_dispatch(boost::function<void(std::unique_ptr<alert> const&)> const& fun)
 	{
 		TORRENT_ASYNC_CALL1(set_alert_dispatch, fun);
 	}

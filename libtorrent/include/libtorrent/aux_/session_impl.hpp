@@ -382,7 +382,7 @@ namespace libtorrent
 			size_t set_alert_queue_size_limit(size_t queue_size_limit_);
 			std::unique_ptr<alert> pop_alert();
 			void pop_alerts(std::deque<alert*>* alerts);
-			void set_alert_dispatch(boost::function<void(std::unique_ptr<alert>)> const&);
+			void set_alert_dispatch(boost::function<void(std::unique_ptr<alert> const&)> const&);
 			void post_alert(const alert& alert_);
 
 			alert const* wait_for_alert(time_duration max_wait);

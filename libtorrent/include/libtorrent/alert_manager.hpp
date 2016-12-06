@@ -86,7 +86,7 @@ namespace libtorrent {
 		size_t alert_queue_size_limit() const { return m_queue_size_limit; }
 		size_t set_alert_queue_size_limit(size_t queue_size_limit_);
 
-		void set_dispatch_function(boost::function<void(std::unique_ptr<alert>)> const&);
+		void set_dispatch_function(boost::function<void(std::unique_ptr<alert> const&)> const&);
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		void add_extension(boost::shared_ptr<plugin> ext);
@@ -100,7 +100,7 @@ namespace libtorrent {
 		condition_variable m_condition;
 		boost::uint32_t m_alert_mask;
 		size_t m_queue_size_limit;
-		boost::function<void(std::unique_ptr<alert>)> m_dispatch;
+		boost::function<void(std::unique_ptr<alert> const&)> m_dispatch;
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		typedef std::list<boost::shared_ptr<plugin> > ses_extension_list_t;
