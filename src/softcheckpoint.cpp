@@ -36,12 +36,12 @@ namespace SoftCheckpoints
 
     static std::set<std::string> uniqueUsersList =
             boost::assign::list_of
-            ("mf1")("mf1a")("mf2")("mf2a")("mf3")
-            ("wn41")("omgasm")("rantizdani")("rantisluni");
+            ("mf1")("mf1a")("mf2")("mf3")
+            ("omgasm");
             
     static std::set<std::string> upcomingUsersList =
             boost::assign::list_of
-            ("nobody");
+            ("nobody")("mf2a");
 
 
     void SetSoftCPBestChain() {
