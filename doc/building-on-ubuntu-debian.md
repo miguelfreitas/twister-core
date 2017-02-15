@@ -11,6 +11,10 @@ Tested on a pristine:
 1. cd twister-core
 1. ./autotool.sh
 1. ./configure
+2.
+2. or 
+2. ./configure --with-boost-libdir=/usr/lib/i386-linux-gnu/
+2. for x86
 1. make
 
 ## Configuration & web gui
