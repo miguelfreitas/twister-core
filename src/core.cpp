@@ -65,7 +65,7 @@ std::string CTxOut::ToString() const
 {
     if (scriptPubKey.size() < 6)
         return "CTxOut(error)";
-    return strprintf("CTxOut(nValue=%"PRI64d".%08"PRI64d", scriptPubKey=%s)", nValue / COIN, nValue % COIN, scriptPubKey.ToString().substr(0,30).c_str());
+    return strprintf("CTxOut(nValue=%" PRI64d ".%08" PRI64d ", scriptPubKey=%s)", nValue / COIN, nValue % COIN, scriptPubKey.ToString().substr(0,30).c_str());
 }
 
 void CTxOut::print() const
@@ -101,7 +101,7 @@ uint256 CTransaction::GetUsernameHash() const
 std::string CTransaction::ToString() const
 {
     std::string str;
-    str += strprintf("CTransaction(hash=%s, ver=%d, message.size=%"PRIszu", userName.size=%"PRIszu", pubKey.size=%"PRIszu")\n",
+    str += strprintf("CTransaction(hash=%s, ver=%d, message.size=%" PRIszu ", userName.size=%" PRIszu ", pubKey.size=%" PRIszu ")\n",
         GetHash().ToString().substr(0,10).c_str(),
         nVersion,
         message.size(),
@@ -258,7 +258,7 @@ uint256 CBlock::CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMer
 
 void CBlock::print() const
 {
-    printf("CBlock(hash=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
+    printf("CBlock(hash=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%" PRIszu ")\n",
         GetHash().ToString().c_str(),
         GetPoWHash().ToString().c_str(),
         nVersion,

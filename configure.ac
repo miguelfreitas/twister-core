@@ -159,7 +159,8 @@ AS_ECHO "Checking for posix thread support:"
 AX_PTHREAD()
 
 LIBS="$PTHREAD_LIBS $LIBS"
-CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+CFLAGS="$PTHREAD_CFLAGS $CFLAGS" 
+CXXFLAGS="-Wno-invalid-offsetof $CXXFLAGS"
 CC="$PTHREAD_CC"
 
 AS_ECHO "Checking for visibility support:"

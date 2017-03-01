@@ -113,7 +113,7 @@ namespace libtorrent {
 		severity_t severity() const TORRENT_DEPRECATED { return warning; }
 #endif
 
-		virtual std::auto_ptr<alert> clone() const = 0;
+		virtual std::unique_ptr<alert> clone() const = 0;
 
 	private:
 		ptime m_timestamp;
@@ -133,7 +133,7 @@ namespace libtorrent {
 		template<class Handler
 			, BOOST_PP_ENUM_PARAMS(TORRENT_MAX_ALERT_TYPES, class T)>
 		void handle_alert_dispatch(
-			const std::auto_ptr<alert>& alert_, const Handler& handler
+			const std::unique_ptr<alert>& alert_, const Handler& handler
 			, const std::type_info& typeid_
 			, T0*, BOOST_PP_ENUM_SHIFTED_BINARY_PARAMS(TORRENT_MAX_ALERT_TYPES, T, *p))
 		{
@@ -147,7 +147,7 @@ namespace libtorrent {
 
 		template<class Handler>
 		void handle_alert_dispatch(
-			const std::auto_ptr<alert>&
+			const std::unique_ptr<alert>&
 			, const Handler&
 			, const std::type_info&
 			, BOOST_PP_ENUM_PARAMS(TORRENT_MAX_ALERT_TYPES, void_* BOOST_PP_INTERCEPT))
@@ -162,7 +162,7 @@ namespace libtorrent {
 	struct TORRENT_EXPORT handle_alert
 	{
 		template<class Handler>
-		handle_alert(const std::auto_ptr<alert>& alert_
+		handle_alert(const std::unique_ptr<alert>& alert_
 			, const Handler& handler)
 		{
 			#define ALERT_POINTER_TYPE(z, n, text) (BOOST_PP_CAT(T, n)*)0

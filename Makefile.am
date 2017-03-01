@@ -2,7 +2,9 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = \
   COPYING twister-control.py
-  
+
+GCC_MAJOR_VER = $(shell gcc -dumpversion | cut -f1 -d.)
+
 dist_doc_DATA = README.md
 
 LIBLEVELDB = src/leveldb/libleveldb.a
@@ -191,6 +193,7 @@ AM_CPPFLAGS = -ftemplate-depth-100 -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS
     -I$(top_srcdir)/libtorrent/include \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/src/leveldb/include -I$(top_srcdir)/src/leveldb/helpers \
+    $(if $(filter "$(GCC_MAJOR_VER)","4"), "-std=c++0x", $(if $(filter "$(GCC_MAJOR_VER)","5"), "-std=c++11", "-std=c++14")) \
     @DEBUGFLAGS@ @BOOST_CPPFLAGS@ @OPENSSL_INCLUDES@ @DB_CXX_CPPFLAGS@
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@

@@ -610,7 +610,7 @@ bool CTxMemPool::accept(CValidationState &state, CTransaction &tx, bool fLimitFr
     ///// are we sure this is ok when loading transactions or restoring block txes
     SyncWithWallets(txhash, tx, NULL, true);
 
-    printf("CTxMemPool::accept() : accepted %s (poolsz %"PRIszu")\n",
+    printf("CTxMemPool::accept() : accepted %s (poolsz %" PRIszu ")\n",
            txhash.ToString().c_str(),
            mapTx.size());
     return true;
@@ -962,7 +962,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     // Limit adjustment step
     int64 nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
-    printf("  nActualTimespan = %"PRI64d"  before bounds\n", nActualTimespan);
+    printf("  nActualTimespan = %" PRI64d "  before bounds\n", nActualTimespan);
     if (nActualTimespan < nTargetTimespan/4)
         nActualTimespan = nTargetTimespan/4;
     if (nActualTimespan > nTargetTimespan*4)
@@ -979,7 +979,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     /// debug print
     printf("GetNextWorkRequired RETARGET\n");
-    printf("nTargetTimespan = %"PRI64d"    nActualTimespan = %"PRI64d"\n", nTargetTimespan, nActualTimespan);
+    printf("nTargetTimespan = %" PRI64d "    nActualTimespan = %" PRI64d "\n", nTargetTimespan, nActualTimespan);
     printf("Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).getuint256().ToString().c_str());
     printf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
 
@@ -1392,8 +1392,8 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
     }
 
     if (vDisconnect.size() > 0) {
-        printf("REORGANIZE: Disconnect %"PRIszu" blocks; %s..\n", vDisconnect.size(), pfork->GetBlockHash().ToString().c_str());
-        printf("REORGANIZE: Connect %"PRIszu" blocks; ..%s\n", vConnect.size(), pindexNew->GetBlockHash().ToString().c_str());
+        printf("REORGANIZE: Disconnect %" PRIszu " blocks; %s..\n", vDisconnect.size(), pfork->GetBlockHash().ToString().c_str());
+        printf("REORGANIZE: Connect %" PRIszu " blocks; ..%s\n", vConnect.size(), pindexNew->GetBlockHash().ToString().c_str());
     }
 
     // Disconnect shorter branch
@@ -2402,7 +2402,7 @@ void PrintBlockTree()
         // print item
         CBlock block;
         ReadBlockFromDisk(block, pindex);
-        printf("%d (blk%05u.dat:0x%x)  %s  tx %"PRIszu"",
+        printf("%d (blk%05u.dat:0x%x)  %s  tx %" PRIszu "",
             pindex->nHeight,
             pindex->GetBlockPos().nFile, pindex->GetBlockPos().nPos,
             DateTimeStrFormat("%Y-%m-%d %H:%M:%S", block.GetBlockTime()).c_str(),
@@ -2493,7 +2493,7 @@ bool LoadExternalBlockFile(FILE* fileIn, CDiskBlockPos *dbp)
         AbortNode(_("Error: system error: ") + e.what());
     }
     if (nLoaded > 0)
-        printf("Loaded %i blocks from external file in %"PRI64d"ms\n", nLoaded, GetTimeMillis() - nStart);
+        printf("Loaded %i blocks from external file in %" PRI64d "ms\n", nLoaded, GetTimeMillis() - nStart);
     return nLoaded > 0;
 }
 
@@ -2724,7 +2724,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 {
     RandAddSeedPerfmon();
     if (fDebug)
-        printf("received: %s (%"PRIszu" bytes)\n", strCommand.c_str(), vRecv.size());
+        printf("received: %s (%" PRIszu " bytes)\n", strCommand.c_str(), vRecv.size());
     if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0)
     {
         printf("dropmessagestest DROPPING RECV MESSAGE\n");
@@ -2866,7 +2866,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (vAddr.size() > 1000)
         {
             pfrom->Misbehaving(20);
-            return error("message addr size() = %"PRIszu"", vAddr.size());
+            return error("message addr size() = %" PRIszu "", vAddr.size());
         }
 
         // Store the new addresses
@@ -2929,7 +2929,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (vInv.size() > MAX_INV_SZ)
         {
             pfrom->Misbehaving(20);
-            return error("message inv size() = %"PRIszu"", vInv.size());
+            return error("message inv size() = %" PRIszu "", vInv.size());
         }
 
         // find last block in inv vector
@@ -2978,11 +2978,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (vInv.size() > MAX_INV_SZ)
         {
             pfrom->Misbehaving(20);
-            return error("message getdata size() = %"PRIszu"", vInv.size());
+            return error("message getdata size() = %" PRIszu "", vInv.size());
         }
 
         if (fDebugNet || (vInv.size() != 1))
-            printf("received getdata (%"PRIszu" invsz)\n", vInv.size());
+            printf("received getdata (%" PRIszu " invsz)\n", vInv.size());
 
         if ((fDebugNet && vInv.size() > 0) || (vInv.size() == 1))
             printf("received getdata for: %s\n", vInv[0].ToString().c_str());
@@ -3819,7 +3819,7 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
 CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
 {
     // Create new block
-    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
@@ -3901,7 +3901,7 @@ CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
 
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
-        printf("CreateNewBlock(): total size %"PRI64u"\n", nBlockSize);
+        printf("CreateNewBlock(): total size %" PRI64u "\n", nBlockSize);
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -4041,7 +4041,7 @@ void GenesisMiner()
         CBlock *pblock = &block;
         pblock->nNonce = 0;
 
-        printf("Running GenesisMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+        printf("Running GenesisMiner with %" PRIszu " transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
@@ -4132,13 +4132,13 @@ void static BitcoinMiner(CWallet *pwallet)
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrev = pindexBest;
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(salt));
+        unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(salt));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-        printf("Running BitcoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+        printf("Running BitcoinMiner with %" PRIszu " transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
