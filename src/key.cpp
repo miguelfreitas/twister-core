@@ -379,20 +379,22 @@ public:
         memset(iv, 0, EVP_MAX_IV_LENGTH);
 
         // Setup the cipher context, the body length, and store a pointer to the body buffer location.
-        EVP_CIPHER_CTX cipher;
-        EVP_CIPHER_CTX_init(&cipher);
+        EVP_CIPHER_CTX *cipher;
+        cipher = EVP_CIPHER_CTX_new();
+        EVP_CIPHER_CTX_init(cipher);
 
         unsigned char *body = reinterpret_cast<unsigned char *>(&cryptex.body[0]);
         int body_length = cryptex.body.size();
 
         // Initialize the cipher with the envelope key.
-        if (EVP_EncryptInit_ex(&cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
-            EVP_CIPHER_CTX_set_padding(&cipher, 0) != 1 ||
-                EVP_EncryptUpdate(&cipher, body, &body_length, reinterpret_cast<const unsigned char *>(&vchText[0]), length - (length % block_length)) != 1) {
+        if (EVP_EncryptInit_ex(cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
+            EVP_CIPHER_CTX_set_padding(cipher, 0) != 1 ||
+                EVP_EncryptUpdate(cipher, body, &body_length, reinterpret_cast<const unsigned char *>(&vchText[0]), length - (length % block_length)) != 1) {
 #ifdef DEBUG_ECIES
                 printf("An error occurred while trying to secure the data using the chosen symmetric cipher.\n");
 #endif
-                EVP_CIPHER_CTX_cleanup(&cipher);
+                EVP_CIPHER_CTX_cleanup(cipher);
+                EVP_CIPHER_CTX_free(cipher);
                 return false;
         }
         // Check whether all of the data was encrypted. If they don't match up, we either have a partial block remaining, or an error occurred.
@@ -402,7 +404,8 @@ public:
 #ifdef DEBUG_ECIES
                         printf("Unable to secure the data using the chosen symmetric cipher.\n");
 #endif
-                        EVP_CIPHER_CTX_cleanup(&cipher);
+                        EVP_CIPHER_CTX_cleanup(cipher);
+                        EVP_CIPHER_CTX_free(cipher);
                         return false;
                 }
 
@@ -416,16 +419,18 @@ public:
 #ifdef DEBUG_ECIES
                         printf("The symmetric cipher overflowed!\n");
 #endif
-                        EVP_CIPHER_CTX_cleanup(&cipher);
+                        EVP_CIPHER_CTX_cleanup(cipher);
+                        EVP_CIPHER_CTX_free(cipher);
                         return false;
                 }
 
                 // Pass the final partially filled data block into the cipher as a complete block. The padding will be removed during the decryption process.
-                else if (EVP_EncryptUpdate(&cipher, body, &body_length, block, block_length) != 1) {
+                else if (EVP_EncryptUpdate(cipher, body, &body_length, block, block_length) != 1) {
 #ifdef DEBUG_ECIES
                         printf("Unable to secure the data using the chosen symmetric cipher\n");
 #endif
-                        EVP_CIPHER_CTX_cleanup(&cipher);
+                        EVP_CIPHER_CTX_cleanup(cipher);
+                        EVP_CIPHER_CTX_free(cipher);
                         return false;
                 }
         }
@@ -437,19 +442,22 @@ public:
 #ifdef DEBUG_ECIES
                 printf("The symmetric cipher overflowed!\n");
 #endif
-                EVP_CIPHER_CTX_cleanup(&cipher);
+                EVP_CIPHER_CTX_cleanup(cipher);
+                EVP_CIPHER_CTX_free(cipher);
                 return false;
         }
 
-        else if (EVP_EncryptFinal_ex(&cipher, body, &body_length) != 1) {
+        else if (EVP_EncryptFinal_ex(cipher, body, &body_length) != 1) {
 #ifdef DEBUG_ECIES
                 printf("Unable to secure the data using the chosen symmetric cipher.\n");
 #endif
-                EVP_CIPHER_CTX_cleanup(&cipher);
+                EVP_CIPHER_CTX_cleanup(cipher);
+                EVP_CIPHER_CTX_free(cipher);
                 return false;
         }
 
-        EVP_CIPHER_CTX_cleanup(&cipher);
+        EVP_CIPHER_CTX_cleanup(cipher);
+        EVP_CIPHER_CTX_free(cipher);
 
         // Generate an authenticated hash which can be used to validate the data during decryption.
         HMAC_CTX hmac;
@@ -611,17 +619,19 @@ public:
         memset(output, 0, output_length + 1);
 
         // Setup the cipher context, the body length, and store a pointer to the body buffer location.
-        EVP_CIPHER_CTX cipher;
-        EVP_CIPHER_CTX_init(&cipher);
+        EVP_CIPHER_CTX *cipher;
+        cipher = EVP_CIPHER_CTX_new();
+        EVP_CIPHER_CTX_init(cipher);
 
         // Decrypt the data using the chosen symmetric cipher.
-        if (EVP_DecryptInit_ex(&cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
-            EVP_CIPHER_CTX_set_padding(&cipher, 0) != 1 ||
-            EVP_DecryptUpdate(&cipher, block, &output_length, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1) {
+        if (EVP_DecryptInit_ex(cipher, ECIES_CIPHER, NULL, envelope_key, iv) != 1 ||
+            EVP_CIPHER_CTX_set_padding(cipher, 0) != 1 ||
+            EVP_DecryptUpdate(cipher, block, &output_length, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1) {
 #ifdef DEBUG_ECIES
                 printf("Unable to decrypt the data using the chosen symmetric cipher.\n");
 #endif
-                EVP_CIPHER_CTX_cleanup(&cipher);
+                EVP_CIPHER_CTX_cleanup(cipher);
+                EVP_CIPHER_CTX_free(cipher);
                 return false;
         }
 
@@ -630,19 +640,22 @@ public:
 #ifdef DEBUG_ECIES
                 printf("The symmetric cipher failed to properly decrypt the correct amount of data!\n");
 #endif
-                EVP_CIPHER_CTX_cleanup(&cipher);
+                EVP_CIPHER_CTX_cleanup(cipher);
+                EVP_CIPHER_CTX_free(cipher);
                 return false;
         }
 
-        if (EVP_DecryptFinal_ex(&cipher, block, &output_length) != 1) {
+        if (EVP_DecryptFinal_ex(cipher, block, &output_length) != 1) {
 #ifdef DEBUG_ECIES
                 printf("Unable to decrypt the data using the chosen symmetric cipher.\n");
 #endif
-                EVP_CIPHER_CTX_cleanup(&cipher);
+                EVP_CIPHER_CTX_cleanup(cipher);
+                EVP_CIPHER_CTX_free(cipher);
                 return false;
         }
 
-        EVP_CIPHER_CTX_cleanup(&cipher);
+        EVP_CIPHER_CTX_cleanup(cipher);
+        EVP_CIPHER_CTX_free(cipher);
 
         vchText.resize(cryptex.orig);
         return true;
