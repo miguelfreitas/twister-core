@@ -184,7 +184,7 @@ Desktop and Mobile interfaces.
 
 ## Different themes
 
-If you prefer new modern look of twister with new untested things, you can try twister-calm theme
+If you prefer new modern look of twister with new untested things, you can try twister-calm theme.
 But be careful, it is in beta stage.
 
     cd ~/.twister/
