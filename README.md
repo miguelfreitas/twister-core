@@ -11,7 +11,7 @@ twister Copyright (c) 2017 Miguel Freitas
 twister is an experimental peer-to-peer microblogging software.
 
 User registration and authentication is provided by a bitcoin-like network, so
-it is completely distributed (does not depend on any central authority).
+it is completely decentralized (does not depend on any central authority).
 
 Post distribution uses kademlia DHT network and bittorrent-like swarms, both
 are provided by libtorrent.
