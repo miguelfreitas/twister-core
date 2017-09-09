@@ -4,14 +4,14 @@
 
 Bitcoin Copyright (c) 2009-2013 Bitcoin Core developers  
 libtorrent Copyright (c) 2003 - 2007, Arvid Norberg  
-twister Copyright (c) 2013 Miguel Freitas
+twister Copyright (c) 2017 Miguel Freitas
 
 ## What is twister?
 
 twister is an experimental peer-to-peer microblogging software.
 
 User registration and authentication is provided by a bitcoin-like network, so
-it is completely distributed (does not depend on any central authority).
+it is completely decentralized (does not depend on any central authority).
 
 Post distribution uses kademlia DHT network and bittorrent-like swarms, both
 are provided by libtorrent.
@@ -184,7 +184,7 @@ Desktop and Mobile interfaces.
 
 ## Different themes
 
-If you prefer new modern look of twister with new untested things, you can try twister-calm theme
+If you prefer new modern look of twister with new untested things, you can try twister-calm theme.
 But be careful, it is in beta stage.
 
     cd ~/.twister/
