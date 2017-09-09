@@ -87,7 +87,13 @@ int ECDSA_SIG_recover_key_GFp(EC_KEY *eckey, ECDSA_SIG *ecsig, const unsigned ch
     x = BN_CTX_get(ctx);
     if (!BN_copy(x, order)) { ret=-1; goto err; }
     if (!BN_mul_word(x, i)) { ret=-1; goto err; }
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
     if (!BN_add(x, x, ecsig->r)) { ret=-1; goto err; }
+#else
+    const BIGNUM *ecsig_r, *ecsig_s;
+    ECDSA_SIG_get0(ecsig, &ecsig_r, &ecsig_s);
+    if (!BN_add(x, x, ecsig_r)) { ret=-1; goto err; }
+#endif
     field = BN_CTX_get(ctx);
     if (!EC_GROUP_get_curve_GFp(group, field, NULL, NULL, ctx)) { ret=-2; goto err; }
     if (BN_cmp(x, field) >= 0) { ret=0; goto err; }
@@ -108,9 +114,17 @@ int ECDSA_SIG_recover_key_GFp(EC_KEY *eckey, ECDSA_SIG *ecsig, const unsigned ch
     if (!BN_zero(zero)) { ret=-1; goto err; }
     if (!BN_mod_sub(e, zero, e, order, ctx)) { ret=-1; goto err; }
     rr = BN_CTX_get(ctx);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
     if (!BN_mod_inverse(rr, ecsig->r, order, ctx)) { ret=-1; goto err; }
+#else
+    if (!BN_mod_inverse(rr, ecsig_r, order, ctx)) { ret=-1; goto err; }
+#endif
     sor = BN_CTX_get(ctx);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
     if (!BN_mod_mul(sor, ecsig->s, rr, order, ctx)) { ret=-1; goto err; }
+#else
+    if (!BN_mod_mul(sor, ecsig_s, rr, order, ctx)) { ret=-1; goto err; }
+#endif
     eor = BN_CTX_get(ctx);
     if (!BN_mod_mul(eor, e, rr, order, ctx)) { ret=-1; goto err; }
     if (!EC_POINT_mul(group, Q, eor, R, sor, ctx)) { ret=-2; goto err; }
@@ -162,13 +176,16 @@ public:
     }
 
     void SetSecretBytes(const unsigned char vch[32]) {
-        BIGNUM bn;
-        BN_init(&bn);
-        bool check = BN_bin2bn(vch, 32, &bn);
+        BIGNUM *bn;
+        bn = BN_new();
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
+        BN_init(bn);
+#endif
+        bool check = BN_bin2bn(vch, 32, bn);
         assert(check);
-        check = EC_KEY_regenerate_key(pkey, &bn);
+        check = EC_KEY_regenerate_key(pkey, bn);
         assert(check);
-        BN_clear_free(&bn);
+        BN_clear_free(bn);
     }
 
     void GetPrivKey(CPrivKey &privkey, bool fCompressed) {
@@ -231,8 +248,15 @@ public:
         if (sig==NULL)
             return false;
         memset(p64, 0, 64);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
         int nBitsR = BN_num_bits(sig->r);
         int nBitsS = BN_num_bits(sig->s);
+#else
+        const BIGNUM *sig_r, *sig_s;
+        ECDSA_SIG_get0(sig, &sig_r, &sig_s);
+        int nBitsR = BN_num_bits(sig_r);
+        int nBitsS = BN_num_bits(sig_s);
+#endif
         if (nBitsR <= 256 && nBitsS <= 256) {
             CPubKey pubkey;
             GetPubKey(pubkey, true);
@@ -249,8 +273,14 @@ public:
                 }
             }
             assert(fOk);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
             BN_bn2bin(sig->r,&p64[32-(nBitsR+7)/8]);
             BN_bn2bin(sig->s,&p64[64-(nBitsS+7)/8]);
+#else
+            ECDSA_SIG_get0(sig, &sig_r, &sig_s);
+            BN_bn2bin(sig_r,&p64[32-(nBitsR+7)/8]);
+            BN_bn2bin(sig_s,&p64[64-(nBitsS+7)/8]);
+#endif
         }
         ECDSA_SIG_free(sig);
         return fOk;
@@ -265,8 +295,16 @@ public:
         if (rec<0 || rec>=3)
             return false;
         ECDSA_SIG *sig = ECDSA_SIG_new();
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
         BN_bin2bn(&p64[0],  32, sig->r);
         BN_bin2bn(&p64[32], 32, sig->s);
+#else
+        BIGNUM *sig_r = BN_new();
+        BIGNUM *sig_s = BN_new();
+        BN_bin2bn(&p64[0],  32, sig_r);
+        BN_bin2bn(&p64[32], 32, sig_s);
+        ECDSA_SIG_set0(sig, sig_r, sig_s);
+#endif
         bool ret = ECDSA_SIG_recover_key_GFp(pkey, sig, (unsigned char*)&hash, sizeof(hash), rec, 0) == 1;
         ECDSA_SIG_free(sig);
         return ret;
@@ -460,8 +498,12 @@ public:
         EVP_CIPHER_CTX_free(cipher);
 
         // Generate an authenticated hash which can be used to validate the data during decryption.
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
         HMAC_CTX hmac;
         HMAC_CTX_init(&hmac);
+#else
+        HMAC_CTX *hmac = HMAC_CTX_new();
+#endif
         unsigned int mac_length = cryptex.mac.size();
 
         // At the moment we are generating the hash using encrypted data. At some point we may want to validate the original text instead.
@@ -470,18 +512,32 @@ public:
 	HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size());
 	HMAC_Final(&hmac, reinterpret_cast<unsigned char *>(&cryptex.mac[0]), &mac_length);
 #else
+ #if (OPENSSL_VERSION_NUMBER < 0x10100000)
         if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
             HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
             HMAC_Final(&hmac, reinterpret_cast<unsigned char *>(&cryptex.mac[0]), &mac_length) != 1) {
+ #else
+        if (HMAC_Init_ex(hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
+            HMAC_Update(hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
+            HMAC_Final(hmac, reinterpret_cast<unsigned char *>(&cryptex.mac[0]), &mac_length) != 1) {
+ #endif
 #ifdef DEBUG_ECIES
                 printf("Unable to generate a data authentication code.\n");
 #endif
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
                 HMAC_CTX_cleanup(&hmac);
+#else
+                HMAC_CTX_free(hmac);
+#endif
                 return false;
         }
 #endif
 
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
         HMAC_CTX_cleanup(&hmac);
+#else
+        HMAC_CTX_free(hmac);
+#endif
         return true;
 
     }
@@ -575,8 +631,12 @@ public:
         EC_KEY_free(ephemeral);
 
         // Use the authenticated hash of the ciphered data to ensure it was not modified after being encrypted.
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
         HMAC_CTX hmac;
         HMAC_CTX_init(&hmac);
+#else
+        HMAC_CTX *hmac = HMAC_CTX_new();
+#endif
         unsigned int mac_length = EVP_MAX_MD_SIZE;
         unsigned char md[EVP_MAX_MD_SIZE];
 
@@ -586,18 +646,33 @@ public:
         HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size());
 	HMAC_Final(&hmac, md, &mac_length);
 #else
+ #if (OPENSSL_VERSION_NUMBER < 0x10100000)
         if (HMAC_Init_ex(&hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
             HMAC_Update(&hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
             HMAC_Final(&hmac, md, &mac_length) != 1) {
+ #else
+        if (HMAC_Init_ex(hmac, envelope_key + key_length, key_length, ECIES_HASHER, NULL) != 1 ||
+            HMAC_Update(hmac, reinterpret_cast<const unsigned char *>(cryptex.body.data()), cryptex.body.size()) != 1 ||
+            HMAC_Final(hmac, md, &mac_length) != 1) {
+ #endif
 #ifdef DEBUG_ECIES
                 printf("Unable to generate a data authentication code.\n");
 #endif
+
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
                 HMAC_CTX_cleanup(&hmac);
+#else
+                HMAC_CTX_free(hmac);
+#endif
                 return false;
         }
 #endif
 
+#if (OPENSSL_VERSION_NUMBER < 0x10100000)
         HMAC_CTX_cleanup(&hmac);
+#else
+        HMAC_CTX_free(hmac);
+#endif
 
         // We can use the generated hash to ensure the encrypted data was not altered after being encrypted.
         if (mac_length != cryptex.mac.size() || memcmp(md, cryptex.mac.data(), mac_length)) {
