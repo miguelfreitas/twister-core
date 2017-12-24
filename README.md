@@ -2,9 +2,9 @@
 
 <http://www.twister.net.co>
 
-Bitcoin Copyright (c) 2009-2013 Bitcoin Core developers  
+Bitcoin Copyright (c) 2009 - 2013 Bitcoin Core developers  
 libtorrent Copyright (c) 2003 - 2007, Arvid Norberg  
-twister Copyright (c) 2017 Miguel Freitas
+twister Copyright (c) 2013 - 2018 Miguel Freitas
 
 ## What is twister?
 
