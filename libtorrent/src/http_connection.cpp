@@ -307,8 +307,7 @@ void http_connection::start(std::string const& hostname, std::string const& port
 		{
 			if (m_ssl_ctx == 0)
 			{
-				m_ssl_ctx = new (std::nothrow) boost::asio::ssl::context(
-					m_resolver.get_io_service(), asio::ssl::context::sslv23_client);
+				m_ssl_ctx = new (std::nothrow) boost::asio::ssl::context(asio::ssl::context::sslv23_client);
 				if (m_ssl_ctx)
 				{
 					m_own_ssl_context = true;

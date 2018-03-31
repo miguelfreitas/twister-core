@@ -614,7 +614,7 @@ namespace aux {
 		, m_swarmDb(swarmDb)
 		, m_io_service()
 #ifdef TORRENT_USE_OPENSSL
-		, m_ssl_ctx(m_io_service, asio::ssl::context::sslv23)
+		, m_ssl_ctx(asio::ssl::context::sslv23)
 #endif
 		, m_alerts(m_settings.alert_queue_size, alert_mask)
 		, m_disk_thread(m_io_service, boost::bind(&session_impl::on_disk_queue, this), m_files)
