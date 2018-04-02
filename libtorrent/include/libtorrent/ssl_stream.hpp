@@ -62,6 +62,11 @@ public:
 	typedef typename Stream::endpoint_type endpoint_type;
 	typedef typename Stream::protocol_type protocol_type;
 
+#if BOOST_VERSION >= 106600
+	typedef tcp::socket::executor_type executor_type;
+	executor_type get_executor() { return m_sock.get_executor(); }
+#endif
+
 	void set_host_name(std::string name)
 	{
 #if OPENSSL_VERSION_NUMBER >= 0x90812f
@@ -265,6 +270,13 @@ public:
 	{
 		return m_sock.next_layer();
 	}
+
+#ifndef BOOST_NO_EXCEPTIONS
+	void non_blocking(bool b) { m_sock.next_layer().non_blocking(b); }
+#endif
+
+	error_code non_blocking(bool b, error_code& ec)
+	{ return m_sock.next_layer().non_blocking(b, ec); }
 
 private:
 

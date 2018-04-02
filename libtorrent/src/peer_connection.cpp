@@ -465,9 +465,8 @@ namespace libtorrent
 
 		if (!m_outgoing)
 		{
-			tcp::socket::non_blocking_io ioc(true);
 			error_code ec;
-			m_socket->io_control(ioc, ec);
+			m_socket->non_blocking(true, ec);
 			if (ec)
 			{
 				disconnect(ec);
@@ -5706,11 +5705,10 @@ namespace libtorrent
 
 		// set the socket to non-blocking, so that we can
 		// read the entire buffer on each read event we get
-		tcp::socket::non_blocking_io ioc(true);
 #if defined TORRENT_VERBOSE_LOGGING
 		peer_log("*** SET NON-BLOCKING");
 #endif
-		m_socket->io_control(ioc, ec);
+		m_socket->non_blocking(true, ec);
 		if (ec)
 		{
 			disconnect(ec);

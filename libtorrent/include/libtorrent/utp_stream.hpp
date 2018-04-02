@@ -177,6 +177,11 @@ public:
 	typedef stream_socket::endpoint_type endpoint_type;
 	typedef stream_socket::protocol_type protocol_type;
 
+#if BOOST_VERSION >= 106600
+        typedef tcp::socket::executor_type executor_type;
+        executor_type get_executor() { return m_io_service.get_executor(); }
+#endif
+
 	explicit utp_stream(asio::io_service& io_service);
 	~utp_stream();
 
@@ -193,6 +198,12 @@ public:
 
 	template <class IO_Control_Command>
 	void io_control(IO_Control_Command& ioc, error_code& ec) {}
+
+#ifndef BOOST_NO_EXCEPTIONS
+	void non_blocking(bool) {}
+#endif
+
+	error_code non_blocking(bool, error_code&) { return error_code(); }
 
 #ifndef BOOST_NO_EXCEPTIONS
 	void bind(endpoint_type const& /*endpoint*/) {}
@@ -328,8 +339,13 @@ public:
 		size_t buf_size = 0;
 #endif
 
+#if BOOST_VERSION >= 106600
+		for (auto i = buffer_sequence_begin(buffers)
+			, end(buffer_sequence_end(buffers)); i != end; ++i)
+#else
 		for (typename Mutable_Buffers::const_iterator i = buffers.begin()
 			, end(buffers.end()); i != end; ++i)
+#endif // BOOST_VERSION
 		{
 			using asio::buffer_cast;
 			using asio::buffer_size;

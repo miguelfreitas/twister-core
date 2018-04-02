@@ -1405,7 +1405,7 @@ namespace libtorrent
 		// inject the root certificate, and no other, to
 		// verify other peers against
 		boost::shared_ptr<context> ctx(
-			new (std::nothrow) context(m_ses.m_io_service, context::sslv23));
+			new (std::nothrow) context(context::sslv23));
 
 		if (!ctx)
 		{
@@ -1442,7 +1442,7 @@ namespace libtorrent
 			return;
 		}
 
-		SSL_CTX* ssl_ctx = ctx->impl();
+		SSL_CTX* ssl_ctx = ctx->native_handle();
 		// create a new x.509 certificate store
 		X509_STORE* cert_store = X509_STORE_new();
 		if (!cert_store)

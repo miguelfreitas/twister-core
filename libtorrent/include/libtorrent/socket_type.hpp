@@ -272,6 +272,14 @@ namespace libtorrent
 			return (S const*)m_data;
 		}
 
+		void non_blocking(bool b, error_code& ec)
+		{ TORRENT_SOCKTYPE_FORWARD(non_blocking(b, ec)) }
+
+#ifndef BOOST_NO_EXCEPTIONS
+		void non_blocking(bool b)
+		{ TORRENT_SOCKTYPE_FORWARD(non_blocking(b)) }
+#endif
+
 	private:
 
 		void destruct();

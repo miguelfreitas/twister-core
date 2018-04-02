@@ -51,13 +51,17 @@ POSSIBILITY OF SUCH DAMAGE.
 #undef Protocol
 #endif
 
+
 #if BOOST_VERSION >= 103500
 namespace boost {
 #endif
 namespace asio {
-
+#if BOOST_VERSION < 106600
 class io_service;
-
+#else
+class io_context;
+typedef io_context io_service;
+#endif
 }
 #if BOOST_VERSION >= 103500
 }
