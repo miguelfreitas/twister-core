@@ -149,7 +149,7 @@ torrent_handle startTorrentUser(std::string const &username, bool following, int
 
     LOCK(cs_twister);
     if( m_peekTorrent.count(username) ) {
-        /* multiple paralel peek piece operations per torrent not 
+        /* multiple paralel peek piece operations per torrent not
          * currently supported. return invalid handle for subsequent
          * requests, until current operation completes and torrent
          * is freed. */
@@ -331,7 +331,7 @@ void ThreadWaitExtIP()
     proxyType proxyInfoOut;
     m_usingProxy = GetProxy(NET_IPV4, proxyInfoOut);
 
-    printf("Creating new libtorrent session ext_ip=%s port=%d proxy=%s\n", 
+    printf("Creating new libtorrent session ext_ip=%s port=%d proxy=%s\n",
            ipStr.c_str(), !m_usingProxy ? listen_port : 0,
            m_usingProxy ? proxyInfoOut.first.ToStringIPPort().c_str() : "");
 
@@ -368,7 +368,7 @@ void ThreadWaitExtIP()
             ses->start_upnp();
             ses->start_natpmp();
         }
-        
+
         ses->listen_on(std::make_pair(listen_port, listen_port)
                        , ec, bind_to_interface.c_str());
         if (ec)
@@ -377,20 +377,20 @@ void ThreadWaitExtIP()
                     , bind_to_interface.empty() ? "" : " on ", bind_to_interface.c_str()
                     , listen_port, listen_port+1, ec.message().c_str());
         }
-    
+
         dht_settings dhts;
         // settings to test local connections
         //dhts.restrict_routing_ips = false;
         //dhts.restrict_search_ips = false;
         ses->set_dht_settings(dhts);
-        
+
         if( !DhtProxy::fEnabled ) {
             ses->start_dht();
         } else {
             ses->stop_dht();
         }
     }
-    
+
     session_settings settings("twisterd/"+FormatFullVersion());
     // settings to test local connections
     settings.allow_multiple_connections_per_ip = GetBoolArg("-multiconnperip", false);
@@ -435,7 +435,7 @@ void ThreadWaitExtIP()
         if( ss.dht_nodes )
             break;
     }
-    
+
     if( generateOpt ) {
         Array params;
         params.push_back( generateOpt );
@@ -462,7 +462,7 @@ void ThreadWaitExtIP()
                 torrentsToStart.insert(username);
             }
         }
-        
+
         // add torrents from groups
         std::map<std::string,GroupChat>::const_iterator j;
         for (j = m_groups.begin(); j != m_groups.end(); ++j) {
@@ -539,10 +539,10 @@ void lockAndSaveUserData()
 int getDhtNodes(boost::int64_t *dht_global_nodes)
 {
     int dhtNodes = 0;
-    
+
     if( dht_global_nodes )
         *dht_global_nodes = 0;
-    
+
     if( !DhtProxy::fEnabled ) {
         boost::shared_ptr<session> ses(m_ses);
         if( ses ) {
@@ -560,16 +560,16 @@ int getDhtNodes(boost::int64_t *dht_global_nodes)
 
 void torrentManualTrackerUpdate(const std::string &username)
 {
-    printf("torrentManualTrackerUpdate: updating torrent '%s'\n", 
+    printf("torrentManualTrackerUpdate: updating torrent '%s'\n",
             username.c_str());
-    
+
     Array params;
     params.push_back(username);
     params.push_back("tracker");
     params.push_back("m");
     Array res = dhtget(params, false).get_array();
     if( !res.size() ) {
-        printf("torrentManualTrackerUpdate: no tracker response for torrent '%s'\n", 
+        printf("torrentManualTrackerUpdate: no tracker response for torrent '%s'\n",
                 username.c_str());
     } else {
         torrent_handle h = getTorrentUser(username);
@@ -587,7 +587,7 @@ void torrentManualTrackerUpdate(const std::string &username)
                             BOOST_FOREACH(const Pair& vitem, vDict) {
                                 if( vitem.name_ == "values" && vitem.value_.type() == array_type ) {
                                     Array values = vitem.value_.get_array();
-                                    printf("torrentManualTrackerUpdate: tracker for '%s' returned %zd values\n", 
+                                    printf("torrentManualTrackerUpdate: tracker for '%s' returned %zd values\n",
                                            username.c_str(), values.size());
                                     for( size_t j = 0; j < values.size(); j++ ) {
                                         if( values.at(j).type() != str_type )
@@ -632,7 +632,7 @@ void ThreadMaintainDHTNodes()
 
     while(m_ses && !m_shuttingDownSession) {
         boost::shared_ptr<session> ses(m_ses);
-        
+
         session_status ss = ses->status();
         int dht_nodes = ss.dht_nodes;
         bool nodesAdded = false;
@@ -723,7 +723,7 @@ void ThreadMaintainDHTNodes()
                 }
             }
         }
-        
+
         // if dhtproxy is enabled we may need to manually obtain peer lists from trackers
         if( DhtProxy::fEnabled && !ses->is_paused() &&
             GetTime() > lastManualTrackerUpdate + 60 ) {
@@ -734,7 +734,7 @@ void ThreadMaintainDHTNodes()
                     activeTorrents.push_back(item.first);
                 }
             }
-            
+
             BOOST_FOREACH(const std::string &username, activeTorrents) {
                 if( m_shuttingDownSession )
                     break;
@@ -768,7 +768,7 @@ void ThreadSessionAlerts()
     static map<sha1_hash, int64_t> statusCheck;
 
     SimpleThreadCounter threadCounter(&cs_twister, &m_threadsToJoin, "session-alerts");
-    
+
     while(!m_ses && !m_shuttingDownSession) {
         MilliSleep(200);
     }
@@ -834,7 +834,7 @@ void ThreadSessionAlerts()
                                 } else {
                                         // now we do our own search to make sure we are really close to this target
                                     sha1_hash ih = dhtTargetHash(n->string(), r->string(), t->string());
-                                    
+
                                     bool knownTorrent = false;
                                     {
                                         LOCK(cs_twister);
@@ -936,10 +936,10 @@ void ThreadSessionAlerts()
                 {
                     boost::system::error_code ec;
                     std::string extip = ei->external_address.to_string(ec);
-                    
+
                     printf("Learned new external IP from DHT peers: %s\n", extip.c_str());
                     CNetAddr addrLocalHost(extip);
-                    
+
                     // pretend it came from querying http server. try voting up to 10 times
                     // to change current external ip in bitcoin code.
                     for(int i=0; i < 10; i++) {
@@ -1002,7 +1002,7 @@ void startSessionTorrent(boost::thread_group& threadGroup)
     m_noExpireResources["following"] = NumberedNoExpire;
     m_noExpireResources["status"] = SimpleNoExpire;
     m_noExpireResources["post"] = PostNoExpireRecent;
-    
+
     DhtProxy::fEnabled = GetBoolArg("-dhtproxy", false);
 
     m_threadsToJoin = 0;
@@ -1053,7 +1053,7 @@ void stopSessionTorrent()
             save_file(sesStatePath.string(), out);
 
             m_ses->stop_dht();
-            
+
             m_ses.reset();
     }
 
@@ -1253,7 +1253,7 @@ void registerNewGroup(const string &privKey, const string &desc, const string &m
             storeGroupDM(groupAlias,stoDM);
         } else {
             group.m_members.insert(member);
-            
+
             if( m_users.count(member) && !m_users.at(member).m_ignoreGroups.count(groupAlias) ) {
                 StoredDirectMsg stoDM;
                 stoDM.m_fromMe  = false;
@@ -1440,6 +1440,23 @@ bool processReceivedDM(lazy_entry const* post)
                     } else {
                         storeNewDM(item.second.username, fromMe ? to : from, stoDM);
                     }
+
+                    if (GetBoolArg("-websocket", false) && !fromMe)
+                    {
+                        Object dm;
+
+                        dm.push_back(Pair("type", isGroup ? "GROUP" : "DM"));
+                        if (isGroup)
+                            dm.push_back(Pair("group", item.second.username));
+                        dm.push_back(Pair("k", k));
+                        dm.push_back(Pair("time", utcTime));
+                        dm.push_back(Pair("from", from));
+                        dm.push_back(Pair("to", to));
+                        dm.push_back(Pair("msg", msg));
+
+                        WriteToWS(dm);
+                    }
+
                     break;
                 }
             }
@@ -1474,14 +1491,52 @@ void processReceivedPost(lazy_entry const &v, std::string &username, int64 time,
 
             LOCK(cs_twister);
             // mention of a local user && sent by someone we follow
-            if( m_users.count(mentionUser) && m_users[mentionUser].m_following.count(username) ) {
+            if( m_users.count(mentionUser) && m_users[mentionUser].m_following.count(username) )
+            {
                 std::string postKey = username + ";" + boost::lexical_cast<std::string>(time);
-                if( m_users[mentionUser].m_mentionsKeys.count(postKey) == 0 ) {
+                if( m_users[mentionUser].m_mentionsKeys.count(postKey) == 0 )
+                {
                     m_users[mentionUser].m_mentionsKeys.insert(postKey);
                     entry vEntry;
                     vEntry = v;
                     m_users[mentionUser].m_mentionsPosts.push_back(vEntry);
+
+                    if (GetBoolArg("-websocket", false))
+                    {
+                        Object obj;
+
+                        obj.push_back(Pair("type", "mention"));
+                        obj.push_back(Pair("from", username));
+                        obj.push_back(Pair("to", mentionUser));
+                        hexcapePost(vEntry);
+                        obj.push_back(Pair("post", entryToJson(vEntry)));
+
+                        WriteToWS(obj);
+                    }
                 }
+            }
+        }
+    }
+
+    if (GetBoolArg("-websocket", false))
+    {
+        entry vEntry;
+        vEntry = v;
+        for (map<string, UserData>::const_iterator it = m_users.begin();
+             it != m_users.end();
+             ++it)
+        {
+            if (it->second.m_following.count(username))
+            {
+                Object obj;
+
+                obj.push_back(Pair("type", "post"));
+                obj.push_back(Pair("postboard", it->first));
+                obj.push_back(Pair("from", username));
+                hexcapePost(vEntry);
+                obj.push_back(Pair("post", entryToJson(vEntry)));
+
+                WriteToWS(obj);
             }
         }
     }
@@ -1742,7 +1797,7 @@ bool createSignedUserpost(entry &v, std::string const &username, int k,
 bool createDirectMessage(entry &dm, std::string const &to, std::string const &msg)
 {
     CPubKey pubkey;
-    
+
     /* try obtaining key from wallet first */
     CKeyID keyID;
     if (pwalletMain->GetKeyIdFromUsername(to, keyID) &&
@@ -1894,7 +1949,7 @@ void updateSeenHashtags(std::string &message, int64_t msgTime)
             }
         }
     }
-    
+
     if( hashtags.size() ) {
         boost::int64_t curTime = GetAdjustedTime();
         if( msgTime > curTime ) msgTime = curTime;
@@ -1917,13 +1972,13 @@ entry formatSpamPost(const string &msg, const string &username, uint64_t utcTime
 {
     entry v;
     entry &userpost = v["userpost"];
-    
+
     userpost["n"] = username;
     userpost["k"] = height ? height : 1;
     userpost["time"] = utcTime ? utcTime : GetAdjustedTime();
     userpost["height"] = height ? height : getBestHeight();
     userpost["msg"] = msg;
-    
+
     v["sig_userpost"] = "";
     return v;
 }
@@ -2120,7 +2175,7 @@ Value dhtget(const Array& params, bool fHelp)
 
     alert_manager am(10, alert::dht_notification);
     sha1_hash ih = dhtTargetHash(strUsername,strResource,strMulti);
-    
+
     vector<CNode*> dhtProxyNodes;
     if( !DhtProxy::fEnabled ) {
         dhtgetMapAdd(ih, &am);
@@ -2637,7 +2692,7 @@ Value getposts(const Array& params, bool fHelp)
                     v.type() == lazy_entry::dict_t) {
                     lazy_entry const* post = v.dict_find_dict("userpost");
                     int64 time = post->dict_find_int_value("time",-1);
-                    
+
                     if(time == -1 || time > GetAdjustedTime() + MAX_TIME_IN_FUTURE ) {
                         printf("getposts: ignoring far-future message by '%s'\n", strUsername.c_str());
                     }
@@ -2749,7 +2804,7 @@ Value getmentions(const Array& params, bool fHelp)
             if( i->name_ == "since_id" ) since_id = i->value_.get_int();
         }
     }
-    
+
     Array ret;
 
     LOCK(cs_twister);
@@ -3243,12 +3298,12 @@ Value getspamposts(const Array& params, bool fHelp)
 
     Array ret;
     std::string lastMsg;
-    
+
     for( int height = max_id; height > since_id && (int)ret.size() < count; height-- ) {
         CBlockIndex* pblockindex = FindBlockByHeight(height);
         CBlock block;
         ReadBlockFromDisk(block, pblockindex);
-        
+
         const CTransaction &tx = block.vtx[0];
         if( tx.IsSpamMessage() ) {
             std::string spamMessage = tx.message.ExtractPushDataString(0);
@@ -3281,9 +3336,9 @@ Value torrentstatus(const Array& params, bool fHelp)
     if( !h.is_valid() ){
         return Value();
     }
-    
+
     torrent_status status = h.status();
-    
+
     Object result;
     result.push_back(Pair("state", status.state));
     result.push_back(Pair("paused", status.paused));
@@ -3302,13 +3357,13 @@ Value torrentstatus(const Array& params, bool fHelp)
     result.push_back(Pair("has_incoming", status.has_incoming));
     result.push_back(Pair("priority", status.priority));
     result.push_back(Pair("queue_position", status.queue_position));
-    
+
     Array peers;
     std::vector<peer_info> peerInfos;
     h.get_peer_info(peerInfos);
     BOOST_FOREACH(const peer_info &p, peerInfos) {
         Object info;
-        info.push_back(Pair("addr", p.ip.address().to_string() + ":" + 
+        info.push_back(Pair("addr", p.ip.address().to_string() + ":" +
                             boost::lexical_cast<std::string>(p.ip.port())));
         char flags[10];
         sprintf(flags,"0x%x",p.flags);
@@ -3324,7 +3379,7 @@ Value torrentstatus(const Array& params, bool fHelp)
         peers.push_back(info);
     }
     result.push_back(Pair("peers", peers));
-    
+
     return result;
 }
 
@@ -3462,7 +3517,7 @@ lazy_entry const* TextSearch::matchRawMessage(string const &rawMessage, lazy_ent
 
     int pos;
     libtorrent::error_code ec;
-    if (lazy_bdecode(rawMessage.data(), rawMessage.data()+rawMessage.size(), v, ec, &pos) == 0 && 
+    if (lazy_bdecode(rawMessage.data(), rawMessage.data()+rawMessage.size(), v, ec, &pos) == 0 &&
         v.type() == lazy_entry::dict_t) {
         lazy_entry const* vv = v.dict_find_dict("v");
         lazy_entry const* post = vv ? vv->dict_find_dict("userpost") : v.dict_find_dict("userpost");
@@ -3833,7 +3888,7 @@ Object getLibtorrentSessionStatus()
     boost::shared_ptr<session> ses(m_ses);
     if( ses ) {
         session_status stats = ses->status();
-        
+
         obj.push_back( Pair("ext_addr_net2", stats.external_addr_v4) );
 
         obj.push_back( Pair("dht_torrents", stats.dht_torrents) );
@@ -4189,7 +4244,7 @@ Value peekpost(const Array& params, bool fHelp)
         lazy_entry v;
         int pos;
         libtorrent::error_code ec;
-        if(pieces.size() && 
+        if(pieces.size() &&
            lazy_bdecode(pieces[0].data(), pieces[0].data()+pieces[0].size(), v, ec, &pos) == 0 &&
            v.type() == lazy_entry::dict_t) {
             printf("peekpiece: got piece (%s,%d) from local torrent\n",strUsername.c_str(), k);
@@ -4366,12 +4421,12 @@ Value newshorturl(const Array& params, bool fHelp)
     vch.resize(8);
     le32enc(&vch[0], res.get_int());
     le32enc(&vch[4], k);
-    
+
     string uid_k_64 = EncodeBase64(&vch[0], vch.size());
-    
+
     Array uriOptions;
     uriOptions.push_back(string("twist:")+uid_k_64);
-    
+
     return uriOptions;
 }
 
@@ -4396,7 +4451,7 @@ Value decodeshorturl(const Array& params, bool fHelp)
     if (uid_k_64.length() < 12) {
         throw JSONRPCError(RPC_PARSE_ERROR, "base64 string too small");
     }
-    
+
     string vch = DecodeBase64(uid_k_64);
     int uid = le32dec(&vch[0]);
     int k = le32dec(&vch[4]);
@@ -4407,9 +4462,9 @@ Value decodeshorturl(const Array& params, bool fHelp)
     paramsSub.clear();
     paramsSub.push_back(uid);
     res = uidtousername(paramsSub, false);
-    
+
     string strUsername = res.get_str();
-    
+
     paramsSub.clear();
     paramsSub.push_back(strUsername);
     paramsSub.push_back(k);
