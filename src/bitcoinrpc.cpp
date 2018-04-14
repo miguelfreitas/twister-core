@@ -35,6 +35,29 @@
 #include <fstream>
 #include <streambuf>
 
+#include <websocketpp/config/asio_no_tls_client.hpp>
+#include <websocketpp/client.hpp>
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+#include <websocketpp/config/asio.hpp>
+#include <websocketpp/config/asio_client.hpp>
+
+typedef websocketpp::server<websocketpp::config::asio> wsserver;
+typedef websocketpp::client<websocketpp::config::asio_client> wsclient;
+
+typedef websocketpp::server<websocketpp::config::asio_tls> swsserver;
+typedef websocketpp::client<websocketpp::config::asio_tls_client> swsclient;
+
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::placeholders::_2;
+
+typedef websocketpp::config::asio_client::message_type::ptr message_ptr;
+typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> context_ptr;
+
+wsserver wss;
+swsserver swss;
+vector<websocketpp::connection_hdl> wsconnections;
+
 using namespace std;
 using namespace boost;
 using namespace boost::asio;
@@ -290,6 +313,7 @@ static const CRPCCommand vRPCCommands[] =
     { "uidtousername",          &uidtousername,          false,     true,       true },
     { "newshorturl",            &newshorturl,            false,     true,       false },
     { "decodeshorturl",         &decodeshorturl,         false,     true,       true },
+//    { "openwebsocket",          &openwebsocket,          false,     true,       true },
 };
 
 CRPCTable::CRPCTable()
@@ -759,8 +783,127 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol> 
     }
 }
 
+template <class WST>
+void on_message_server(WST *s, websocketpp::connection_hdl hdl, message_ptr msg);
+template <class WST>
+void on_connection(WST *s, websocketpp::connection_hdl hdl)
+{
+    wsconnections.push_back(hdl);
+
+    s->send(hdl, "{\"result\":\"twister WEB Socket...\"}", websocketpp::frame::opcode::text);
+}
+template <class WST>
+void on_close(WST *s, websocketpp::connection_hdl hdl)
+{
+    typename WST::connection_ptr con = s->get_con_from_hdl(hdl);
+    vector<websocketpp::connection_hdl>::iterator it;
+    for (it = wsconnections.begin(); it != wsconnections.end(); ++it)
+    {
+        if (s->get_con_from_hdl(*it) == con)
+        {
+            wsconnections.erase(it);
+            break;
+        }
+    }
+}
+
+context_ptr on_tls_init(websocketpp::connection_hdl hdl)
+{
+    namespace asio = websocketpp::lib::asio;
+
+    context_ptr ctx = websocketpp::lib::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
+
+    try
+    {
+        ctx->set_options(asio::ssl::context::default_workarounds |
+                         asio::ssl::context::no_sslv2 |
+                         asio::ssl::context::no_sslv3 |
+                         asio::ssl::context::single_dh_use);
+
+        ctx->use_certificate_chain_file(GetArg("-rpcsslcertificatechainfile", "server.cert"));
+        ctx->use_private_key_file(GetArg("-rpcsslprivatekeyfile", "server.pem"), asio::ssl::context::pem);
+
+        std::string ciphers = GetArg("-rpcsslciphers", "TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH");
+
+        if (SSL_CTX_set_cipher_list(ctx->native_handle() , ciphers.c_str()) != 1)
+            std::cout << "Error setting cipher list" << std::endl;
+    }
+    catch (std::exception& e)
+    {
+        std::cout << "Exception: " << e.what() << std::endl;
+    }
+    return ctx;
+}
+
+void set_ws_tls_handler(swsserver &ws)
+{
+    ws.set_tls_init_handler(websocketpp::lib::bind(&on_tls_init, ::_1));
+}
+
+void set_ws_tls_handler(wsserver &ws){}
+
+void set_ws_tls_handler(swsclient &ws)
+{
+    ws.set_tls_init_handler(websocketpp::lib::bind(&on_tls_init, ::_1));
+}
+
+void set_ws_tls_handler(wsclient &ws){}
+
+template <class WST>
+void StartWSServer(WST &ws)
+{
+    //wsserver ws;
+
+    try {
+        // Set logging settings
+        //ws.set_access_channels(websocketpp::log::alevel::all);
+        //ws.clear_access_channels(websocketpp::log::alevel::frame_payload);
+        ws.set_access_channels(websocketpp::log::alevel::none);
+        ws.clear_access_channels(websocketpp::log::alevel::all);
+
+
+        // Initialize Asio
+        ws.init_asio();
+
+        // Register our message handler
+        ws.set_message_handler(websocketpp::lib::bind(&on_message_server<WST>, &ws, ::_1, ::_2));
+        ws.set_open_handler(websocketpp::lib::bind(&on_connection<WST>, &ws, ::_1));
+        ws.set_close_handler(websocketpp::lib::bind(&on_close<WST>, &ws, ::_1));
+
+        set_ws_tls_handler(ws);
+
+        // Listen
+        ws.listen(GetArg("-wsport", GetArg("-rpcport", Params().RPCPort()) + 1000));
+
+        // Start the server accept loop
+        ws.start_accept();
+
+        // Start the ASIO io_service run loop
+        ws.run();
+    }
+    catch (websocketpp::exception const & e)
+    {
+        std::cout << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cout << "other exception" << std::endl;
+    }
+}
+
 void StartRPCThreads()
 {
+    const bool fUseSSL = GetBoolArg("-rpcssl", false);
+    if (GetBoolArg("-websocket", false))
+    {
+        if (fUseSSL)
+            boost::thread wst(boost::bind(&StartWSServer<swsserver>, boost::ref<swsserver>(swss)));
+        else
+            boost::thread wst(boost::bind(&StartWSServer<wsserver>, boost::ref<wsserver>(wss)));
+    }
+    if (!GetBoolArg("-jsonrpc", true))
+        return;
+
     strRPCUserColonPass = mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"];
     if (((mapArgs["-rpcpassword"] == "") ||
          (mapArgs["-rpcuser"] == mapArgs["-rpcpassword"])) && Params().RequireRPCPassword())
@@ -795,8 +938,6 @@ void StartRPCThreads()
     assert(rpc_io_service == NULL);
     rpc_io_service = new asio::io_service();
     rpc_ssl_context = new ssl::context(ssl::context::sslv23);
-
-    const bool fUseSSL = GetBoolArg("-rpcssl", false);
 
     if (fUseSSL)
     {
@@ -907,7 +1048,7 @@ void RPCRunLater(const std::string& name, boost::function<void(void)> func, int6
                                         boost::shared_ptr<deadline_timer>(new deadline_timer(*rpc_io_service))));
     }
     deadlineTimers[name]->expires_from_now(posix_time::seconds(nSeconds));
-    deadlineTimers[name]->async_wait(boost::bind(RPCRunHandler, _1, func));
+    deadlineTimers[name]->async_wait(boost::bind(RPCRunHandler, boost::placeholders::_1, func));
 }
 
 
@@ -1025,7 +1166,7 @@ void ServiceConnection(AcceptedConnection *conn)
 
         if (mapHeaders["connection"] == "close")
             fRun = false;
-        
+
         if(strMethod == "GET" && strURI == "/")
             strURI="/home.html";
 
@@ -1145,7 +1286,7 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
     const CRPCCommand *pcmd = tableRPC[strMethod];
     if (!pcmd)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
-    
+
     if(!pcmd->allowOnPublicServer && GetBoolArg("-public_server_mode",false))
         throw JSONRPCError(RPC_FORBIDDEN_ON_PUBLIC_SERVER, "Forbidden: accessing this method is not allowed on a public server");
 
@@ -1175,9 +1316,152 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
     }
 }
 
+template <class WST>
+void on_message_client(WST* c, websocketpp::connection_hdl hdl, message_ptr msg)
+{
+    string strPrint;
+    int nRet = 0;
+
+    try
+    {
+        // Parse reply
+        Value valReply;
+        if (!read_string(msg->get_payload(), valReply))
+            throw runtime_error("couldn't parse reply from server");
+        const Object& reply = valReply.get_obj();
+        if (reply.empty())
+            throw runtime_error("expected reply to have result, error and id properties");
+
+        // Parse reply
+        const Value& result = find_value(reply, "result");
+        const Value& error  = find_value(reply, "error");
+
+        if (error.type() != null_type)
+        {
+            // Error
+            strPrint = "error: " + write_string(error, false);
+            int code = find_value(error.get_obj(), "code").get_int();
+            nRet = abs(code);
+        }
+        else
+        {
+            // Result
+            if (result.type() == null_type)
+                strPrint = "";
+            else if (result.type() == str_type)
+                strPrint = result.get_str();
+            else
+                strPrint = write_string(result, true);
+        }
+    }
+    catch (boost::thread_interrupted)
+    {
+        throw;
+    }
+    catch (std::exception& e) {
+        strPrint = string("error: ") + e.what();
+        nRet = 87;
+    }
+    catch (...)
+    {
+        PrintException(NULL, "CommandLineRPC()");
+    }
+
+    if (strPrint != "")
+    {
+        fprintf((nRet == 0 ? stdout : stderr), "%s\n", strPrint.c_str());
+    }
+}
+
+template <class WST>
+Object StartWSClient(bool fUseSSL)
+{
+    WST c;
+
+    stringstream ssuri;
+    ssuri << "ws" << (fUseSSL ? "s" : "") <<"://" << GetArg("-rpcconnect", "127.0.0.1") << ":" << GetArg("-wsport", GetArg("-rpcport", Params().RPCPort()) + 1000);
+
+    try
+    {
+        // Set logging to be pretty verbose (everything except message payloads)
+        //c.set_access_channels(websocketpp::log::alevel::all);
+        //c.clear_access_channels(websocketpp::log::alevel::frame_payload);
+        c.set_access_channels(websocketpp::log::alevel::none);
+        c.clear_access_channels(websocketpp::log::alevel::all);
+
+        // Initialize ASIO
+        c.init_asio();
+        //c.start_perpetual();
+        boost::thread wsth(boost::bind(&WST::run, &c));
+
+        // Register our message handler
+        c.set_message_handler(websocketpp::lib::bind(&on_message_client<WST>, &c, ::_1, ::_2));
+        set_ws_tls_handler(c);
+
+        websocketpp::lib::error_code ec;
+        typename WST::connection_ptr con = c.get_connection(ssuri.str(), ec);
+        if (ec) {
+            std::cout << "could not create connection because: " << ec.message() << std::endl;
+            Object reply;
+            reply.push_back(Pair("error", ec.message()));
+            return reply;
+        }
+
+        // Note that connect here only requests a connection. No network messages are
+        // exchanged until the event loop starts running in the next line.
+        c.connect(con);
+
+        // Start the ASIO io_service run loop
+        // this will cause a single connection to be made to the server. c.run()
+        // will exit when this connection is closed.
+        //c.run();
+
+        string strCommand;
+        while (strCommand != "closewebsocket" && strCommand != "stop")
+        {
+            getline(cin, strCommand);
+
+            vector<string> tokens;
+            boost::algorithm::split(tokens, strCommand, boost::algorithm::is_any_of(" "));
+
+            // Method
+            if (tokens.size() < 1)
+                continue;
+            vector<string>::iterator it = tokens.begin();
+            string method = *it;
+
+            // Parameters default to strings
+            vector<string> strParams(++it, tokens.end());
+            Array params = RPCConvertValues(method, strParams);
+
+            string strRequest = JSONRPCRequest(method, params, 1);
+            c.send(con->get_handle(), strRequest, websocketpp::frame::opcode::text);
+        }
+    }
+    catch (websocketpp::exception const & e)
+    {
+        std::cout << e.what() << std::endl;
+
+        Object reply;
+        reply.push_back(Pair("error", e.what()));
+        return reply;
+    }
+    Object reply;
+    reply.push_back(Pair("result", "OK"));
+    return reply;
+}
 
 Object CallRPC(const string& strMethod, const Array& params)
 {
+    bool fUseSSL = GetBoolArg("-rpcssl", false);
+    if (strMethod == "openwebsocket")
+    {
+        if (fUseSSL)
+            return StartWSClient<swsclient>(fUseSSL);
+        else
+            return StartWSClient<wsclient>(fUseSSL);
+    }
+
     if (mapArgs["-rpcuser"] == "" && mapArgs["-rpcpassword"] == "")
         throw runtime_error(strprintf(
             _("You must set rpcpassword=<password> in the configuration file:\n%s\n"
@@ -1185,7 +1469,6 @@ Object CallRPC(const string& strMethod, const Array& params)
                 GetConfigFile().string().c_str()));
 
     // Connect to localhost
-    bool fUseSSL = GetBoolArg("-rpcssl", false);
     asio::io_service io_service;
     ssl::context context(ssl::context::sslv23);
     context.set_options(ssl::context::no_sslv2);
@@ -1445,7 +1728,95 @@ int CommandLineRPC(int argc, char *argv[])
     return nRet;
 }
 
+template <class WST>
+void on_message_server(WST* s, websocketpp::connection_hdl hdl, message_ptr msg)
+{
+    /*
+    std::cout << "on_message called with hdl: " << hdl.lock().get()
+              << " and message: " << msg->get_payload()
+              << std::endl;
+    */
 
+    // check for a special command to instruct the server to stop listening so
+    // it can be cleanly exited.
+    if (msg->get_payload() == "closewebsocket")
+    {
+        s->stop_listening();
+        return;
+    }
+
+    JSONRequest jreq;
+    string strReply;
+    try
+    {
+        // Parse request
+        Value valRequest;
+        if (!read_string(msg->get_payload(), valRequest))
+            throw JSONRPCError(RPC_PARSE_ERROR, "Parse error");
+
+        // singleton request
+        if (valRequest.type() == obj_type)
+        {
+            jreq.parse(valRequest);
+
+            Value result = tableRPC.execute(jreq.strMethod, jreq.params);
+
+            // Send reply
+            strReply = JSONRPCReply(result, Value::null, jreq.id);
+
+            if (jreq.strMethod == "stop")
+                s->stop_listening();
+        }
+        else if (valRequest.type() == array_type)
+            strReply = JSONRPCExecBatch(valRequest.get_array());
+        else
+            throw JSONRPCError(RPC_PARSE_ERROR, "Top-level object parse error");
+    }
+    catch (Object& objError)
+    {
+        strReply = JSONRPCReply(Value::null, objError, jreq.id);
+    }
+    catch (std::exception& e)
+    {
+        strReply = e.what();
+    }
+
+    try
+    {
+        s->send(hdl, strReply, msg->get_opcode());
+    }
+    catch (const websocketpp::lib::error_code& e)
+    {
+        std::cout << "Echo failed because: " << e
+                  << "(" << e.message() << ")" << std::endl;
+    }
+}
+
+void WriteToWS(Value const& val)
+{
+    string strPrint;
+    bool fUseSSL = GetBoolArg("-rpcssl", false);
+
+    if (val.type() == null_type)
+        return;
+    else if (val.type() == str_type)
+        strPrint = val.get_str();
+    else
+        strPrint = write_string(val, false);
+
+    for (vector<websocketpp::connection_hdl>::iterator it = wsconnections.begin(); it != wsconnections.end(); ++it)
+    {
+        websocketpp::lib::error_code ec;
+        if (fUseSSL)
+            swss.send(*it, strPrint, websocketpp::frame::opcode::text, ec);
+        else
+            wss.send(*it, strPrint, websocketpp::frame::opcode::text, ec);
+        if (ec)
+        {
+            cout << "ERROR : " << ec.message() << endl << ec << endl;
+        }
+    }
+}
 
 
 #ifdef TEST
