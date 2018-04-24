@@ -1440,7 +1440,7 @@ bool processReceivedDM(lazy_entry const* post)
                     } else {
                         storeNewDM(item.second.username, fromMe ? to : from, stoDM);
                     }
-
+#ifdef ENABLE_WS
                     if (GetBoolArg("-websocket", false) && !fromMe)
                     {
                         Object dm;
@@ -1456,7 +1456,7 @@ bool processReceivedDM(lazy_entry const* post)
 
                         WriteToWS(dm);
                     }
-
+#endif // ENABLE_WS
                     break;
                 }
             }
@@ -1500,7 +1500,7 @@ void processReceivedPost(lazy_entry const &v, std::string &username, int64 time,
                     entry vEntry;
                     vEntry = v;
                     m_users[mentionUser].m_mentionsPosts.push_back(vEntry);
-
+#ifdef ENABLE_WS
                     if (GetBoolArg("-websocket", false))
                     {
                         Object obj;
@@ -1513,11 +1513,12 @@ void processReceivedPost(lazy_entry const &v, std::string &username, int64 time,
 
                         WriteToWS(obj);
                     }
+#endif // ENABLE_WS
                 }
             }
         }
     }
-
+#ifdef ENABLE_WS
     if (GetBoolArg("-websocket", false))
     {
         entry vEntry;
@@ -1540,6 +1541,7 @@ void processReceivedPost(lazy_entry const &v, std::string &username, int64 time,
             }
         }
     }
+#endif // ENABLE_WS
 }
 
 bool acceptSignedPost(char const *data, int data_size, std::string username, int seq, std::string &errmsg, boost::uint32_t *flags)

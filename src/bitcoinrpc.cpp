@@ -35,6 +35,7 @@
 #include <fstream>
 #include <streambuf>
 
+#ifdef ENABLE_WS
 #include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_no_tls.hpp>
@@ -57,6 +58,7 @@ typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> conte
 wsserver wss;
 swsserver swss;
 vector<websocketpp::connection_hdl> wsconnections;
+#endif // ENABLE_WS
 
 using namespace std;
 using namespace boost;
@@ -313,7 +315,6 @@ static const CRPCCommand vRPCCommands[] =
     { "uidtousername",          &uidtousername,          false,     true,       true },
     { "newshorturl",            &newshorturl,            false,     true,       false },
     { "decodeshorturl",         &decodeshorturl,         false,     true,       true },
-//    { "openwebsocket",          &openwebsocket,          false,     true,       true },
 };
 
 CRPCTable::CRPCTable()
@@ -783,6 +784,7 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol> 
     }
 }
 
+#ifdef ENABLE_WS
 template <class WST>
 void on_message_server(WST *s, websocketpp::connection_hdl hdl, message_ptr msg);
 template <class WST>
@@ -890,10 +892,12 @@ void StartWSServer(WST &ws)
         std::cout << "other exception" << std::endl;
     }
 }
+#endif // ENABLE_WS
 
 void StartRPCThreads()
 {
     const bool fUseSSL = GetBoolArg("-rpcssl", false);
+#ifdef ENABLE_WS
     if (GetBoolArg("-websocket", false))
     {
         if (fUseSSL)
@@ -901,8 +905,7 @@ void StartRPCThreads()
         else
             boost::thread wst(boost::bind(&StartWSServer<wsserver>, boost::ref<wsserver>(wss)));
     }
-    if (!GetBoolArg("-jsonrpc", true))
-        return;
+#endif // ENABLE_WS
 
     strRPCUserColonPass = mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"];
     if (((mapArgs["-rpcpassword"] == "") ||
@@ -1316,6 +1319,7 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
     }
 }
 
+#ifdef ENABLE_WS
 template <class WST>
 void on_message_client(WST* c, websocketpp::connection_hdl hdl, message_ptr msg)
 {
@@ -1450,10 +1454,12 @@ Object StartWSClient(bool fUseSSL)
     reply.push_back(Pair("result", "OK"));
     return reply;
 }
+#endif // ENABLE_WS
 
 Object CallRPC(const string& strMethod, const Array& params)
 {
     bool fUseSSL = GetBoolArg("-rpcssl", false);
+#ifdef ENABLE_WS
     if (strMethod == "openwebsocket")
     {
         if (fUseSSL)
@@ -1461,6 +1467,7 @@ Object CallRPC(const string& strMethod, const Array& params)
         else
             return StartWSClient<wsclient>(fUseSSL);
     }
+#endif // ENABLE_WS
 
     if (mapArgs["-rpcuser"] == "" && mapArgs["-rpcpassword"] == "")
         throw runtime_error(strprintf(
@@ -1728,6 +1735,7 @@ int CommandLineRPC(int argc, char *argv[])
     return nRet;
 }
 
+#ifdef ENABLE_WS
 template <class WST>
 void on_message_server(WST* s, websocketpp::connection_hdl hdl, message_ptr msg)
 {
@@ -1817,7 +1825,7 @@ void WriteToWS(Value const& val)
         }
     }
 }
-
+#endif // ENABLE_WS
 
 #ifdef TEST
 int main(int argc, char *argv[])
