@@ -189,6 +189,7 @@ twisterd_LDADD = $(LIBLEVELDB) $(LIBMEMENV) \
 
 AM_CPPFLAGS = -ftemplate-depth-100 -DBOOST_SPIRIT_THREADSAFE -D_FILE_OFFSET_BITS=64 \
     -I$(top_srcdir)/libtorrent/include \
+	-I$(top_srcdir)/websocketpp \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/src/leveldb/include -I$(top_srcdir)/src/leveldb/helpers \
     @DEBUGFLAGS@ @BOOST_CPPFLAGS@ @OPENSSL_INCLUDES@ @DB_CXX_CPPFLAGS@

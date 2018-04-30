@@ -74,6 +74,10 @@ void StartRPCThreads();
 void StopRPCThreads();
 int CommandLineRPC(int argc, char *argv[]);
 
+#ifdef ENABLE_WS
+void WriteToWS(json_spirit::Value const& val);
+#endif // ENABLE_WS
+
 /** Convert parameter values for RPC call from strings to command-specific JSON objects. */
 json_spirit::Array RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams);
 
