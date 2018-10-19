@@ -36,7 +36,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <boost/cstdint.hpp>
 
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 106700
+#include <boost/next_prior.hpp>
+#else
 #include <boost/utility.hpp>
+#endif
+
 #include <boost/tuple/tuple.hpp>
 #include <boost/array.hpp>
 #include <set>
@@ -220,4 +226,3 @@ private:
 } } // namespace libtorrent::dht
 
 #endif // ROUTING_TABLE_HPP
-
