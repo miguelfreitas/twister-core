@@ -40,8 +40,14 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma warning(push, 1)
 #endif
 
-#include <boost/limits.hpp>
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 106700
+#include <boost/next_prior.hpp>
+#else
 #include <boost/utility.hpp>
+#endif
+
+#include <boost/limits.hpp>
 #include <boost/tuple/tuple.hpp>
 
 #ifdef _MSC_VER
@@ -312,4 +318,3 @@ private:
 }
 
 #endif
-
