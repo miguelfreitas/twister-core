@@ -33,6 +33,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef TORRENT_PROXY_BASE_HPP_INCLUDED
 #define TORRENT_PROXY_BASE_HPP_INCLUDED
 
+#include <boost/noncopyable.hpp>
+
 #include "libtorrent/io.hpp"
 #include "libtorrent/io_service_fwd.hpp"
 #include "libtorrent/socket.hpp"
