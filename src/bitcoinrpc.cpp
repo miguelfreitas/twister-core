@@ -645,7 +645,11 @@ public:
     }
     bool connect(const std::string& server, const std::string& port)
     {
+#if BOOST_VERSION >= 107000
+        ip::tcp::resolver resolver(static_cast<io_service&>(stream.get_executor().context()));
+#else
         ip::tcp::resolver resolver(stream.get_io_service());
+#endif
         ip::tcp::resolver::query query(server.c_str(), port.c_str());
         ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
         ip::tcp::resolver::iterator end;
@@ -732,7 +736,11 @@ static void RPCListen(boost::shared_ptr< basic_socket_acceptor<Protocol> > accep
                    const bool fUseSSL)
 {
     // Accept connection
+#if BOOST_VERSION >= 107000
+    AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(static_cast<io_service&>(acceptor->get_executor().context()), context, fUseSSL);
+#else
     AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL);
+#endif
 
     acceptor->async_accept(
             conn->sslStream.lowest_layer(),
