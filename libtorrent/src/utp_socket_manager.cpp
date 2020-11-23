@@ -111,7 +111,7 @@ namespace libtorrent
 		{
 			m_last_route_update = time_now();
 			error_code ec;
-			m_routes = enum_routes(m_sock.get_io_service(), ec);
+			m_routes = enum_routes(get_io_service(m_sock), ec);
 		}
 
 		int mtu = 0;
@@ -220,7 +220,7 @@ namespace libtorrent
 		{
 			m_last_route_update = time_now();
 			error_code ec;
-			m_routes = enum_routes(m_sock.get_io_service(), ec);
+			m_routes = enum_routes(get_io_service(m_sock), ec);
 			if (ec) return socket_ep;
 		}
 
@@ -251,7 +251,7 @@ namespace libtorrent
 		{
 			m_last_if_update = time_now();
 			error_code ec;
-			m_interfaces = enum_net_interfaces(m_sock.get_io_service(), ec);
+			m_interfaces = enum_net_interfaces(get_io_service(m_sock), ec);
 			if (ec) return socket_ep;
 		}
 
@@ -320,14 +320,14 @@ namespace libtorrent
 
 //			UTP_LOGV("not found, new connection id:%d\n", m_new_connection);
 
-			boost::shared_ptr<socket_type> c(new (std::nothrow) socket_type(m_sock.get_io_service()));
+			boost::shared_ptr<socket_type> c(new (std::nothrow) socket_type(get_io_service(m_sock)));
 			if (!c) return false;
 
 			TORRENT_ASSERT(m_new_connection == -1);
 			// create the new socket with this ID
 			m_new_connection = id;
 
-			instantiate_connection(m_sock.get_io_service(), proxy_settings(), *c, 0, this);
+			instantiate_connection(get_io_service(m_sock), proxy_settings(), *c, 0, this);
 			utp_stream* str = c->get<utp_stream>();
 			TORRENT_ASSERT(str);
 			int link_mtu, utp_mtu;

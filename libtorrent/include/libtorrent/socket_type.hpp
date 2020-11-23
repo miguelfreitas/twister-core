@@ -182,7 +182,11 @@ namespace libtorrent
 	{
 		typedef stream_socket::endpoint_type endpoint_type;
 		typedef stream_socket::protocol_type protocol_type;
-	
+
+#if BOOST_VERSION >= 106600
+		typedef tcp::socket::executor_type executor_type;
+#endif
+
 		explicit socket_type(io_service& ios): m_io_service(ios), m_type(0) {}
 		~socket_type();
 

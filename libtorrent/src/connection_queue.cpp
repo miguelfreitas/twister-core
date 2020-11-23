@@ -100,7 +100,7 @@ namespace libtorrent
 
 		if (m_num_connecting < m_half_open_limit
 			|| m_half_open_limit == 0)
-			m_timer.get_io_service().post(boost::bind(
+			get_io_service(m_timer).post(boost::bind(
 				&connection_queue::on_try_connect, this));
 	}
 
@@ -122,7 +122,7 @@ namespace libtorrent
 
 		if (m_num_connecting < m_half_open_limit
 			|| m_half_open_limit == 0)
-			m_timer.get_io_service().post(boost::bind(
+			get_io_service(m_timer).post(boost::bind(
 				&connection_queue::on_try_connect, this));
 	}
 

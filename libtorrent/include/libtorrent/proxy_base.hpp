@@ -229,7 +229,7 @@ public:
 
 	io_service& get_io_service()
 	{
-		return m_sock.get_io_service();
+		return libtorrent::get_io_service(m_sock);
 	}
 
 	lowest_layer_type& lowest_layer()
