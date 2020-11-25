@@ -80,7 +80,8 @@ namespace libtorrent
 #endif
 				;
 		}
-		io_service& get_io_service() { return m_ipv4_sock.get_io_service(); }
+		io_service& get_io_service() { return libtorrent::get_io_service(m_ipv4_sock); }
+		udp::socket::executor_type get_executor() { return m_ipv4_sock.get_executor(); }
 
 		void subscribe(udp_socket_observer* o);
 		void unsubscribe(udp_socket_observer* o);

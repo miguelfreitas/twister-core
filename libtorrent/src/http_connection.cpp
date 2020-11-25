@@ -134,14 +134,14 @@ void http_connection::get(std::string const& url, time_duration timeout, int pri
 		)
 	{
 		error_code ec(errors::unsupported_url_protocol);
-		m_resolver.get_io_service().post(boost::bind(&http_connection::callback
+		get_io_service(m_resolver).post(boost::bind(&http_connection::callback
 			, me, ec, (char*)0, 0));
 		return;
 	}
 
 	if (ec)
 	{
-		m_resolver.get_io_service().post(boost::bind(&http_connection::callback
+		get_io_service(m_resolver).post(boost::bind(&http_connection::callback
 			, me, ec, (char*)0, 0));
 		return;
 	}
@@ -239,7 +239,7 @@ void http_connection::start(std::string const& hostname, std::string const& port
 
 	if (ec)
 	{
-		m_resolver.get_io_service().post(boost::bind(&http_connection::callback
+		get_io_service(m_resolver).post(boost::bind(&http_connection::callback
 			, me, ec, (char*)0, 0));
 		return;
 	}
@@ -279,7 +279,7 @@ void http_connection::start(std::string const& hostname, std::string const& port
 #if TORRENT_USE_I2P
 		if (is_i2p && i2p_conn->proxy().type != proxy_settings::i2p_proxy)
 		{
-			m_resolver.get_io_service().post(boost::bind(&http_connection::callback
+			get_io_service(m_resolver).post(boost::bind(&http_connection::callback
 				, me, error_code(errors::no_i2p_router, get_libtorrent_category()), (char*)0, 0));
 			return;
 		}
@@ -319,7 +319,7 @@ void http_connection::start(std::string const& hostname, std::string const& port
 			userdata = m_ssl_ctx;
 		}
 #endif
-		instantiate_connection(m_resolver.get_io_service()
+		instantiate_connection(get_io_service(m_resolver)
 			, proxy ? *proxy : null_proxy, m_sock, userdata);
 
 		if (m_bind_addr != address_v4::any())
@@ -329,7 +329,7 @@ void http_connection::start(std::string const& hostname, std::string const& port
 			m_sock.bind(tcp::endpoint(m_bind_addr, 0), ec);
 			if (ec)
 			{
-				m_resolver.get_io_service().post(boost::bind(&http_connection::callback
+				get_io_service(m_resolver).post(boost::bind(&http_connection::callback
 					, me, ec, (char*)0, 0));
 				return;
 			}
@@ -338,7 +338,7 @@ void http_connection::start(std::string const& hostname, std::string const& port
 		setup_ssl_hostname(m_sock, hostname, ec);
 		if (ec)
 		{
-			m_resolver.get_io_service().post(boost::bind(&http_connection::callback
+			get_io_service(m_resolver).post(boost::bind(&http_connection::callback
 				, me, ec, (char*)0, 0));
 			return;
 		}
