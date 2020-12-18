@@ -1,13 +1,13 @@
 #
 # Dockerfile for building Twister peer-to-peer micro-blogging
 #
-FROM ubuntu:14.04
+FROM ubuntu:20.04
 
 # Install twister-core
 RUN apt-get update
-RUN apt-get install -y git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev && apt-get clean
-#RUN git clone https://github.com/miguelfreitas/twister-core.git
-ADD . /twister-core
+RUN DEBIAN_FRONTEND=noninteractive  apt-get install -y iproute2 git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev automake
+RUN git clone https://github.com/miguelfreitas/twister-core.git
+COPY . /twister-core
 RUN cd twister-core && \
     ./bootstrap.sh && \
     make
