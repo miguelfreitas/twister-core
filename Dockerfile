@@ -5,7 +5,7 @@ FROM ubuntu:20.04
 
 # Install twister-core
 RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive  apt-get install -y iproute2 git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev automake
+RUN DEBIAN_FRONTEND=noninteractive  apt-get install -y iproute2 git autoconf libtool build-essential libboost-all-dev libssl-dev libdb++-dev libminiupnpc-dev automake && apt-get clean
 RUN git clone https://github.com/miguelfreitas/twister-core.git
 COPY . /twister-core
 RUN cd twister-core && \
