@@ -43,7 +43,7 @@ The above command downloads and runs a [pre-built image](https://registry.hub.do
 ## License
 
 Bitcoin is released under the terms of the MIT license. See `COPYING` for more
-information or see http://opensource.org/licenses/MIT.
+information or see https://opensource.org/licenses/MIT.
 
 libtorrent is released under the BSD-license.
 
