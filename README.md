@@ -1,6 +1,6 @@
 # twister - p2p microblogging
 
-<http://www.twister.net.co>
+<http://twister.net.co>
 
 Bitcoin Copyright (c) 2009 - 2013 Bitcoin Core developers  
 libtorrent Copyright (c) 2003 - 2007, Arvid Norberg  
