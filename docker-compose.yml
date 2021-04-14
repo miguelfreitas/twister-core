@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  twister-core:
+    container_name: twister-core
+    build:
+      context: . 
+    image: miguelfreitas/twister
+    ports:
+      - "28332:28332"
+    volumes:
+      - ~/.twister:/root/.twister
