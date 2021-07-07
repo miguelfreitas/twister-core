@@ -10,7 +10,7 @@ Tested on a pristine:
 1. git clone https://github.com/miguelfreitas/twister-core.git
 1. cd twister-core
 1. ./autotool.sh
-1. ./configure
+1. ./configure (on ARM architectures, run: `./configure --with-boost-libdir=/usr/lib/arm-linux-gnueabihf --disable-sse2`)
 1. make
 
 ## Configuration & web gui
