@@ -1,7 +1,8 @@
 # Ubuntu / Debian building instructions
 
 Tested on a pristine:
- - Ubuntu 13.10 amd64
+ - Ubuntu 20.04 amd64
+ - Ubuntu 20.04 arm
 
 ## Install
 
