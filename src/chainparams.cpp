@@ -223,7 +223,8 @@ public:
         vSeeds.push_back(CDNSSeedData("cruller.tasty.sexy", "cruller.tasty.sexy"));
         vSeeds.push_back(CDNSSeedData("twister-seeder.muh.freedu.ms", "twister-seeder.muh.freedu.ms"));
         vSeeds.push_back(CDNSSeedData("twisterarmyseed.tk", "twisterarmyseed.tk"));
-        
+        vSeeds.push_back(CDNSSeedData("twisterarmy.org", "seed.twisterarmy.org"));
+
         base58Prefixes[PUBKEY_ADDRESS] = 0;
         base58Prefixes[SCRIPT_ADDRESS] = 5;
         base58Prefixes[SECRET_KEY] = 128;
