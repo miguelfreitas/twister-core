@@ -57,7 +57,7 @@ namespace libtorrent {
 		void post_alert(const alert& alert_);
 		void post_alert_ptr(alert* alert_);
 		bool pending() const;
-		std::auto_ptr<alert> get();
+		std::unique_ptr<alert> get();
 		void get_all(std::deque<alert*>* alerts);
 
 		template <class T>
@@ -86,21 +86,21 @@ namespace libtorrent {
 		size_t alert_queue_size_limit() const { return m_queue_size_limit; }
 		size_t set_alert_queue_size_limit(size_t queue_size_limit_);
 
-		void set_dispatch_function(boost::function<void(std::auto_ptr<alert>)> const&);
+		void set_dispatch_function(std::function<void(std::unique_ptr<alert>&&)> const&);
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		void add_extension(boost::shared_ptr<plugin> ext);
 #endif
 
 	private:
-		void post_impl(std::auto_ptr<alert>& alert_, mutex::scoped_lock& l);
+		void post_impl(std::unique_ptr<alert>&& alert_, mutex::scoped_lock& l);
 
 		std::deque<alert*> m_alerts;
 		mutable mutex m_mutex;
 		condition_variable m_condition;
 		boost::uint32_t m_alert_mask;
 		size_t m_queue_size_limit;
-		boost::function<void(std::auto_ptr<alert>)> m_dispatch;
+		std::function<void(std::unique_ptr<alert>&&)> m_dispatch;
 
 #ifndef TORRENT_DISABLE_EXTENSIONS
 		typedef std::list<boost::shared_ptr<plugin> > ses_extension_list_t;

@@ -2093,7 +2093,7 @@ bool AbortNode(const std::string &strMessage) {
 
 bool CheckDiskSpace(uint64 nAdditionalBytes)
 {
-    uint64 nFreeBytesAvailable = filesystem::space(GetDataDir()).available;
+    uint64 nFreeBytesAvailable = boost::filesystem::space(GetDataDir()).available;
 
     // Check for nMinDiskSpace bytes (currently 50MB)
     if (nFreeBytesAvailable < nMinDiskSpace + nAdditionalBytes)
@@ -3819,7 +3819,7 @@ static bool CreateSpamMsgTx(CTransaction &txNew, std::vector<unsigned char> &sal
 CBlockTemplate* CreateNewBlock(std::vector<unsigned char> &salt)
 {
     // Create new block
-    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
@@ -4132,7 +4132,7 @@ void static BitcoinMiner(CWallet *pwallet)
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrev = pindexBest;
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(salt));
+        unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(salt));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;

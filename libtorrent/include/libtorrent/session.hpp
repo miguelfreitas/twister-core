@@ -796,7 +796,7 @@ namespace libtorrent
 		// 
 		// ``save_resume_data_alert`` and ``save_resume_data_failed_alert`` are always posted, regardelss
 		// of the alert mask.
-		std::auto_ptr<alert> pop_alert();
+		std::unique_ptr<alert> pop_alert();
 		void pop_alerts(std::deque<alert*>* alerts);
 		alert const* wait_for_alert(time_duration max_wait);
 
@@ -821,7 +821,7 @@ namespace libtorrent
 		// The main intention with this function is to support integration with platform-dependent message
 		// queues or signalling systems. For instance, on windows, one could post a message to an HNWD or
 		// on linux, write to a pipe or an eventfd.
-		void set_alert_dispatch(boost::function<void(std::auto_ptr<alert>)> const& fun);
+		void set_alert_dispatch(boost::function<void(std::unique_ptr<alert>)> const& fun);
 
 		connection_queue& get_connection_queue();
 

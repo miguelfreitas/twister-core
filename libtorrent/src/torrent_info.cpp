@@ -357,7 +357,7 @@ namespace libtorrent
 
 	struct string_less_no_case
 	{
-		bool operator()(std::string const& lhs, std::string const& rhs)
+		bool operator()(std::string const& lhs, std::string const& rhs) const
 		{
 			char c1, c2;
 			char const* s1 = lhs.c_str();

@@ -73,9 +73,9 @@ void report_failure(char const* err, char const* file, int line)
 	tests_failure = true;
 }
 
-std::auto_ptr<alert> wait_for_alert(session& ses, int type)
+std::unique_ptr<alert> wait_for_alert(session& ses, int type)
 {
-	std::auto_ptr<alert> ret;
+	std::unique_ptr<alert> ret;
 	while (!ret.get())
 	{
 		ses.wait_for_alert(milliseconds(5000));
@@ -86,7 +86,7 @@ std::auto_ptr<alert> wait_for_alert(session& ses, int type)
 		{
 			if (!ret.get() && (*i)->type() == type)
 			{
-				ret = std::auto_ptr<alert>(*i);
+				ret = std::unique_ptr<alert>(*i);
 			}
 			else
 				delete *i;
