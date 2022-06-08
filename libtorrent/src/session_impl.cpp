@@ -5037,7 +5037,7 @@ retry:
 
 		TORRENT_ASSERT(is_network_thread());
 
-		std::auto_ptr<state_update_alert> alert(new state_update_alert());
+		std::unique_ptr<state_update_alert> alert(new state_update_alert());
 		alert->status.reserve(m_state_updates.size());
 
 #if defined TORRENT_DEBUG || TORRENT_RELEASE_ASSERTS
@@ -6157,12 +6157,12 @@ retry:
 		}
 	}
 
-	void session_impl::set_alert_dispatch(boost::function<void(std::auto_ptr<alert>)> const& fun)
+	void session_impl::set_alert_dispatch(boost::function<void(std::unique_ptr<alert>)> const& fun)
 	{
 		m_alerts.set_dispatch_function(fun);
 	}
 
-	std::auto_ptr<alert> session_impl::pop_alert()
+	std::unique_ptr<alert> session_impl::pop_alert()
 	{
 		return m_alerts.get();
 	}

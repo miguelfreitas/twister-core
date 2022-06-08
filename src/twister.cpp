@@ -784,7 +784,7 @@ void ThreadSessionAlerts()
                 , end(alerts.end()); i != end; ++i)
         {
                 // make sure to delete each alert
-                std::auto_ptr<alert> a(*i);
+                std::unique_ptr<alert> a(*i);
 
                 dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(*i);
                 if (rd)
@@ -2192,7 +2192,7 @@ Value dhtget(const Array& params, bool fHelp)
 
     int repliesReceived = 0;
     while( am.wait_for_alert(timeToWait) ) {
-        std::auto_ptr<alert> a(am.get());
+        std::unique_ptr<alert> a(am.get());
 
         dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
         if( rd ) {
@@ -4273,7 +4273,7 @@ Value peekpost(const Array& params, bool fHelp)
 
         // this loop receives alerts from both dht network and torrent peek extension
         while( h.is_valid() && am.wait_for_alert(timeToWait) ) {
-            std::auto_ptr<alert> a(am.get());
+            std::unique_ptr<alert> a(am.get());
 
             dht_reply_data_alert const* rd = alert_cast<dht_reply_data_alert>(&(*a));
             if( rd && rd->m_lst.size() ) {
