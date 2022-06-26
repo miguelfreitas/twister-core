@@ -154,7 +154,7 @@ To obtain the profile of another user:
 
     ./twisterd dhtget myfriend profile s
 
-To obtain the full list of commands
+To obtain the full list of commands:
 
     ./twisterd help
 
