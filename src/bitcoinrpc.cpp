@@ -1059,7 +1059,7 @@ void RPCRunLater(const std::string& name, boost::function<void(void)> func, int6
                                         boost::shared_ptr<deadline_timer>(new deadline_timer(*rpc_io_service))));
     }
     deadlineTimers[name]->expires_from_now(posix_time::seconds(nSeconds));
-    deadlineTimers[name]->async_wait(boost::bind(RPCRunHandler, boost::placeholders::_1, func));
+    deadlineTimers[name]->async_wait(boost::bind(RPCRunHandler, _1, func));
 }
 
 
