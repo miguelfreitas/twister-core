@@ -106,8 +106,8 @@ namespace libtorrent
 #define TORRENT_DEFINE_ALERT(name) \
 	const static int alert_type = __LINE__; \
 	virtual int type() const { return alert_type; } \
-	virtual std::auto_ptr<alert> clone() const \
-	{ return std::auto_ptr<alert>(new name(*this)); } \
+	virtual std::unique_ptr<alert> clone() const \
+	{ return std::unique_ptr<alert>(new name(*this)); } \
 	virtual int category() const { return static_category; } \
 	virtual char const* what() const { return #name; }
 
