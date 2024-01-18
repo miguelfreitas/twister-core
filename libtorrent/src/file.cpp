@@ -1833,7 +1833,7 @@ typedef struct _FILE_ALLOCATED_RANGE_BUFFER {
 #ifdef FIEMAP_EXTENT_UNKNOWN
 		// for documentation of this feature
 		// http://lwn.net/Articles/297696/
-		struct
+		union
 		{
 			struct fiemap fiemap;
 			struct fiemap_extent extent;
